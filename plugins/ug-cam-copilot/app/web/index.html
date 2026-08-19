@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UG CAM Copilot | Workflow Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111416;
+      --panel: #1b2024;
+      --panel-2: #232a2f;
+      --line: #39434a;
+      --text: #edf3f0;
+      --muted: #9aa7a4;
+      --teal: #58d3b4;
+      --yellow: #f2c66d;
+      --red: #ef8e84;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, "Segoe UI", sans-serif; }
+    header { padding: 28px 32px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 24px; align-items: end; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; letter-spacing: 0; }
+    .eyebrow { color: var(--teal); text-transform: uppercase; font-size: 11px; letter-spacing: 1.3px; font-weight: 700; margin-bottom: 6px; }
+    .sub { color: var(--muted); margin-top: 6px; max-width: 700px; }
+    main { max-width: 1320px; margin: 0 auto; padding: 24px 32px 48px; display: grid; gap: 18px; }
+    .toolbar, .metrics, .grid { display: grid; gap: 14px; }
+    .toolbar { grid-template-columns: 150px 1fr 130px 130px; align-items: end; }
+    label { color: var(--muted); font-size: 12px; display: grid; gap: 5px; }
+    select, input, textarea, button { font: inherit; }
+    select, input, textarea { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 9px 10px; }
+    textarea { min-height: 220px; width: 100%; resize: vertical; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
+    button { border: 0; border-radius: 5px; padding: 10px 13px; cursor: pointer; font-weight: 700; }
+    .primary { background: var(--teal); color: #0d201c; }
+    .secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 17px; }
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+    .metric strong { display: block; font-size: 26px; color: var(--teal); margin-top: 4px; }
+    .grid { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: start; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .section-head h2 { font-size: 15px; }
+    .muted { color: var(--muted); }
+    .log-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .log-filters select { min-width: 0; width: 100%; padding: 7px 8px; }
+    .timeline-row { display: grid; grid-template-columns: 34px 62px minmax(90px, .45fr) minmax(0, 1fr); align-items: baseline; gap: 8px; }
+    .event-index { color: #697774; font: 11px "Cascadia Code", Consolas, monospace; }
+    .mode-badge { border-radius: 3px; padding: 2px 5px; font-size: 10px; font-weight: 700; text-align: center; }
+    .mode-badge.manual { background: #1a4b40; color: #8ce5ce; }
+    .mode-badge.automation { background: #55451e; color: #f7d98c; }
+    .mode-badge.system { background: #3c454a; color: #c4cfcc; }
+    .event-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recipe { border-top: 1px solid var(--line); padding: 13px 0; }
+    .recipe:first-child { border-top: 0; padding-top: 0; }
+    .recipe-title { display: flex; justify-content: space-between; gap: 10px; }
+    .badge { color: #16201d; background: var(--yellow); padding: 2px 6px; border-radius: 4px; font-size: 11px; white-space: nowrap; }
+    .steps { margin: 9px 0 0; padding-left: 18px; color: var(--muted); }
+    .steps li { margin: 3px 0; }
+    pre { background: #0d1012; border: 1px solid #2a3236; border-radius: 5px; padding: 12px; overflow: auto; max-height: 300px; white-space: pre-wrap; font: 12px/1.45 "Cascadia Code", Consolas, monospace; }
+    .suggestion { background: #17342f; border-left: 3px solid var(--teal); padding: 10px 12px; margin-top: 8px; }
+    .danger { color: var(--red); }
+    @media (max-width: 850px) {
+      header { display: block; padding: 22px 18px; }
+      main { padding: 18px; }
+      .toolbar, .grid, .metrics { grid-template-columns: 1fr; }
+      .log-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .timeline-row { grid-template-columns: 30px 58px minmax(0, 1fr); }
+      .event-detail { grid-column: 3; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="eyebrow">Workflow Lab / MVP</div>
+      <h1>UG CAM Copilot</h1>
+      <p class="sub">把 PowerMill 宏或 NX Journal 变成可审阅的重复流程、下一步建议和自动化草稿。</p>
+    </div>
+    <div class="muted">本地分析 · 不上传日志 · 不自动执行宏</div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="toolbar">
+        <label>来源
+          <select id="source"><option value="powermill">PowerMill</option><option value="nx">Siemens NX</option></select>
+        </label>
+        <label>日志格式
+          <select id="format"><option value="auto">自动识别</option><option value="json">JSON / JSONL</option><option value="powermill-macro">PowerMill .mac</option><option value="nx-journal">NX Journal</option></select>
+        </label>
+        <label>最小重复次数
+          <input id="support" type="number" min="2" max="10" value="2" />
+        </label>
+        <div style="display:flex;gap:8px">
+          <button class="secondary" id="sample">载入样例</button>
+          <button class="primary" id="analyze">分析</button>
+        </div>
+      </div>
+      <label style="margin-top:14px">粘贴录制日志
+        <textarea id="log" spellcheck="false"></textarea>
+      </label>
+    </section>
+
+    <section class="metrics">
+      <div class="panel metric"><span class="muted">事件数</span><strong id="event-count">0</strong></div>
+      <div class="panel metric"><span class="muted">发现的 recipe</span><strong id="recipe-count">0</strong></div>
+      <div class="panel metric"><span class="muted">最高置信度</span><strong id="confidence">0%</strong></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="section-head"><h2>下一步建议</h2><span class="muted">从最近两个动作匹配</span></div>
+        <div id="suggestions" class="muted">等待分析...</div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>事件时间线</h2><span id="event-note" class="muted"></span></div>
+        <div class="log-filters" aria-label="日志筛选">
+          <label>模式
+            <select id="log-mode">
+              <option value="">全部模式</option>
+              <option value="manual">仅手动操作</option>
+              <option value="automation">自动化 / 回放</option>
+              <option value="system">系统事件</option>
+            </select>
+          </label>
+          <label>一级 · 产品
+            <select id="log-product"><option value="">全部产品</option></select>
+          </label>
+          <label>二级 · 类别
+            <select id="log-category"><option value="">全部类别</option></select>
+          </label>
+          <label>三级 · 动作
+            <select id="log-action"><option value="">全部动作</option></select>
+          </label>
+        </div>
+        <ol id="timeline" class="steps"></ol>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>可复用流程</h2><span class="muted">值变化会标记为 variable</span></div>
+      <div id="recipes" class="muted">等待分析...</div>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { recipes: [], events: [] };
+    const MAX_VISIBLE_LOGS = 500;
+    const MODE_LABELS = { manual: "手动", automation: "自动", system: "系统" };
+    function esc(v) { return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c])); }
+    function eventCategory(event) {
+      return String(event.target || event.metadata?.category || "other");
+    }
+    function sortedUnique(values) {
+      return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+    }
+    function populateFilter(id, values, allLabel) {
+      const select = $(id);
+      const previous = select.value;
+      select.innerHTML = `<option value="">${esc(allLabel)}</option>` +
+        sortedUnique(values).map(value => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
+      select.value = [...select.options].some(option => option.value === previous) ? previous : "";
+    }
+    function eventMatches(event) {
+      return (!$("log-mode").value || event.mode === $("log-mode").value)
+        && (!$("log-product").value || event.app === $("log-product").value)
+        && (!$("log-category").value || eventCategory(event) === $("log-category").value)
+        && (!$("log-action").value || event.action === $("log-action").value);
+    }
+    function renderTimeline() {
+      const matching = state.events.filter(eventMatches);
+      const visible = matching.slice(0, MAX_VISIBLE_LOGS);
+      const limited = matching.length > visible.length ? `，为保证性能仅渲染前 ${visible.length} 条` : "";
+      $("event-note").textContent = `显示 ${visible.length} / 匹配 ${matching.length} / 总计 ${state.events.length}${limited}`;
+      $("timeline").innerHTML = visible.length
+        ? visible.map(event => `
+          <li class="timeline-row">
+            <span class="event-index">#${event.index + 1}</span>
+            <span class="mode-badge ${esc(event.mode)}">${esc(MODE_LABELS[event.mode] || event.mode)}</span>
+            <b>${esc(eventCategory(event))}</b>
+            <span class="muted event-detail" title="${esc(event.value)}">${esc(event.action)} · ${esc(event.value)}</span>
+          </li>`).join("")
+        : `<li class="muted">当前筛选条件下没有日志。</li>`;
+    }
+    function refreshLogFilters() {
+      const mode = $("log-mode").value;
+      const byMode = state.events.filter(event => !mode || event.mode === mode);
+      populateFilter("log-product", byMode.map(event => event.app), "全部产品");
+      const product = $("log-product").value;
+      const byProduct = byMode.filter(event => !product || event.app === product);
+      populateFilter("log-category", byProduct.map(eventCategory), "全部类别");
+      const category = $("log-category").value;
+      const byCategory = byProduct.filter(event => !category || eventCategory(event) === category);
+      populateFilter("log-action", byCategory.map(event => event.action), "全部动作");
+      renderTimeline();
+    }
+    function render(data) {
+      $("event-count").textContent = data.summary.event_count;
+      $("recipe-count").textContent = data.summary.recipe_count;
+      $("confidence").textContent = `${Math.round(data.summary.top_confidence * 100)}%`;
+      state.events = data.events || [];
+      refreshLogFilters();
+      $("suggestions").innerHTML = data.suggestions.length
+        ? data.suggestions.map(s => `<div class="suggestion"><b>${esc(s.next_action.action)} ${esc(s.next_action.target)}</b><br><span class="muted">${esc(s.reason)} · ${Math.round(s.confidence * 100)}%</span></div>`).join("")
+        : `<span class="muted">没有足够的前缀匹配。再录制几次同类操作后重试。</span>`;
+      state.recipes = data.recipes;
+      $("recipes").innerHTML = data.recipes.length ? data.recipes.map((r, i) => `
+        <article class="recipe">
+          <div class="recipe-title"><div><b>${i + 1}. ${esc(r.title)}</b><div class="muted">${esc(r.app)} · ${r.support} 次 · ${Math.round(r.confidence * 100)}%</div></div><span class="badge">${r.parameter_candidates.length ? "可参数化" : "稳定"}</span></div>
+          <ol class="steps">${r.steps.map(s => `<li><b>${esc(s.action)}</b> ${esc(s.target)} <span class="${s.variable ? "danger" : "muted"}">${esc(s.value)}${s.variable ? " · variable" : ""}</span></li>`).join("")}</ol>
+          <details style="margin-top:10px"><summary>PowerMill .mac 草稿</summary><pre>${esc(r.powermill_macro)}</pre></details>
+          <details style="margin-top:8px"><summary>NXOpen Python 草稿</summary><pre>${esc(r.nx_journal)}</pre></details>
+        </article>`).join("") : `<span class="muted">暂无重复流程。至少需要两次相同动作序列。</span>`;
+    }
+    async function analyze() {
+      $("analyze").disabled = true; $("analyze").textContent = "分析中...";
+      try {
+        const response = await fetch("/api/analyze", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ source: $("source").value, format: $("format").value, min_support: $("support").value, text: $("log").value }) });
+        render(await response.json());
+      } catch (error) { $("recipes").innerHTML = `<span class="danger">${esc(error.message)}</span>`; }
+      $("analyze").disabled = false; $("analyze").textContent = "分析";
+    }
+    $("analyze").addEventListener("click", analyze);
+    ["log-mode", "log-product", "log-category", "log-action"].forEach(id => {
+      $(id).addEventListener("change", refreshLogFilters);
+    });
+    $("sample").addEventListener("click", async () => {
+      const source = $("source").value;
+      $("log").value = await (await fetch(`/api/sample?source=${source}`)).text();
+      $("format").value = source === "nx" ? "nx-journal" : "json";
+    });
+    fetch("/api/sample").then(r => r.text()).then(t => { $("log").value = t; });
+    fetch("/api/state").then(r => r.json()).then(render);
+  </script>
+</body>
+</html>

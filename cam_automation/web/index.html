@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CAM Automation Studio</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">CAM</span>
+        <div>
+          <strong>CAM Automation Studio</strong>
+          <span>UG / NX · PowerMill · Codex</span>
+        </div>
+      </div>
+      <div class="topbar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="runtimeLabel">本地 dry-run</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="source-pane">
+        <div class="pane-heading">
+          <div>
+            <span class="eyebrow">WORKFLOW</span>
+            <h1>导入工作流</h1>
+          </div>
+          <span id="lineCount">0 行</span>
+        </div>
+
+        <label class="field-label">产品</label>
+        <div class="segmented" role="group" aria-label="选择 CAM 产品">
+          <button class="segment active" type="button" data-product="nx">UG / NX</button>
+          <button class="segment" type="button" data-product="powermill">PowerMill</button>
+        </div>
+
+        <label class="field-label" for="sourceFormat">输入格式</label>
+        <select id="sourceFormat" class="text-input">
+          <option value="nx_journal">NX Open Journal (.py)</option>
+          <option value="jsonl">ActivityEvent JSONL</option>
+        </select>
+
+        <label class="field-label" for="recipeName">配方名称</label>
+        <input id="recipeName" class="text-input" value="nx-workflow" autocomplete="off">
+
+        <div class="source-actions">
+          <button id="sampleButton" class="button secondary" type="button">载入样例</button>
+          <button id="fileButton" class="button secondary" type="button">打开文件</button>
+          <input id="fileInput" type="file" accept=".py,.log,.txt,.mac,.jsonl" hidden>
+        </div>
+
+        <label id="sourceLabel" class="field-label" for="sourceInput">NX Open Journal</label>
+        <textarea id="sourceInput" spellcheck="false" aria-label="CAM 行为日志"></textarea>
+
+        <div class="source-footer">
+          <label class="switch-row">
+            <input id="allowReview" type="checkbox">
+            <span>将复核步骤放入预览</span>
+          </label>
+          <button id="analyzeButton" class="button primary" type="button">分析工作流</button>
+        </div>
+
+        <section class="connection-panel" aria-label="连接状态">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">BRIDGES</span>
+              <h2>连接状态</h2>
+            </div>
+            <button id="refreshConnections" class="button link-button" type="button">刷新</button>
+          </div>
+          <div id="connectionList" class="connection-list"></div>
+        </section>
+      </aside>
+
+      <section class="result-pane" aria-live="polite">
+        <div class="result-header">
+          <nav class="tabs" aria-label="输出视图">
+            <button class="tab active" type="button" role="tab" data-tab="overview">概览</button>
+            <button class="tab" type="button" role="tab" data-tab="logs">日志</button>
+            <button class="tab" type="button" role="tab" data-tab="recipe">配方 JSON</button>
+            <button class="tab" type="button" role="tab" data-tab="preview">
+              <span id="previewTabLabel">NX 预览</span>
+            </button>
+            <button class="tab" type="button" role="tab" data-tab="codex">Codex 审阅</button>
+          </nav>
+          <div id="analysisState" class="analysis-state">等待输入</div>
+        </div>
+
+        <div id="overviewPanel" class="tab-panel active" data-panel="overview">
+          <div class="metrics" aria-label="分析指标">
+            <div class="metric"><span>会话</span><strong id="sessionMetric">0</strong></div>
+            <div class="metric"><span>动作</span><strong id="commandMetric">0</strong></div>
+            <div class="metric"><span>参数</span><strong id="parameterMetric">0</strong></div>
+            <div class="metric"><span>需复核</span><strong id="reviewMetric">0</strong></div>
+            <div class="metric blocked"><span>已阻断</span><strong id="blockedMetric">0</strong></div>
+          </div>
+
+          <div class="overview-grid">
+            <section class="flow-section">
+              <div class="section-heading">
+                <div>
+                  <span class="eyebrow">SEQUENCE</span>
+                  <h2>动作序列</h2>
+                </div>
+                <span id="matchLabel">0 / 0 会话</span>
+              </div>
+              <canvas id="workflowCanvas" aria-label="工作流动作序列"></canvas>
+              <div id="stepList" class="step-list"></div>
+            </section>
+
+            <section class="parameter-section">
+              <div class="section-heading">
+                <div>
+                  <span class="eyebrow">PARAMETERS</span>
+                  <h2>可变参数</h2>
+                </div>
+                <button id="applyParameters" class="button secondary compact" type="button">重新生成</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>参数</th><th>类型</th><th>当前值</th></tr></thead>
+                  <tbody id="parameterRows"></tbody>
+                </table>
+              </div>
+              <div id="diagnosticList" class="diagnostics"></div>
+            </section>
+          </div>
+        </div>
+
+        <div id="logPanel" class="tab-panel log-panel" data-panel="logs">
+          <div class="log-filterbar">
+            <div class="mode-filter">
+              <span class="filter-label">模式</span>
+              <div class="mode-options" role="group" aria-label="日志模式">
+                <button class="mode-option active" type="button" data-log-mode="all">全部</button>
+                <button class="mode-option" type="button" data-log-mode="manual">仅手动</button>
+                <button class="mode-option" type="button" data-log-mode="automation">自动化</button>
+                <button class="mode-option" type="button" data-log-mode="system">系统</button>
+              </div>
+            </div>
+            <label class="filter-field" for="logProductFilter">
+              <span>一级 · 产品</span>
+              <select id="logProductFilter"><option value="all">全部产品</option></select>
+            </label>
+            <label class="filter-field" for="logCategoryFilter">
+              <span>二级 · 类别</span>
+              <select id="logCategoryFilter"><option value="all">全部类别</option></select>
+            </label>
+            <label class="filter-field" for="logActionFilter">
+              <span>三级 · 动作</span>
+              <select id="logActionFilter"><option value="all">全部动作</option></select>
+            </label>
+            <span id="logEventCount" class="event-count">0 / 0 条</span>
+          </div>
+          <div class="event-log">
+            <div class="event-header" aria-hidden="true">
+              <span>来源</span><span>模式</span><span>层级</span><span>原始动作</span><span>风险</span>
+            </div>
+            <div id="logEventRows" class="event-rows"></div>
+          </div>
+        </div>
+
+        <div id="recipePanel" class="tab-panel code-panel" data-panel="recipe">
+          <div class="code-toolbar">
+            <span>recipe.json</span>
+            <button id="copyRecipe" class="button secondary compact" type="button">复制</button>
+          </div>
+          <pre id="recipeOutput"></pre>
+        </div>
+
+        <div id="previewPanel" class="tab-panel code-panel" data-panel="preview">
+          <div class="code-toolbar">
+            <span id="previewFileLabel">nx_preview_journal.py</span>
+            <div>
+              <button id="copyPreview" class="button secondary compact" type="button">复制</button>
+              <button id="downloadPreview" class="button secondary compact" type="button">下载</button>
+            </div>
+          </div>
+          <pre id="previewOutput"></pre>
+        </div>
+
+        <div id="codexPanel" class="tab-panel codex-panel" data-panel="codex">
+          <div class="codex-header">
+            <div>
+              <span class="eyebrow">CODEX BRIDGE V1</span>
+              <h2>审阅交换</h2>
+            </div>
+            <span id="codexState" class="review-state">等待分析</span>
+          </div>
+          <p class="codex-note">
+            导出的内容只包含动作、参数、风险和证据。Codex 的结论会回到本地模块，不能直接执行 CAD/CAM 命令。
+          </p>
+          <div class="codex-actions">
+            <button id="exportContext" class="button primary" type="button">导出 Codex 上下文</button>
+            <button id="copyContext" class="button secondary" type="button">复制上下文</button>
+          </div>
+          <label class="field-label" for="reviewStatus">回传审阅结论</label>
+          <select id="reviewStatus" class="text-input">
+            <option value="needs_review">待审阅</option>
+            <option value="needs_changes">需要修改</option>
+            <option value="approved_for_simulation">可进入仿真</option>
+            <option value="rejected">拒绝</option>
+          </select>
+          <label class="field-label" for="reviewFindings">发现与门禁</label>
+          <textarea id="reviewFindings" class="review-input" placeholder="每行一条，例如：确认 MCS 与刀具库映射"></textarea>
+          <button id="submitReview" class="button secondary" type="button">保存审阅结论</button>
+          <pre id="contextOutput" class="context-output"></pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

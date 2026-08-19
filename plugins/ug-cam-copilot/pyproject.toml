@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ug-cam-copilot-core"
+version = "0.2.0"
+description = "Local-first workflow learning for Siemens NX and PowerMill CAM automation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "UG CAM Automation Team"}]
+dependencies = []
+
+[project.scripts]
+ugcam = "ugcam_ai.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

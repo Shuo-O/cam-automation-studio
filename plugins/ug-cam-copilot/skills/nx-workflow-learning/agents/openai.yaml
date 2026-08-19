@@ -1,0 +1,4 @@
+interface:
+  display_name: "NX Workflow Learning"
+  short_description: "Learn repeatable Siemens NX workflows from journals"
+  default_prompt: "Use $nx-workflow-learning to turn my NX journals into a reviewed automation recipe."

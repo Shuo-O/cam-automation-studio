@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/ug-cam-copilot/activity-event.schema.json",
+  "title": "UG CAM Activity Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "seq",
+    "product",
+    "action",
+    "category"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "seq": {"type": "integer", "minimum": 0},
+    "product": {"enum": ["nx", "powermill"]},
+    "action": {
+      "type": "string",
+      "pattern": "^(cam|nx|powermill|part|object)\\."
+    },
+    "category": {"type": "string", "minLength": 1},
+    "mode": {
+      "enum": ["manual", "automation", "system"],
+      "default": "manual"
+    },
+    "params": {"type": "object", "default": {}},
+    "source_file": {"type": "string", "default": ""},
+    "source_line": {"type": "integer", "minimum": 0, "default": 0},
+    "duration_ms": {"type": ["integer", "null"], "minimum": 0},
+    "timestamp": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}

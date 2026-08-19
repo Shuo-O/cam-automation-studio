@@ -1,0 +1,31 @@
+{
+  "name": "powermill-cam-copilot",
+  "version": "0.1.0",
+  "description": "Learn reviewed PowerMill automation recipes from operator command logs.",
+  "author": {
+    "name": "Local developer"
+  },
+  "license": "MIT",
+  "keywords": [
+    "powermill",
+    "cam",
+    "automation",
+    "manufacturing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "PowerMill CAM Copilot",
+    "shortDescription": "Learn reviewed automation from PowerMill operator logs.",
+    "longDescription": "Turns PowerMill command logs into parameterized workflow recipes, safety reports, and review-first macro artifacts using the local CAM automation core.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [
+      "Local workflow analysis",
+      "Reviewed macro generation"
+    ],
+    "defaultPrompt": [
+      "Learn a reviewed PowerMill recipe from my command log.",
+      "Audit this PowerMill macro before I reuse it."
+    ]
+  }
+}

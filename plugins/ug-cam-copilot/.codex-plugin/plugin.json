@@ -1,0 +1,25 @@
+{
+  "name": "ug-cam-copilot",
+  "version": "0.2.0",
+  "description": "AI-assisted workflow learning for PowerMill and Siemens NX CAM.",
+  "author": {
+    "name": "UG CAM Automation Team"
+  },
+  "license": "MIT",
+  "keywords": ["powermill", "siemens-nx", "nxopen", "cam", "automation"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "UG CAM Copilot",
+    "shortDescription": "Learn repeatable PowerMill and NX CAM workflows.",
+    "longDescription": "UG CAM Copilot turns recorded PowerMill macros or NX journals into reviewed automation recipes. The local MVP mines repeated actions, suggests the next step, and exports safe PowerMill macro or NXOpen journal drafts.",
+    "developerName": "UG CAM Automation Team",
+    "category": "Productivity",
+    "capabilities": ["Analysis", "Write"],
+    "defaultPrompt": [
+      "Learn a repeated PowerMill workflow from my macro logs.",
+      "Analyze my NX journals and create a reviewed automation recipe.",
+      "Audit this CAM automation candidate before testing."
+    ],
+    "brandColor": "#006487"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "personal",
+  "interface": {
+    "displayName": "Personal"
+  },
+  "plugins": [
+    {
+      "name": "ug-cam-copilot",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ug-cam-copilot"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "powermill-cam-copilot",
+      "source": {
+        "source": "local",
+        "path": "./plugins/powermill-cam-copilot"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerMill Workflow Learning"
+  short_description: "Learn reviewed PowerMill macros from operator logs"
+  default_prompt: "Use $powermill-cam-workflow-learning to turn my PowerMill command log into a reviewed automation recipe."

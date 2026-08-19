@@ -1,0 +1,14 @@
+[
+  {"app":"powermill","action":"select","target":"toolpath","value":"ROUGH_A"},
+  {"app":"powermill","action":"set","target":"tolerance","value":"0.05"},
+  {"app":"powermill","action":"set","target":"stepdown","value":"2.0"},
+  {"app":"powermill","action":"calculate","target":"toolpath","value":"ROUGH_A"},
+  {"app":"powermill","action":"select","target":"toolpath","value":"ROUGH_B"},
+  {"app":"powermill","action":"set","target":"tolerance","value":"0.05"},
+  {"app":"powermill","action":"set","target":"stepdown","value":"2.0"},
+  {"app":"powermill","action":"calculate","target":"toolpath","value":"ROUGH_B"},
+  {"app":"powermill","action":"select","target":"toolpath","value":"ROUGH_C"},
+  {"app":"powermill","action":"set","target":"tolerance","value":"0.04"},
+  {"app":"powermill","action":"set","target":"stepdown","value":"1.8"},
+  {"app":"powermill","action":"calculate","target":"toolpath","value":"ROUGH_C"}
+]

@@ -114,6 +114,16 @@ textarea:focus-visible {
   box-shadow: 0 0 0 3px rgb(78 193 157 / 15%);
 }
 
+.status-dot.awaiting_consent,
+.status-dot.paused {
+  background: #aeb8b5;
+  box-shadow: none;
+}
+
+.status-dot.recording {
+  background: #4ec19d;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(340px, 31vw) minmax(0, 1fr);
@@ -288,11 +298,92 @@ textarea {
   accent-color: var(--amber);
 }
 
+.recorder-panel,
 .connection-panel {
   display: grid;
   gap: 9px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+
+.recorder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recorder-header h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.recorder-state {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recorder-state.recording {
+  color: var(--accent);
+}
+
+.recorder-state.error {
+  color: var(--red);
+}
+
+.recorder-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.recorder-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.recorder-metrics strong {
+  color: var(--blue);
+  font-size: 15px;
+}
+
+.recorder-label {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.recorder-label select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 7px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.recorder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.button.danger {
+  border-color: #e0b4b0;
+  background: var(--paper);
+  color: var(--red);
+}
+
+.button.danger:hover {
+  background: var(--red-soft);
 }
 
 .connection-list {

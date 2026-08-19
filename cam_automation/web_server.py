@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .codex_bridge import review_request, validate_review, write_exchange
+from .execution import ExecutionGateway, ExecutionRequest
 from .integrations import (
     analyze,
     capability_manifest,
@@ -16,6 +18,7 @@ from .integrations import (
     sample_for,
 )
 from .sample import SAMPLE_LOG
+from .recorder import CaptureService
 
 
 _WEB_ROOT = Path(__file__).with_name("web")
@@ -23,7 +26,7 @@ _MAX_BODY = 2 * 1024 * 1024
 
 
 class _WorkflowHandler(BaseHTTPRequestHandler):
-    server_version = "CamAutomationStudio/0.2"
+    server_version = "CamAutomationStudio/0.3"
 
     def _json(self, status: HTTPStatus, value: Any) -> None:
         payload = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -33,6 +36,31 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(payload)
+
+    def _bytes(
+        self,
+        status: HTTPStatus,
+        payload: bytes,
+        *,
+        content_type: str,
+        filename: str | None = None,
+    ) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _recorder_api_allowed(self, path: str) -> bool:
+        if not (path.startswith("/api/recorder") or path.startswith("/api/execution")):
+            return True
+        if self.client_address[0] in {"127.0.0.1", "::1"}:
+            return True
+        self._json(HTTPStatus.FORBIDDEN, {"error": "Recorder APIs are local-only."})
+        return False
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))
@@ -45,10 +73,12 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = unquote(urlparse(self.path).path)
+        if not self._recorder_api_allowed(path):
+            return
         if path == "/api/health":
             self._json(
                 HTTPStatus.OK,
-                {"status": "ok", "version": "0.2.0", "module": "CAM Automation Studio"},
+                {"status": "ok", "version": "0.3.0", "module": "CAM Automation Studio"},
             )
             return
         if path == "/api/sample":
@@ -63,6 +93,38 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         if path == "/api/connections":
             self._json(HTTPStatus.OK, {"connections": connection_statuses()})
             return
+        if path == "/api/recorder":
+            self._json(HTTPStatus.OK, self.server.recorder.status())
+            return
+        if path == "/api/recorder/events":
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                limit = int(query.get("limit", ["500"])[0])
+            except (TypeError, ValueError):
+                self._json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "limit must be an integer between 1 and 10000."},
+                )
+                return
+            product = query.get("product", [None])[0]
+            events = self.server.recorder.recent_events(limit=limit, product=product)
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "events": events,
+                    "returned": len(events),
+                    "counts": self.server.recorder.status()["counts"],
+                },
+            )
+            return
+        if path == "/api/recorder/export":
+            self._bytes(
+                HTTPStatus.OK,
+                self.server.recorder.export_jsonl(),
+                content_type="application/x-ndjson; charset=utf-8",
+                filename="cam-captured-events.jsonl",
+            )
+            return
         if path == "/api/state":
             self._json(HTTPStatus.OK, self.server.state)
             return
@@ -70,11 +132,78 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
-        if path not in {"/api/learn", "/api/analyze", "/api/codex/context", "/api/codex/review"}:
+        if not self._recorder_api_allowed(path):
+            return
+        if path not in {
+            "/api/learn",
+            "/api/analyze",
+            "/api/codex/context",
+            "/api/codex/review",
+            "/api/recorder/consent",
+            "/api/recorder/control",
+            "/api/recorder/label",
+            "/api/recorder/scan",
+            "/api/recorder/clear",
+            "/api/execution/run",
+        }:
             self._json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
             return
         try:
             body = self._read_json()
+            if path == "/api/recorder/consent":
+                if not isinstance(body.get("accepted"), bool):
+                    raise ValueError("accepted must be a boolean.")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.recorder.configure(consent=body["accepted"]),
+                )
+                return
+            if path == "/api/recorder/control":
+                if not isinstance(body.get("enabled"), bool):
+                    raise ValueError("enabled must be a boolean.")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.recorder.configure(enabled=body["enabled"]),
+                )
+                return
+            if path == "/api/recorder/label":
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.recorder.configure(
+                        operator_label=str(body.get("operator_label", ""))
+                    ),
+                )
+                return
+            if path == "/api/recorder/scan":
+                inserted = self.server.recorder.scan_once()
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "inserted": inserted,
+                        "recorder": self.server.recorder.status(),
+                    },
+                )
+                return
+            if path == "/api/recorder/clear":
+                if body.get("confirm") != "CLEAR_CAPTURED_EVENTS":
+                    raise ValueError("Captured event deletion requires the confirmation token.")
+                removed = self.server.recorder.clear()
+                self._json(
+                    HTTPStatus.OK,
+                    {"removed": removed, "recorder": self.server.recorder.status()},
+                )
+                return
+            if path == "/api/execution/run":
+                request = ExecutionRequest.from_dict(body)
+                result = self.server.execution.execute(request)
+                self.server.recorder.record_execution(request=body, result=result)
+                status = (
+                    HTTPStatus.OK
+                    if result["status"] == "dry_run"
+                    else HTTPStatus.UNPROCESSABLE_ENTITY
+                )
+                self._json(status, result)
+                return
             if path == "/api/codex/review":
                 self._handle_codex_review(body)
                 return
@@ -116,7 +245,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             )
             self.server.state["analysis"] = result
             self._json(HTTPStatus.OK, result)
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             self._json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
 
     def _handle_codex_review(self, body: dict[str, Any]) -> None:
@@ -155,11 +284,23 @@ class _WorkflowServer(ThreadingHTTPServer):
 
     def __init__(self, address: tuple[str, int], handler: type[BaseHTTPRequestHandler]) -> None:
         super().__init__(address, handler)
+        configured_capture_dir = os.environ.get("CAM_CAPTURE_DIR")
+        capture_dir = (
+            Path(configured_capture_dir)
+            if configured_capture_dir
+            else Path.cwd() / "build" / "capture"
+        )
+        self.recorder = CaptureService(capture_dir)
+        self.execution = ExecutionGateway()
         self.state: dict[str, Any] = {
             "analysis": None,
             "codex_request": None,
             "codex_review": None,
         }
+
+    def server_close(self) -> None:
+        self.recorder.close()
+        super().server_close()
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765) -> None:

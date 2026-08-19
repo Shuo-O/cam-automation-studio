@@ -16,7 +16,7 @@
         </div>
       </div>
       <div class="topbar-status">
-        <span class="status-dot" aria-hidden="true"></span>
+        <span id="runtimeDot" class="status-dot" aria-hidden="true"></span>
         <span id="runtimeLabel">本地 dry-run</span>
       </div>
     </header>
@@ -62,6 +62,37 @@
           </label>
           <button id="analyzeButton" class="button primary" type="button">分析工作流</button>
         </div>
+
+        <section class="recorder-panel" aria-label="后台记录">
+          <div class="recorder-header">
+            <div>
+              <span class="eyebrow">CAPTURE</span>
+              <h2>后台记录</h2>
+            </div>
+            <span id="recorderState" class="recorder-state">正在连接</span>
+          </div>
+          <p class="recorder-note">仅在本机读取 CAM 日志，路径脱敏，不上传。</p>
+          <div class="recorder-metrics">
+            <span><strong id="recorderCount">0</strong> 条事件</span>
+            <span id="recorderSourceSummary">0 个日志源</span>
+          </div>
+          <label class="recorder-label" for="recorderLabel">
+            <span>会话标签</span>
+            <select id="recorderLabel">
+              <option value="unlabeled">未标注</option>
+              <option value="routine">日常操作</option>
+              <option value="expert">专家示范</option>
+            </select>
+          </label>
+          <div class="recorder-actions">
+            <button id="recorderConsent" class="button primary compact" type="button">允许并记录</button>
+            <button id="recorderToggle" class="button secondary compact" type="button" hidden>暂停</button>
+            <button id="recorderScan" class="button secondary compact" type="button">扫描</button>
+            <button id="recorderView" class="button secondary compact" type="button">查看</button>
+            <button id="recorderExport" class="button secondary compact" type="button">导出</button>
+            <button id="recorderClear" class="button danger compact" type="button">清除</button>
+          </div>
+        </section>
 
         <section class="connection-panel" aria-label="连接状态">
           <div class="section-heading">

@@ -11,6 +11,10 @@ ActivityEvent JSONL -> shared adapter -----+        |
                                                    +--> recipe + preview
                                                    +--> Codex Bridge v1
                                                    +--> human review record
+
+CAM log files ----> consent-gated CaptureService --> redacted local SQLite
+Execution request -> independent safety gate ------> dry-run/native transport
+                                                   +--> execution audit event
 ```
 
 `cam_automation/integrations.py` is the product-facing service boundary. It keeps the NX parser in
@@ -22,6 +26,13 @@ use `cam.*`.
 `cam_automation/codex_bridge.py` implements `cam.codex.bridge.v1`. It exports evidence and review
 instructions, validates an operator/Codex review response, and can persist an exchange bundle. It
 does not execute returned text or attach to a CAD/CAM process.
+
+`cam_automation/recorder.py` owns background source discovery, process detection, redaction,
+deduplication, SQLite persistence, and JSONL export. It reads only configured CAM source types and
+starts only after explicit first-use consent; the persisted setting enables automatic recording on
+later launches. `cam_automation/execution.py` is a separate fail-closed gateway. Dry-run is the only
+built-in transport, and execution attempts are written back as ActivityEvent audit evidence when
+recording consent exists.
 
 ## Data Flow
 
@@ -68,12 +79,17 @@ This is explainable, fast, reproducible, and usable without an API key. A future
 
 ## Safety Boundary
 
-- The demo never discovers or attaches to a running PowerMill process.
+- The recorder may detect a running CAM process but does not attach without a registered,
+  target-version native transport.
 - Generated macros are artifacts, not execution requests.
+- Command text is independently checked even when its submitted risk label is `safe`.
+- Live and review-classified requests require a reviewed recipe, target version, test project
+  snapshot, and identified approver.
 - External writes, project saves, exports, and NC output are `review`.
 - Delete, quit, project reset/close, nested macro execution, and external process commands are `blocked`.
 - String parameters reject control characters and escape the learned quote delimiter.
 - Real execution must add project snapshots, version checks, command acknowledgements, audit records, and an operator confirmation gate.
+- Machine-ready NC and postprocessing output are rejected by the execution gateway.
 
 ## PowerMill Adapter, Phase 2
 

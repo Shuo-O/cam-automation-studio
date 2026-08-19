@@ -42,6 +42,18 @@ const elements = {
   logActionFilter: document.querySelector("#logActionFilter"),
   logEventCount: document.querySelector("#logEventCount"),
   logEventRows: document.querySelector("#logEventRows"),
+  runtimeDot: document.querySelector("#runtimeDot"),
+  runtimeLabel: document.querySelector("#runtimeLabel"),
+  recorderState: document.querySelector("#recorderState"),
+  recorderCount: document.querySelector("#recorderCount"),
+  recorderSourceSummary: document.querySelector("#recorderSourceSummary"),
+  recorderLabel: document.querySelector("#recorderLabel"),
+  recorderConsent: document.querySelector("#recorderConsent"),
+  recorderToggle: document.querySelector("#recorderToggle"),
+  recorderScan: document.querySelector("#recorderScan"),
+  recorderView: document.querySelector("#recorderView"),
+  recorderExport: document.querySelector("#recorderExport"),
+  recorderClear: document.querySelector("#recorderClear"),
 };
 
 const state = {
@@ -49,6 +61,7 @@ const state = {
   result: null,
   parameters: {},
   context: null,
+  recorder: null,
   events: [],
   logFilters: {
     mode: "all",
@@ -63,6 +76,11 @@ const MODE_LABELS = {
   manual: "手动",
   automation: "自动",
   system: "系统",
+};
+const RECORDER_LABELS = {
+  awaiting_consent: "待授权",
+  recording: "记录中",
+  paused: "已暂停",
 };
 
 const PRODUCT_UI = {
@@ -92,6 +110,92 @@ function setStatus(message, isError = false) {
 function updateLineCount() {
   const value = elements.sourceInput.value;
   elements.lineCount.textContent = `${value ? value.split(/\r?\n/).length : 0} 行`;
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "请求失败");
+  return payload;
+}
+
+function activateTab(name) {
+  document.querySelectorAll(".tab").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === name);
+  });
+  document.querySelectorAll(".tab-panel").forEach((item) => {
+    item.classList.toggle("active", item.dataset.panel === name);
+  });
+  if (name === "overview") requestAnimationFrame(drawWorkflow);
+}
+
+function renderRecorder(status) {
+  state.recorder = status;
+  const total = Number(status.counts?.total || 0);
+  const sourceCount = Array.isArray(status.sources) ? status.sources.length : 0;
+  const processNames = [];
+  if (status.processes?.nx) processNames.push("NX");
+  if (status.processes?.powermill) processNames.push("PowerMill");
+  elements.recorderState.textContent = RECORDER_LABELS[status.state] || status.state;
+  elements.recorderState.className = `recorder-state ${status.state}`;
+  elements.recorderCount.textContent = total;
+  elements.recorderSourceSummary.textContent =
+    `${sourceCount} 个日志源${processNames.length ? ` · ${processNames.join(" / ")} 已运行` : ""}`;
+  elements.recorderLabel.value = status.operator_label || "unlabeled";
+  elements.recorderLabel.disabled = !status.consent;
+  elements.recorderConsent.hidden = status.consent;
+  elements.recorderToggle.hidden = !status.consent;
+  elements.recorderToggle.textContent = status.enabled ? "暂停" : "继续";
+  elements.recorderScan.disabled = status.state !== "recording";
+  elements.recorderView.disabled = total === 0;
+  elements.recorderExport.disabled = total === 0;
+  elements.recorderClear.disabled = total === 0;
+  elements.runtimeDot.className = `status-dot ${status.state}`;
+  elements.runtimeLabel.textContent = status.state === "recording"
+    ? `后台记录 · ${total}`
+    : `本地 dry-run · ${RECORDER_LABELS[status.state] || status.state}`;
+}
+
+async function loadRecorderStatus() {
+  try {
+    renderRecorder(await requestJson("/api/recorder"));
+  } catch (error) {
+    elements.recorderState.textContent = "不可用";
+    elements.recorderState.className = "recorder-state error";
+  }
+}
+
+async function postRecorder(path, body) {
+  const payload = await requestJson(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  renderRecorder(payload.recorder || payload);
+  return payload;
+}
+
+async function viewCapturedEvents() {
+  const payload = await requestJson("/api/recorder/events?limit=500");
+  state.events = payload.events || [];
+  state.logFilters = { mode: "all", product: "all", category: "all", action: "all" };
+  document.querySelectorAll("[data-log-mode]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.logMode === "all");
+  });
+  rebuildLogFilters();
+  activateTab("logs");
+  setStatus(`已载入 ${payload.returned} 条本地记录`);
+}
+
+async function exportCapturedEvents() {
+  const response = await fetch("/api/recorder/export");
+  if (!response.ok) throw new Error("导出失败");
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "cam-captured-events.jsonl";
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function collectParameters() {
@@ -491,11 +595,7 @@ document.querySelectorAll(".segment").forEach((button) => {
 });
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelector(`[data-panel="${tab.dataset.tab}"]`).classList.add("active");
-    if (tab.dataset.tab === "overview") requestAnimationFrame(drawWorkflow);
+    activateTab(tab.dataset.tab);
   });
 });
 elements.sourceInput.addEventListener("input", updateLineCount);
@@ -504,6 +604,51 @@ elements.analyzeButton.addEventListener("click", analyze);
 elements.applyParameters.addEventListener("click", analyze);
 elements.allowReview.addEventListener("change", analyze);
 elements.refreshConnections.addEventListener("click", loadConnections);
+elements.recorderConsent.addEventListener("click", async () => {
+  try {
+    await postRecorder("/api/recorder/consent", { accepted: true });
+    await postRecorder("/api/recorder/scan", {});
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+});
+elements.recorderToggle.addEventListener("click", () => {
+  postRecorder(
+    "/api/recorder/control",
+    { enabled: !state.recorder?.enabled },
+  ).catch((error) => setStatus(error.message, true));
+});
+elements.recorderScan.addEventListener("click", () => {
+  postRecorder("/api/recorder/scan", {})
+    .then((payload) => setStatus(`新增 ${payload.inserted} 条记录`))
+    .catch((error) => setStatus(error.message, true));
+});
+elements.recorderLabel.addEventListener("change", () => {
+  postRecorder(
+    "/api/recorder/label",
+    { operator_label: elements.recorderLabel.value },
+  ).catch((error) => setStatus(error.message, true));
+});
+elements.recorderView.addEventListener("click", () => {
+  viewCapturedEvents().catch((error) => setStatus(error.message, true));
+});
+elements.recorderExport.addEventListener("click", () => {
+  exportCapturedEvents().catch((error) => setStatus(error.message, true));
+});
+elements.recorderClear.addEventListener("click", async () => {
+  if (!window.confirm("清除本机已采集的全部 CAM 行为记录？")) return;
+  try {
+    const payload = await postRecorder(
+      "/api/recorder/clear",
+      { confirm: "CLEAR_CAPTURED_EVENTS" },
+    );
+    state.events = [];
+    rebuildLogFilters();
+    setStatus(`已清除 ${payload.removed} 条记录`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+});
 document.querySelectorAll("[data-log-mode]").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll("[data-log-mode]").forEach((item) => {
@@ -553,3 +698,5 @@ elements.downloadPreview.addEventListener("click", () => {
 new ResizeObserver(drawWorkflow).observe(elements.canvas);
 setProduct("nx");
 loadConnections();
+loadRecorderStatus();
+setInterval(loadRecorderStatus, 2000);

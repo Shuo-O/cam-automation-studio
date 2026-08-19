@@ -120,7 +120,7 @@ def connection_statuses() -> list[dict[str, Any]]:
 def capability_manifest() -> dict[str, Any]:
     return {
         "module": "CAM Automation Studio",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "execution_mode": "dry-run",
         "products": [
             {
@@ -135,9 +135,27 @@ def capability_manifest() -> dict[str, Any]:
             "direction": "context-export-and-review-import",
             "automatic_execution": False,
         },
+        "capture": {
+            "local_only": True,
+            "consent_required": True,
+            "auto_connect_after_consent": True,
+            "redaction": "redacted-local-v1",
+            "operator_labels": ["unlabeled", "routine", "expert"],
+        },
+        "execution": {
+            "default_transport": "dry-run",
+            "live_transports": [],
+            "records_requests_and_results": True,
+            "requires": [
+                "reviewed_recipe_hash",
+                "target_cam_version",
+                "snapshotted_test_project",
+                "identified_human_approver_for_live_or_review_actions",
+            ],
+        },
         "safety": {
-            "nc_output": "blocked-until-human-approval",
-            "cad_cam_mutation": "dry-run-only",
+            "nc_output": "blocked",
+            "cad_cam_mutation": "dry-run-until-versioned-live-transport-is-registered",
             "required_gates": [
                 "recipe_review",
                 "project_copy",

@@ -1,0 +1,19 @@
+{
+  "name": "cam-local-capture",
+  "version": "0.1.0",
+  "description": "Consent-gated local capture for NX and PowerMill operator logs.",
+  "author": {
+    "name": "CAM Automation Studio"
+  },
+  "license": "MIT",
+  "keywords": ["cam", "logging", "nx", "powermill", "privacy"],
+  "interface": {
+    "displayName": "CAM Local Capture",
+    "shortDescription": "Capture consented CAM behavior locally.",
+    "longDescription": "Adds local-only, redacted NX and PowerMill log capture with explicit first-use consent, source checkpoints, labels, export, and deletion controls.",
+    "developerName": "CAM Automation Studio",
+    "category": "Productivity",
+    "capabilities": ["Local capture", "Privacy controls"],
+    "defaultPrompt": "Explain how CAM Local Capture protects operator data."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "powermill-cam-copilot",
+  "name": "PowerMill 工作流",
+  "version": "0.1.0",
+  "summary": "学习 PowerMill 宏和命令日志，生成参数化审阅配方。",
+  "category": "工作流",
+  "order": 20,
+  "features": ["analysis:powermill", "preview:powermill", "connection:powermill"],
+  "dependencies": [],
+  "permissions": ["read:selected-files"],
+  "icon": "PM"
+}

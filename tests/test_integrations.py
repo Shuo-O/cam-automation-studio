@@ -58,6 +58,16 @@ operation.GenerateToolPath()
             )["review_status"],
         )
 
+    def test_empty_plugin_set_exposes_only_the_core(self) -> None:
+        manifest = capability_manifest(set())
+
+        self.assertEqual("CAM Automation Studio Core", manifest["module"])
+        self.assertEqual([], manifest["products"])
+        self.assertEqual("unavailable", manifest["execution_mode"])
+        self.assertFalse(manifest["capture"]["installed"])
+        self.assertFalse(manifest["codex"]["installed"])
+        self.assertEqual([], connection_statuses(set()))
+
     def test_connection_statuses_keep_all_three_bridges_visible(self) -> None:
         keys = {item["key"] for item in connection_statuses()}
         self.assertEqual({"codex", "nx", "powermill"}, keys)

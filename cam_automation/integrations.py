@@ -64,7 +64,9 @@ def _first_existing(*candidates: str | None) -> Path | None:
     return None
 
 
-def connection_statuses() -> list[dict[str, Any]]:
+def connection_statuses(
+    installed_plugins: Iterable[str] | None = None,
+) -> list[dict[str, Any]]:
     """Report discoverable local bridges without attaching to a live CAM process."""
 
     codex_cli = shutil.which(os.environ.get("CAM_CODEX_COMMAND", "codex"))
@@ -80,7 +82,7 @@ def connection_statuses() -> list[dict[str, Any]]:
         os.environ.get("PMILL_HOME"),
         os.environ.get("POWERMILL_ROOT"),
     )
-    return [
+    statuses = [
         ConnectionStatus(
             "codex",
             "Codex",
@@ -115,27 +117,62 @@ def connection_statuses() -> list[dict[str, Any]]:
             ("macro.parse", "macro.export", "project.review"),
         ).to_dict(),
     ]
+    if installed_plugins is None:
+        return statuses
+    installed = set(installed_plugins)
+    enabled_keys = {
+        "codex" if "cam-codex-review" in installed else "",
+        "nx" if "ug-cam-copilot" in installed else "",
+        "powermill" if "powermill-cam-copilot" in installed else "",
+    }
+    return [item for item in statuses if item["key"] in enabled_keys]
 
 
-def capability_manifest() -> dict[str, Any]:
+def capability_manifest(
+    installed_plugins: Iterable[str] | None = None,
+) -> dict[str, Any]:
+    installed = (
+        {
+            "ug-cam-copilot",
+            "powermill-cam-copilot",
+            "cam-local-capture",
+            "cam-execution-gateway",
+            "cam-codex-review",
+        }
+        if installed_plugins is None
+        else set(installed_plugins)
+    )
+    products = [
+        product
+        for product, plugin_id in (
+            ("nx", "ug-cam-copilot"),
+            ("powermill", "powermill-cam-copilot"),
+        )
+        if plugin_id in installed
+    ]
+    capture_installed = "cam-local-capture" in installed
+    execution_installed = "cam-execution-gateway" in installed
+    codex_installed = "cam-codex-review" in installed
     return {
-        "module": "CAM Automation Studio",
-        "version": "0.3.0",
-        "execution_mode": "dry-run",
+        "module": "CAM Automation Studio Core",
+        "version": "0.4.0",
+        "execution_mode": "dry-run" if execution_installed else "unavailable",
         "products": [
             {
                 "key": product,
                 "label": "UG / NX" if product == "nx" else "PowerMill",
                 "formats": list(SUPPORTED_FORMATS[product]),
             }
-            for product in SUPPORTED_PRODUCTS
+            for product in products
         ],
         "codex": {
+            "installed": codex_installed,
             "protocol": "cam.codex.bridge.v1",
             "direction": "context-export-and-review-import",
             "automatic_execution": False,
         },
         "capture": {
+            "installed": capture_installed,
             "local_only": True,
             "consent_required": True,
             "auto_connect_after_consent": True,
@@ -143,6 +180,7 @@ def capability_manifest() -> dict[str, Any]:
             "operator_labels": ["unlabeled", "routine", "expert"],
         },
         "execution": {
+            "installed": execution_installed,
             "default_transport": "dry-run",
             "live_transports": [],
             "records_requests_and_results": True,

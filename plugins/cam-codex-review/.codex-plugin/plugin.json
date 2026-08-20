@@ -1,0 +1,19 @@
+{
+  "name": "cam-codex-review",
+  "version": "0.1.0",
+  "description": "Structured Codex review exchange for CAM automation recipes.",
+  "author": {
+    "name": "CAM Automation Studio"
+  },
+  "license": "MIT",
+  "keywords": ["cam", "codex", "review", "recipe", "safety"],
+  "interface": {
+    "displayName": "CAM Codex Review",
+    "shortDescription": "Exchange reviewed CAM recipe context.",
+    "longDescription": "Adds structured local export and review import for CAM recipes while keeping execution separate and human-gated.",
+    "developerName": "CAM Automation Studio",
+    "category": "Productivity",
+    "capabilities": ["Context export", "Review import"],
+    "defaultPrompt": "Review this CAM automation recipe and list the required gates."
+  }
+}

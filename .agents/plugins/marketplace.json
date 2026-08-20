@@ -27,6 +27,42 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "cam-local-capture",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cam-local-capture"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "cam-execution-gateway",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cam-execution-gateway"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "cam-codex-review",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cam-codex-review"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }

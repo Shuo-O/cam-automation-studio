@@ -14,7 +14,13 @@ from cam_automation.web_server import _WorkflowHandler, _WorkflowServer
 class RecorderHttpTests(unittest.TestCase):
     def test_recorder_and_execution_apis_are_integrated(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            with patch.dict(os.environ, {"CAM_CAPTURE_DIR": directory}):
+            with patch.dict(
+                os.environ,
+                {
+                    "CAM_APP_DATA_DIR": os.path.join(directory, "app"),
+                    "CAM_CAPTURE_DIR": os.path.join(directory, "capture"),
+                },
+            ):
                 server = _WorkflowServer(("127.0.0.1", 0), _WorkflowHandler)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -22,6 +28,37 @@ class RecorderHttpTests(unittest.TestCase):
                 "127.0.0.1", server.server_port, timeout=5
             )
             try:
+                self.assertIsNone(server.recorder)
+                self.assertIsNone(server.execution)
+
+                status, plugins = self._request(connection, "GET", "/api/plugins")
+                self.assertEqual(200, status)
+                self.assertEqual(0, plugins["installed_count"])
+
+                status, missing = self._request(connection, "GET", "/api/recorder")
+                self.assertEqual(409, status)
+                self.assertEqual("cam-local-capture", missing["plugin_id"])
+
+                status, plugins = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/install",
+                    {"plugin_id": "cam-local-capture"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(["cam-local-capture"], plugins["changed"])
+                self.assertIsNotNone(server.recorder)
+
+                status, plugins = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/install",
+                    {"plugin_id": "cam-execution-gateway"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(["cam-execution-gateway"], plugins["changed"])
+                self.assertIsNotNone(server.execution)
+
                 status, recorder = self._request(connection, "GET", "/api/recorder")
                 self.assertEqual(200, status)
                 self.assertEqual("awaiting_consent", recorder["state"])

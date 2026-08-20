@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "cam-execution-gateway",
+  "name": "命令执行网关",
+  "version": "0.1.0",
+  "summary": "对 CAM 命令执行独立安全检查；内置传输仅支持 dry-run。",
+  "category": "执行",
+  "order": 40,
+  "features": ["execution:dry-run", "audit:execution"],
+  "dependencies": ["cam-local-capture"],
+  "permissions": ["review:cam-command"],
+  "icon": "RUN"
+}

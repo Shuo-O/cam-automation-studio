@@ -12,16 +12,44 @@
         <span class="brand-mark" aria-hidden="true">CAM</span>
         <div>
           <strong>CAM Automation Studio</strong>
-          <span>UG / NX · PowerMill · Codex</span>
+          <span>Plugin Core</span>
         </div>
       </div>
-      <div class="topbar-status">
-        <span id="runtimeDot" class="status-dot" aria-hidden="true"></span>
-        <span id="runtimeLabel">本地 dry-run</span>
+      <div class="topbar-actions">
+        <nav class="primary-nav" aria-label="主导航">
+          <button id="pluginNav" class="primary-nav-button active" type="button">插件</button>
+          <button id="workspaceNav" class="primary-nav-button" type="button" disabled>工作台</button>
+        </nav>
+        <div class="topbar-status">
+          <span id="runtimeDot" class="status-dot" aria-hidden="true"></span>
+          <span id="runtimeLabel">基础内核</span>
+        </div>
       </div>
     </header>
 
-    <main class="workspace">
+    <section id="pluginHome" class="plugin-home" aria-labelledby="pluginHomeTitle">
+      <header class="plugin-home-header">
+        <div>
+          <span class="eyebrow">MODULES</span>
+          <h1 id="pluginHomeTitle">插件中心</h1>
+        </div>
+        <div class="plugin-summary" aria-label="插件统计">
+          <strong id="installedPluginCount">0</strong>
+          <span>/</span>
+          <span id="availablePluginCount">0 个模块</span>
+        </div>
+      </header>
+      <div class="core-status">
+        <span class="core-status-mark" aria-hidden="true">CORE</span>
+        <div>
+          <strong>基础内核已就绪</strong>
+          <span>健康检查、插件安装与本地状态</span>
+        </div>
+      </div>
+      <div id="pluginGrid" class="plugin-grid" aria-live="polite"></div>
+    </section>
+
+    <main id="workspace" class="workspace" hidden>
       <aside class="source-pane">
         <div class="pane-heading">
           <div>
@@ -33,8 +61,8 @@
 
         <label class="field-label">产品</label>
         <div class="segmented" role="group" aria-label="选择 CAM 产品">
-          <button class="segment active" type="button" data-product="nx">UG / NX</button>
-          <button class="segment" type="button" data-product="powermill">PowerMill</button>
+          <button class="segment" type="button" data-product="nx" data-plugin-id="ug-cam-copilot">UG / NX</button>
+          <button class="segment" type="button" data-product="powermill" data-plugin-id="powermill-cam-copilot">PowerMill</button>
         </div>
 
         <label class="field-label" for="sourceFormat">输入格式</label>
@@ -63,7 +91,7 @@
           <button id="analyzeButton" class="button primary" type="button">分析工作流</button>
         </div>
 
-        <section class="recorder-panel" aria-label="后台记录">
+        <section class="recorder-panel" data-requires-plugin="cam-local-capture" aria-label="后台记录" hidden>
           <div class="recorder-header">
             <div>
               <span class="eyebrow">CAPTURE</span>
@@ -115,7 +143,7 @@
             <button class="tab" type="button" role="tab" data-tab="preview">
               <span id="previewTabLabel">NX 预览</span>
             </button>
-            <button class="tab" type="button" role="tab" data-tab="codex">Codex 审阅</button>
+            <button class="tab" data-requires-plugin="cam-codex-review" type="button" role="tab" data-tab="codex" hidden>Codex 审阅</button>
           </nav>
           <div id="analysisState" class="analysis-state">等待输入</div>
         </div>
@@ -213,7 +241,7 @@
           <pre id="previewOutput"></pre>
         </div>
 
-        <div id="codexPanel" class="tab-panel codex-panel" data-panel="codex">
+        <div id="codexPanel" class="tab-panel codex-panel" data-panel="codex" data-requires-plugin="cam-codex-review" hidden>
           <div class="codex-header">
             <div>
               <span class="eyebrow">CODEX BRIDGE V1</span>

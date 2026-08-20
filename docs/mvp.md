@@ -8,7 +8,7 @@
 .\plugins\ug-cam-copilot\scripts\run-demo.ps1
 ```
 
-浏览器打开 `http://127.0.0.1:8765/`。也可以直接运行：
+浏览器打开 `http://127.0.0.1:8765/`。首次启动只显示插件中心，没有默认业务模块。也可以直接运行：
 
 ```powershell
 python .\plugins\ug-cam-copilot\app\powermill_ai_demo.py --no-browser
@@ -16,10 +16,10 @@ python .\plugins\ug-cam-copilot\app\powermill_ai_demo.py --no-browser
 
 ## 演示闭环
 
-1. 点击“载入样例”，确认示例日志是三组相似的 PowerMill 动作。
-2. 点击“分析”，查看事件数、重复 recipe、最近动作的下一步建议。
-3. 展开 recipe 查看 PowerMill `.mac` 草稿或 NXOpen Python 草稿。
-4. 把 PowerMill 的录制 `.mac` 内容或 JSON/JSONL 行为日志粘贴进去再次分析。
+1. 在插件中心安装 `PowerMill 工作流` 或 `UG / NX 工作流`。
+2. 打开工作台，手动选择“载入样例”或导入自己的日志。
+3. 点击“分析工作流”，查看动作、参数、风险和 dry-run 预览。
+4. 按需返回插件中心安装本地记录、命令网关或 Codex 审阅。
 
 导出的内容是**审阅草稿**，不会由 demo 自动执行。PowerMill 宏需在副本项目里验证，NXOpen 草稿需替换选择器和本地 API 调用。
 

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "cam-codex-review",
+  "name": "Codex 审阅",
+  "version": "0.1.0",
+  "summary": "导出结构化配方上下文，并把审阅结论回传到本地工作台。",
+  "category": "审阅",
+  "order": 50,
+  "features": ["codex:review", "context:export"],
+  "dependencies": [],
+  "permissions": ["write:local-review-files"],
+  "icon": "AI"
+}

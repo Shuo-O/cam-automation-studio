@@ -1,21 +1,32 @@
 # Architecture
 
-## CAM Automation Studio
+## CAM Automation Studio 0.4
 
-The repository now exposes one local module for both products:
+The application starts as a minimal core. Product and operational modules are discovered from
+`plugins/*/app-plugin.json`, but none are installed by default:
 
 ```text
-UG/NX Journal ----> NX static adapter -----+
-PowerMill macro --> PowerMill profile -----+--> unified analysis result
-ActivityEvent JSONL -> shared adapter -----+        |
-                                                   +--> recipe + preview
-                                                   +--> Codex Bridge v1
-                                                   +--> human review record
-
-CAM log files ----> consent-gated CaptureService --> redacted local SQLite
-Execution request -> independent safety gate ------> dry-run/native transport
-                                                   +--> execution audit event
+static UI + health
+        |
+        v
+ PluginManager ----> app-plugin.json catalog
+        |                     |
+        | install             +--> features + dependencies + permissions
+        v
+ installed-plugins.json
+        |
+        +--> UG/NX adapter (lazy import)
+        +--> PowerMill adapter (lazy import)
+        +--> CaptureService (lazy construction)
+        +--> ExecutionGateway (lazy construction)
+        +--> Codex Bridge v1 (lazy import)
 ```
+
+`cam_automation/plugin_manager.py` owns discovery, dependency validation, the empty-by-default
+installation registry, atomic persistence, and uninstall dependency checks. The execution gateway
+depends on local capture so every accepted or rejected execution request has an audit path.
+Removing a plugin changes the registry and unloads long-running services; it does not delete user
+data.
 
 `cam_automation/integrations.py` is the product-facing service boundary. It keeps the NX parser in
 `plugins/ug-cam-copilot/src/ugcam_ai/adapters/nx_journal.py` and the PowerMill vocabulary in
@@ -29,10 +40,11 @@ does not execute returned text or attach to a CAD/CAM process.
 
 `cam_automation/recorder.py` owns background source discovery, process detection, redaction,
 deduplication, SQLite persistence, and JSONL export. It reads only configured CAM source types and
-starts only after explicit first-use consent; the persisted setting enables automatic recording on
-later launches. `cam_automation/execution.py` is a separate fail-closed gateway. Dry-run is the only
-built-in transport, and execution attempts are written back as ActivityEvent audit evidence when
-recording consent exists.
+is not imported until `cam-local-capture` is installed. Collection starts only after explicit
+first-use consent; the persisted setting enables automatic recording on later launches.
+`cam_automation/execution.py` is a separate fail-closed gateway and is not imported until
+`cam-execution-gateway` is installed. Dry-run is the only built-in transport, and execution
+attempts are written back as ActivityEvent audit evidence when recording consent exists.
 
 ## Data Flow
 
@@ -79,6 +91,8 @@ This is explainable, fast, reproducible, and usable without an API key. A future
 
 ## Safety Boundary
 
+- The base application has no installed CAM business capabilities.
+- Installation is explicit and local; dependencies and requested permissions are visible first.
 - The recorder may detect a running CAM process but does not attach without a registered,
   target-version native transport.
 - Generated macros are artifacts, not execution requests.

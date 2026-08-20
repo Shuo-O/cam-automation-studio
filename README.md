@@ -1,8 +1,8 @@
 # CAM Automation Studio
 
-这是一个本地优先的 CAM 软件模块：从 UG/NX Journal、PowerMill 宏/命令日志或共享 JSONL 行为记录中学习重复工作流，归纳跨会话参数，并生成必须人工复核的配方与 dry-run 预览。工作台可以把结构化审阅上下文交给 Codex，再把审阅结论回传到本地模块。
+这是一个插件优先、本地运行的 CAM 自动化工作台。`0.4.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
 
-UG/NX 插件仍保留在 `plugins/ug-cam-copilot` 独立开发。共享能力位于 `cam_automation`，以后 NX 只需增加自己的命令 profile 和执行 adapter。
+每个软件模块位于 `plugins/<plugin-id>`，使用 `app-plugin.json` 声明功能、依赖和本地权限；Codex 插件继续使用 `.codex-plugin/plugin.json`。UG/NX 插件仍在 `plugins/ug-cam-copilot` 独立开发，PowerMill 使用 `plugins/powermill-cam-copilot`。
 
 ## Run
 
@@ -10,7 +10,7 @@ UG/NX 插件仍保留在 `plugins/ug-cam-copilot` 独立开发。共享能力位
 python -m cam_automation serve --port 8765
 ```
 
-浏览器工作台启动后访问 `http://127.0.0.1:8765`。左侧选择产品，粘贴 Journal/宏，点击“分析工作流”；在 Codex 审阅页导出 `cam.codex.bridge.v1` 上下文，审阅结论通过同一页回传。
+浏览器启动后访问 `http://127.0.0.1:8765`。首次进入只显示插件中心，安装 UG/NX 或 PowerMill 工作流插件后才会开放工作台。软件不会自动载入样例，也不会自动安装业务模块。
 
 无界面命令仍然可用：
 
@@ -21,22 +21,36 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 统一 HTTP 接口：
 
+- `GET /api/plugins`：插件目录、依赖、权限和本机安装状态。
+- `POST /api/plugins/install|uninstall`：在本机安装或移除模块；移除不会删除模块数据。
 - `GET /api/capabilities`：产品、输入格式、dry-run 安全门禁。
 - `GET /api/connections`：Codex、UG/NX、PowerMill 的本机桥接状态。
 - `POST /api/analyze`：`product=nx|powermill`，返回 recipe、ActivityEvent、预览和 Codex context。
 - `POST /api/codex/context`：生成可交换的 Codex 审阅请求，可持久化到 `build/codex-exchange`。
 - `POST /api/codex/review`：回传 `review_status`、`findings` 和 `required_gates`。
 
-旧的 `POST /api/learn` 仍作为 PowerMill 兼容入口保留。
+未安装对应插件时，业务接口返回 `409 plugin_not_installed`。旧的 `POST /api/learn` 仍作为 PowerMill 兼容入口保留，但需要先安装 PowerMill 插件。
+
+## 插件目录
+
+内置目录初始包含：
+
+- `ug-cam-copilot`：UG/NX Journal 静态解析与 dry-run 预览。
+- `powermill-cam-copilot`：PowerMill 宏/命令日志学习与配方生成。
+- `cam-local-capture`：经授权的本地行为记录、脱敏、筛选与导出。
+- `cam-execution-gateway`：命令安全检查和 dry-run；自动安装采集审计依赖。
+- `cam-codex-review`：结构化 Codex 上下文导出与审阅回传。
+
+安装状态保存在 `build/app-data/installed-plugins.json`。删除该文件会回到零业务插件状态，但不会删除采集数据库。
 
 ## 后台行为记录
 
-工作台包含一个本地 `CaptureService`。首次明确授权后，它会在后续启动时默认继续记录，并自动检测 UG/NX 与 PowerMill 进程及受支持的日志源。采集线程只读源文件，不导入或执行 Journal，不向网络上传数据。
+安装 `cam-local-capture` 后才会导入并启动 `CaptureService`。首次明确授权后，它会在后续启动时默认继续记录，并自动检测 UG/NX 与 PowerMill 进程及受支持的日志源。采集线程只读源文件，不导入或执行 Journal，不向网络上传数据。
 
 默认入口：
 
-- `build/capture/inbox/nx`：NX Open `.py` Journal 或 ActivityEvent `.jsonl`。
-- `build/capture/inbox/powermill`：PowerMill `.mac`、`.log` 或 ActivityEvent `.jsonl`。
+- `build/app-data/capture/inbox/nx`：NX Open `.py` Journal 或 ActivityEvent `.jsonl`。
+- `build/app-data/capture/inbox/powermill`：PowerMill `.mac`、`.log` 或 ActivityEvent `.jsonl`。
 - `CAM_NX_LOG_PATHS`：用系统路径分隔符指定额外 NX 文件或目录。
 - `CAM_POWERMILL_LOG_PATHS`：用系统路径分隔符指定额外 PowerMill 文件或目录。
 - `CAM_CAPTURE_DIR`：覆盖本地采集数据库与配置目录。
@@ -53,7 +67,7 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 ## 命令执行门禁
 
-`POST /api/execution/run` 接受结构化执行请求，并把请求、拒绝原因、响应和耗时写入同一采集审计链。当前仅注册 `dry-run` 传输；`live` 会在没有目标版本原生适配器时失败关闭。
+安装 `cam-execution-gateway` 时会自动安装 `cam-local-capture` 审计依赖。`POST /api/execution/run` 接受结构化执行请求，并把请求、拒绝原因、响应和耗时写入同一采集审计链。当前仅注册 `dry-run` 传输；`live` 会在没有目标版本原生适配器时失败关闭。
 
 执行请求至少包含：
 
@@ -99,7 +113,7 @@ PowerMill 公共工作流内核位于 `cam_automation`；NX 的 AST/SQLite 适�
 
 ## 运行边界
 
-当前模块会检测 CAM 进程并自动读取已配置的日志源，但不会在缺少版本化原生传输时附着或控制 PowerMill/NX。实际 PowerMill 进程内插件需要目标版本安装中的 `PowerMill.dll`、`PluginFramework.dll`、COM 注册和现场项目验证；NX 需要目标版本的 NXOpen Python stubs 与现场验证。
+只有安装并授权采集插件后，软件才会检测 CAM 进程并读取已配置的日志源。即使安装执行网关，也不会在缺少版本化原生传输时附着或控制 PowerMill/NX。实际 PowerMill 进程内插件需要目标版本安装中的 `PowerMill.dll`、`PluginFramework.dll`、COM 注册和现场项目验证；NX 需要目标版本的 NXOpen Python stubs 与现场验证。
 
 NX 首版同样只生成 dry-run 配方和预览 Journal，不修改零件、不生成或下发机床 NC 代码。实际 NXOpen 实现必须对照目标版本自带的 Python stubs，并通过碰撞/过切检查、机床仿真和人工审批。
 

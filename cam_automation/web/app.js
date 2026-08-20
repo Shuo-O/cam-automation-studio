@@ -1,4 +1,11 @@
 const elements = {
+  pluginNav: document.querySelector("#pluginNav"),
+  workspaceNav: document.querySelector("#workspaceNav"),
+  pluginHome: document.querySelector("#pluginHome"),
+  workspace: document.querySelector("#workspace"),
+  pluginGrid: document.querySelector("#pluginGrid"),
+  installedPluginCount: document.querySelector("#installedPluginCount"),
+  availablePluginCount: document.querySelector("#availablePluginCount"),
   sourceInput: document.querySelector("#sourceInput"),
   sourceLabel: document.querySelector("#sourceLabel"),
   sourceFormat: document.querySelector("#sourceFormat"),
@@ -57,7 +64,12 @@ const elements = {
 };
 
 const state = {
-  product: "nx",
+  surface: "plugins",
+  product: null,
+  plugins: [],
+  installedPluginIds: new Set(),
+  installedProducts: [],
+  recorderTimer: null,
   result: null,
   parameters: {},
   context: null,
@@ -85,6 +97,7 @@ const RECORDER_LABELS = {
 
 const PRODUCT_UI = {
   nx: {
+    pluginId: "ug-cam-copilot",
     name: "UG / NX",
     format: "nx_journal",
     label: "NX Open Journal",
@@ -93,6 +106,7 @@ const PRODUCT_UI = {
     file: "nx_preview_journal.py",
   },
   powermill: {
+    pluginId: "powermill-cam-copilot",
     name: "PowerMill",
     format: "powermill_log",
     label: "PowerMill 宏 / JSONL",
@@ -100,6 +114,19 @@ const PRODUCT_UI = {
     preview: "PowerMill 宏",
     file: "workflow.mac",
   },
+};
+
+const FEATURE_LABELS = {
+  "analysis:nx": "NX 日志分析",
+  "preview:nx": "NX dry-run",
+  "analysis:powermill": "宏日志分析",
+  "preview:powermill": "PowerMill 配方",
+  "capture:local": "本机采集",
+  "logs:filter": "日志筛选",
+  "execution:dry-run": "命令 dry-run",
+  "audit:execution": "执行审计",
+  "codex:review": "Codex 审阅",
+  "context:export": "上下文导出",
 };
 
 function setStatus(message, isError = false) {
@@ -119,7 +146,161 @@ async function requestJson(url, options = {}) {
   return payload;
 }
 
+function showSurface(surface) {
+  const canOpenWorkspace = state.installedProducts.length > 0;
+  state.surface = surface === "workspace" && canOpenWorkspace ? "workspace" : "plugins";
+  elements.pluginHome.hidden = state.surface !== "plugins";
+  elements.workspace.hidden = state.surface !== "workspace";
+  elements.pluginNav.classList.toggle("active", state.surface === "plugins");
+  elements.workspaceNav.classList.toggle("active", state.surface === "workspace");
+  if (state.surface === "workspace") {
+    loadConnections();
+    if (state.installedPluginIds.has("cam-local-capture")) loadRecorderStatus();
+    requestAnimationFrame(drawWorkflow);
+  }
+}
+
+function pluginDisplayName(pluginId) {
+  return state.plugins.find((plugin) => plugin.id === pluginId)?.name || pluginId;
+}
+
+function renderPluginCard(plugin) {
+  const card = document.createElement("article");
+  card.className = `plugin-card${plugin.installed ? " installed" : ""}`;
+
+  const header = document.createElement("div");
+  header.className = "plugin-card-header";
+  const title = document.createElement("div");
+  title.className = "plugin-card-title";
+  const icon = document.createElement("span");
+  icon.className = "plugin-icon";
+  icon.textContent = plugin.icon;
+  const titleText = document.createElement("div");
+  const name = document.createElement("strong");
+  name.textContent = plugin.name;
+  const category = document.createElement("span");
+  category.textContent = plugin.category;
+  titleText.append(name, category);
+  title.append(icon, titleText);
+  const version = document.createElement("span");
+  version.className = "plugin-version";
+  version.textContent = `v${plugin.version}`;
+  header.append(title, version);
+
+  const summary = document.createElement("p");
+  summary.textContent = plugin.summary;
+
+  const capabilities = document.createElement("div");
+  capabilities.className = "plugin-capabilities";
+  plugin.features.slice(0, 3).forEach((feature) => {
+    const item = document.createElement("span");
+    item.textContent = FEATURE_LABELS[feature] || feature;
+    capabilities.append(item);
+  });
+
+  const footer = document.createElement("div");
+  footer.className = "plugin-card-footer";
+  const detail = document.createElement("span");
+  detail.className = "plugin-dependency";
+  if (plugin.dependencies.length) {
+    detail.textContent = `依赖：${plugin.dependencies.map(pluginDisplayName).join("、")}`;
+  } else if (plugin.consent_required) {
+    detail.textContent = "首次启用需授权";
+  } else {
+    detail.textContent = plugin.permissions.length
+      ? `${plugin.permissions.length} 项本地权限`
+      : "无额外权限";
+  }
+  const actionGroup = document.createElement("div");
+  const status = document.createElement("span");
+  status.className = "plugin-status";
+  status.textContent = plugin.installed ? "已安装" : "未安装";
+  const action = document.createElement("button");
+  action.className = `button compact ${plugin.installed ? "secondary" : "primary"}`;
+  action.type = "button";
+  action.textContent = plugin.installed ? "移除" : "+ 安装";
+  action.addEventListener("click", async () => {
+    if (plugin.installed && !window.confirm(`移除 ${plugin.name}？本地数据会保留。`)) return;
+    action.disabled = true;
+    try {
+      const endpoint = plugin.installed ? "uninstall" : "install";
+      const payload = await requestJson(`/api/plugins/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plugin_id: plugin.id }),
+      });
+      renderPluginCatalog(payload);
+    } catch (error) {
+      window.alert(error.message);
+      action.disabled = false;
+    }
+  });
+  actionGroup.append(action);
+  footer.append(detail, status, actionGroup);
+  card.append(header, summary, capabilities, footer);
+  return card;
+}
+
+function configurePluginModules() {
+  state.installedPluginIds = new Set(
+    state.plugins.filter((plugin) => plugin.installed).map((plugin) => plugin.id),
+  );
+  state.installedProducts = Object.entries(PRODUCT_UI)
+    .filter(([, config]) => state.installedPluginIds.has(config.pluginId))
+    .map(([product]) => product);
+
+  document.querySelectorAll("[data-plugin-id]").forEach((element) => {
+    element.hidden = !state.installedPluginIds.has(element.dataset.pluginId);
+  });
+  document.querySelectorAll("[data-requires-plugin]").forEach((element) => {
+    element.hidden = !state.installedPluginIds.has(element.dataset.requiresPlugin);
+  });
+
+  elements.workspaceNav.disabled = state.installedProducts.length === 0;
+  if (!state.installedProducts.length) {
+    state.product = null;
+    showSurface("plugins");
+  } else if (!state.installedProducts.includes(state.product)) {
+    setProduct(state.installedProducts[0]);
+  }
+
+  if (!state.installedPluginIds.has("cam-codex-review")) {
+    const activeTab = document.querySelector(".tab.active");
+    if (activeTab?.dataset.tab === "codex") activateTab("overview");
+  }
+
+  if (state.installedPluginIds.has("cam-local-capture")) {
+    loadRecorderStatus();
+    if (!state.recorderTimer) {
+      state.recorderTimer = window.setInterval(loadRecorderStatus, 2000);
+    }
+  } else if (state.recorderTimer) {
+    window.clearInterval(state.recorderTimer);
+    state.recorderTimer = null;
+    state.recorder = null;
+  }
+}
+
+function renderPluginCatalog(payload) {
+  state.plugins = payload.plugins || [];
+  elements.installedPluginCount.textContent = payload.installed_count || 0;
+  elements.availablePluginCount.textContent = `${payload.available_count || 0} 个模块`;
+  elements.pluginGrid.replaceChildren();
+  state.plugins.forEach((plugin) => elements.pluginGrid.append(renderPluginCard(plugin)));
+  configurePluginModules();
+  if (!state.installedPluginIds.has("cam-local-capture")) {
+    elements.runtimeDot.className = "status-dot";
+    elements.runtimeLabel.textContent = `${payload.installed_count || 0} 个插件`;
+  }
+}
+
+async function loadPluginCatalog() {
+  renderPluginCatalog(await requestJson("/api/plugins"));
+}
+
 function activateTab(name) {
+  const target = document.querySelector(`.tab[data-tab="${name}"]`);
+  if (!target || target.hidden) name = "overview";
   document.querySelectorAll(".tab").forEach((item) => {
     item.classList.toggle("active", item.dataset.tab === name);
   });
@@ -207,8 +388,10 @@ function collectParameters() {
 }
 
 function setProduct(product) {
-  state.product = product;
   const config = PRODUCT_UI[product];
+  if (!config || !state.installedPluginIds.has(config.pluginId)) return;
+  const changed = state.product !== product;
+  state.product = product;
   document.querySelectorAll("[data-product]").forEach((button) => {
     button.classList.toggle("active", button.dataset.product === product);
   });
@@ -227,7 +410,14 @@ function setProduct(product) {
   elements.previewTabLabel.textContent = config.preview;
   elements.previewFileLabel.textContent = config.file;
   elements.fileInput.accept = product === "nx" ? ".py,.jsonl" : ".log,.txt,.mac,.jsonl";
-  loadSample();
+  if (changed) {
+    elements.sourceInput.value = "";
+    state.result = null;
+    state.context = null;
+    state.events = [];
+    updateLineCount();
+    setStatus("等待输入");
+  }
 }
 
 async function analyze() {
@@ -593,6 +783,8 @@ async function copyText(text, button) {
 document.querySelectorAll(".segment").forEach((button) => {
   button.addEventListener("click", () => setProduct(button.dataset.product));
 });
+elements.pluginNav.addEventListener("click", () => showSurface("plugins"));
+elements.workspaceNav.addEventListener("click", () => showSurface("workspace"));
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     activateTab(tab.dataset.tab);
@@ -696,7 +888,11 @@ elements.downloadPreview.addEventListener("click", () => {
 });
 
 new ResizeObserver(drawWorkflow).observe(elements.canvas);
-setProduct("nx");
-loadConnections();
-loadRecorderStatus();
-setInterval(loadRecorderStatus, 2000);
+
+loadPluginCatalog()
+  .then(() => showSurface("plugins"))
+  .catch((error) => {
+    elements.pluginGrid.textContent = error.message;
+    elements.runtimeDot.className = "status-dot error";
+    elements.runtimeLabel.textContent = "插件目录不可用";
+  });

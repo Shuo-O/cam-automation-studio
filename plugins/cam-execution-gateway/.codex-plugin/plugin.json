@@ -1,0 +1,19 @@
+{
+  "name": "cam-execution-gateway",
+  "version": "0.1.0",
+  "description": "Fail-closed command review and dry-run execution gateway for CAM.",
+  "author": {
+    "name": "CAM Automation Studio"
+  },
+  "license": "MIT",
+  "keywords": ["cam", "execution", "dry-run", "safety", "audit"],
+  "interface": {
+    "displayName": "CAM Execution Gateway",
+    "shortDescription": "Review CAM commands through a dry-run gate.",
+    "longDescription": "Adds a fail-closed execution gateway that independently blocks destructive and machine-output commands, records decisions, and requires versioned transports for live execution.",
+    "developerName": "CAM Automation Studio",
+    "category": "Productivity",
+    "capabilities": ["Command review", "Dry-run audit"],
+    "defaultPrompt": "Audit this CAM command request without executing it."
+  }
+}

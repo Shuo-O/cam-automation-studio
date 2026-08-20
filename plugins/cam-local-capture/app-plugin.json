@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "cam-local-capture",
+  "name": "本地行为记录",
+  "version": "0.1.0",
+  "summary": "经首次授权后，在本机后台读取、脱敏并整理 CAM 行为日志。",
+  "category": "数据",
+  "order": 30,
+  "features": ["capture:local", "logs:filter"],
+  "dependencies": [],
+  "permissions": ["read:cam-logs", "write:local-database"],
+  "consent_required": true,
+  "icon": "LOG"
+}

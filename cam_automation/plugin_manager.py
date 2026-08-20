@@ -223,7 +223,7 @@ class PluginManager:
                 "schema_version": 1,
                 "core": {
                     "name": "CAM Automation Studio Core",
-                    "version": "0.4.0",
+                    "version": "0.5.0",
                     "capabilities": [
                         "plugin.catalog",
                         "plugin.install",

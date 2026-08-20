@@ -38,18 +38,29 @@ SUPPORTED_FORMATS = {
 @dataclass(frozen=True)
 class ConnectionStatus:
     key: str
+    plugin_id: str
     label: str
     status: str
     detail: str
     capabilities: tuple[str, ...]
+    instances: tuple[Mapping[str, Any], ...] = ()
+    active_instance_id: str | None = None
+    process_count: int = 0
+    monitoring: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
+            "plugin_id": self.plugin_id,
             "label": self.label,
             "status": self.status,
             "detail": self.detail,
             "capabilities": list(self.capabilities),
+            "instance_count": len(self.instances),
+            "process_count": self.process_count,
+            "active_instance_id": self.active_instance_id,
+            "monitoring": self.monitoring,
+            "instances": [dict(instance) for instance in self.instances],
         }
 
 
@@ -66,8 +77,10 @@ def _first_existing(*candidates: str | None) -> Path | None:
 
 def connection_statuses(
     installed_plugins: Iterable[str] | None = None,
+    *,
+    capture_status: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Report discoverable local bridges without attaching to a live CAM process."""
+    """Report local bridges and consented CAM instances without attaching to them."""
 
     codex_cli = shutil.which(os.environ.get("CAM_CODEX_COMMAND", "codex"))
     nx_root = _first_existing(os.environ.get("UGII_ROOT_DIR"), os.environ.get("UGII_BASE_DIR"))
@@ -82,9 +95,82 @@ def connection_statuses(
         os.environ.get("PMILL_HOME"),
         os.environ.get("POWERMILL_ROOT"),
     )
+    captured_instances = (
+        capture_status.get("instances", {})
+        if capture_status and capture_status.get("consent")
+        else {}
+    )
+    if not isinstance(captured_instances, Mapping):
+        captured_instances = {}
+    monitoring = bool(capture_status and capture_status.get("state") == "recording")
+
+    def product_connection(
+        *,
+        key: str,
+        plugin_id: str,
+        label: str,
+        root: Path | None,
+        unconfigured_detail: str,
+        capabilities: tuple[str, ...],
+        root_detail: str,
+    ) -> ConnectionStatus:
+        raw_instances = captured_instances.get(key, [])
+        instances = tuple(
+            dict(item)
+            for item in raw_instances
+            if isinstance(item, Mapping)
+        ) if isinstance(raw_instances, list) else ()
+        process_count = len(
+            {
+                int(instance.get("pid", 0) or 0)
+                for instance in instances
+                if instance.get("pid")
+            }
+        )
+        foreground = next(
+            (
+                str(instance.get("instance_id"))
+                for instance in instances
+                if instance.get("is_foreground")
+            ),
+            None,
+        )
+        if instances:
+            state = "connected" if monitoring else "detected"
+            verb = "正在监测" if monitoring else "已检测"
+            detail = (
+                f"{verb} {len(instances)} 个窗口/进程"
+                f"（{process_count} 个宿主进程）"
+            )
+        elif capture_status and not capture_status.get("consent"):
+            state = "awaiting_consent"
+            detail = "本地记录插件待授权；授权后才会检测软件窗口"
+        elif capture_status and capture_status.get("consent"):
+            state = "disconnected"
+            detail = f"未发现运行中的 {label} 窗口"
+        elif root:
+            state = "available"
+            detail = f"{root_detail}: {root}；安装并授权本地记录后检测窗口"
+        else:
+            state = "unconfigured"
+            detail = unconfigured_detail
+        return ConnectionStatus(
+            key=key,
+            plugin_id=plugin_id,
+            label=label,
+            status=state,
+            detail=detail,
+            capabilities=capabilities,
+            instances=instances,
+            active_instance_id=foreground,
+            process_count=process_count,
+            monitoring=monitoring and bool(instances),
+        )
+
     statuses = [
         ConnectionStatus(
             "codex",
+            "cam-codex-review",
             "Codex",
             "ready",
             (
@@ -94,27 +180,30 @@ def connection_statuses(
             ),
             ("context.export", "review.import", "recipe.explain"),
         ).to_dict(),
-        ConnectionStatus(
-            "nx",
-            "UG / NX",
-            "detected" if nx_root else "unconfigured",
-            (
-                f"检测到 NX 根目录{f'，Journal runner: {nx_runner}' if nx_runner else ''}"
-                if nx_root
-                else "设置 UGII_ROOT_DIR 或 UGII_BASE_DIR 后可定位 NX Journal runner"
+        product_connection(
+            key="nx",
+            plugin_id="ug-cam-copilot",
+            label="UG / NX",
+            root=nx_root,
+            unconfigured_detail=(
+                "设置 UGII_ROOT_DIR 或 UGII_BASE_DIR 后可定位 NX Journal runner"
             ),
-            ("journal.parse", "recipe.preview", "simulation.gate"),
+            capabilities=("journal.parse", "recipe.preview", "simulation.gate"),
+            root_detail=(
+                f"检测到 NX 根目录"
+                f"{f'，Journal runner {nx_runner}' if nx_runner else ''}"
+            ),
         ).to_dict(),
-        ConnectionStatus(
-            "powermill",
-            "PowerMill",
-            "detected" if pm_root else "unconfigured",
-            (
-                f"检测到 PowerMill 目录: {pm_root}"
-                if pm_root
-                else "设置 POWERMILL_HOME 或 PMILL_HOME 后可定位 PowerMill 宿主"
+        product_connection(
+            key="powermill",
+            plugin_id="powermill-cam-copilot",
+            label="PowerMill",
+            root=pm_root,
+            unconfigured_detail=(
+                "设置 POWERMILL_HOME 或 PMILL_HOME 后可定位 PowerMill 宿主"
             ),
-            ("macro.parse", "macro.export", "project.review"),
+            capabilities=("macro.parse", "macro.export", "project.review"),
+            root_detail="检测到 PowerMill 目录",
         ).to_dict(),
     ]
     if installed_plugins is None:
@@ -155,7 +244,7 @@ def capability_manifest(
     codex_installed = "cam-codex-review" in installed
     return {
         "module": "CAM Automation Studio Core",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "execution_mode": "dry-run" if execution_installed else "unavailable",
         "products": [
             {

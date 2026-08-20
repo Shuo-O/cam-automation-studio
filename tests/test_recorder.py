@@ -98,6 +98,28 @@ class CaptureServiceTests(unittest.TestCase):
             finally:
                 service.close()
 
+    def test_revoking_consent_clears_runtime_window_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service = CaptureService(directory, start_background=False)
+            try:
+                service.config.consent = True
+                service._instances["nx"] = [
+                    {
+                        "instance_id": "nx:100:A1",
+                        "pid": 100,
+                        "window_title": "Sensitive project title",
+                    }
+                ]
+                service._processes["nx"] = True
+
+                status = service.configure(consent=False)
+
+                self.assertFalse(status["consent"])
+                self.assertEqual([], status["instances"]["nx"])
+                self.assertFalse(status["processes"]["nx"])
+            finally:
+                service.close()
+
 
 if __name__ == "__main__":
     unittest.main()

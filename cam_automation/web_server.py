@@ -18,8 +18,22 @@ _PLUGIN_ROOT = Path(__file__).resolve().parents[1] / "plugins"
 _MAX_BODY = 2 * 1024 * 1024
 
 
+def _runtime_connection_label(connection: dict[str, Any]) -> str:
+    count = int(connection.get("instance_count", 0) or 0)
+    if count:
+        prefix = "监测中" if connection.get("monitoring") else "已检测"
+        return f"{prefix} · {count} 个实例"
+    return {
+        "ready": "已就绪",
+        "available": "可连接",
+        "awaiting_consent": "待授权",
+        "disconnected": "未连接",
+        "unconfigured": "未配置",
+    }.get(str(connection.get("status", "")), str(connection.get("status", "未知")))
+
+
 class _WorkflowHandler(BaseHTTPRequestHandler):
-    server_version = "CamAutomationStudio/0.4"
+    server_version = "CamAutomationStudio/0.5"
 
     def _json(self, status: HTTPStatus, value: Any) -> None:
         payload = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -48,7 +62,9 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _local_api_allowed(self, path: str) -> bool:
-        if not path.startswith(("/api/plugins", "/api/recorder", "/api/execution")):
+        if not path.startswith(
+            ("/api/plugins", "/api/connections", "/api/recorder", "/api/execution")
+        ):
             return True
         if self.client_address[0] in {"127.0.0.1", "::1"}:
             return True
@@ -94,19 +110,19 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         if not self._local_api_allowed(path):
             return
         if path == "/api/health":
-            plugins = self.server.plugins.status()
+            plugins = self.server.plugin_status()
             self._json(
                 HTTPStatus.OK,
                 {
                     "status": "ok",
-                    "version": "0.4.0",
+                    "version": "0.5.0",
                     "module": "CAM Automation Studio Core",
                     "installed_plugins": plugins["installed_count"],
                 },
             )
             return
         if path == "/api/plugins":
-            self._json(HTTPStatus.OK, self.server.plugins.status())
+            self._json(HTTPStatus.OK, self.server.plugin_status())
             return
         if path == "/api/sample":
             query = parse_qs(urlparse(self.path).query)
@@ -127,14 +143,13 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/connections":
-            from .integrations import connection_statuses
-
+            query = parse_qs(urlparse(self.path).query)
             self._json(
                 HTTPStatus.OK,
                 {
-                    "connections": connection_statuses(
-                        self.server.plugins.installed_ids()
-                    )
+                    "connections": self.server.connection_statuses(
+                        force=query.get("refresh", ["0"])[0] == "1"
+                    ),
                 },
             )
             return
@@ -410,14 +425,20 @@ class _WorkflowServer(ThreadingHTTPServer):
     def install_plugin(self, plugin_id: str) -> dict[str, Any]:
         with self._module_lock:
             result = self.plugins.install(plugin_id)
+            changed = list(result.get("changed", []))
             self._sync_modules()
-            return result
+            status = self.plugin_status()
+            status["changed"] = changed
+            return status
 
     def uninstall_plugin(self, plugin_id: str) -> dict[str, Any]:
         with self._module_lock:
             result = self.plugins.uninstall(plugin_id)
+            changed = list(result.get("changed", []))
             self._sync_modules()
-            return result
+            status = self.plugin_status()
+            status["changed"] = changed
+            return status
 
     def _sync_modules(self) -> None:
         with self._module_lock:
@@ -439,6 +460,95 @@ class _WorkflowServer(ThreadingHTTPServer):
                 self.execution = ExecutionGateway()
             elif not execution_installed:
                 self.execution = None
+
+    def connection_statuses(
+        self,
+        *,
+        force: bool = False,
+    ) -> list[dict[str, Any]]:
+        from .integrations import connection_statuses
+
+        capture_status = (
+            self.recorder.status(refresh_connections=force)
+            if self.recorder is not None
+            else None
+        )
+        return connection_statuses(
+            self.plugins.installed_ids(),
+            capture_status=capture_status,
+        )
+
+    def plugin_status(self) -> dict[str, Any]:
+        status = self.plugins.status()
+        connections = {
+            connection["plugin_id"]: connection
+            for connection in self.connection_statuses()
+        }
+        recorder_status = (
+            self.recorder.status()
+            if self.recorder is not None
+            else None
+        )
+        for plugin in status["plugins"]:
+            plugin_id = plugin["id"]
+            if not plugin["installed"]:
+                plugin["runtime"] = {
+                    "status": "not_installed",
+                    "label": "未安装",
+                    "detail": "安装后可用",
+                    "instance_count": 0,
+                    "instances": [],
+                }
+                continue
+            if plugin_id in connections:
+                connection = connections[plugin_id]
+                plugin["runtime"] = {
+                    **connection,
+                    "label": _runtime_connection_label(connection),
+                }
+            elif plugin_id == "cam-local-capture" and recorder_status:
+                instance_count = sum(
+                    len(instances)
+                    for instances in recorder_status.get("instances", {}).values()
+                    if isinstance(instances, list)
+                )
+                plugin["runtime"] = {
+                    "status": recorder_status["state"],
+                    "label": {
+                        "awaiting_consent": "待授权",
+                        "recording": "记录中",
+                        "paused": "已暂停",
+                    }.get(recorder_status["state"], recorder_status["state"]),
+                    "detail": (
+                        f"本机监测 {instance_count} 个窗口/进程"
+                        if recorder_status["consent"]
+                        else "授权后才会检测 CAM 软件窗口"
+                    ),
+                    "instance_count": instance_count,
+                    "instances": [
+                        dict(instance)
+                        for instances in recorder_status.get("instances", {}).values()
+                        if isinstance(instances, list)
+                        for instance in instances
+                    ],
+                }
+            elif plugin_id == "cam-execution-gateway":
+                plugin["runtime"] = {
+                    "status": "ready",
+                    "label": "dry-run 就绪",
+                    "detail": "实时传输未配置；live 必须明确指定目标实例",
+                    "instance_count": 0,
+                    "instances": [],
+                }
+            else:
+                plugin["runtime"] = {
+                    "status": "ready",
+                    "label": "已就绪",
+                    "detail": "插件已加载",
+                    "instance_count": 0,
+                    "instances": [],
+                }
+        return status
 
     def server_close(self) -> None:
         if self.recorder is not None:

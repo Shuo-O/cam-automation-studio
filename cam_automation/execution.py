@@ -41,6 +41,7 @@ class ExecutionRequest:
     reviewed: bool = False
     approver: str = ""
     mode: str = "dry-run"
+    target_instance_id: str = ""
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "ExecutionRequest":
@@ -55,6 +56,7 @@ class ExecutionRequest:
             reviewed=bool(value.get("reviewed", False)),
             approver=str(value.get("approver", "")),
             mode=str(value.get("mode", "dry-run")).lower(),
+            target_instance_id=str(value.get("target_instance_id", "")).strip(),
         )
 
 
@@ -121,6 +123,14 @@ class ExecutionGateway:
             reasons.append("live execution requires an explicitly reviewed recipe")
         if request.mode != "dry-run" and not request.approver.strip():
             reasons.append("live execution requires an identified human approver")
+        if request.mode != "dry-run" and not request.target_instance_id:
+            reasons.append("live execution requires an explicit target CAM instance")
+        if (
+            request.mode != "dry-run"
+            and request.target_instance_id
+            and not request.target_instance_id.startswith(f"{request.product}:")
+        ):
+            reasons.append("target CAM instance does not match the requested product")
         if (request.product, request.mode) not in self.transports:
             reasons.append(
                 f"{request.product} transport '{request.mode}' is not configured for this version"

@@ -41,6 +41,31 @@ class ExecutionGatewayTests(unittest.TestCase):
         self.assertTrue(any("NC" in reason for reason in nc_output["reasons"]))
         self.assertEqual("rejected", live["status"])
         self.assertTrue(any("not configured" in reason for reason in live["reasons"]))
+        self.assertTrue(any("target CAM instance" in reason for reason in live["reasons"]))
+
+        targeted_live = gateway.execute(
+            request(
+                mode="live",
+                reviewed=True,
+                approver="shop-reviewer",
+                target_instance_id="powermill:4321:ABCD",
+            )
+        )
+        self.assertFalse(
+            any("target CAM instance" in reason for reason in targeted_live["reasons"])
+        )
+
+        wrong_product = gateway.execute(
+            request(
+                mode="live",
+                reviewed=True,
+                approver="shop-reviewer",
+                target_instance_id="nx:4321:ABCD",
+            )
+        )
+        self.assertTrue(
+            any("does not match" in reason for reason in wrong_product["reasons"])
+        )
 
     def test_command_text_is_checked_independently_from_claimed_risk(self) -> None:
         gateway = ExecutionGateway()

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
 import os
 import re
 import secrets
 import sqlite3
-import subprocess
 import sys
 import threading
 import time
@@ -16,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .connection_monitor import detect_cam_instances
 from .parser import parse_log
 
 
@@ -354,6 +353,10 @@ class CaptureService:
         self._last_scan: str | None = None
         self._last_runtime_error = ""
         self._processes = {"nx": False, "powermill": False}
+        self._instances: dict[str, list[dict[str, Any]]] = {
+            "nx": [],
+            "powermill": [],
+        }
         self._last_process_check = 0.0
         self._last_discovery_check = 0.0
         self._known_sources: list[tuple[str, Path]] = []
@@ -404,6 +407,10 @@ class CaptureService:
         with self._lock:
             if consent is not None:
                 self.config.consent = bool(consent)
+                if not self.config.consent:
+                    self._instances = {"nx": [], "powermill": []}
+                    self._processes = {"nx": False, "powermill": False}
+                    self._last_process_check = 0.0
             if enabled is not None:
                 if enabled and not self.config.consent:
                     raise ValueError("Local recording requires explicit consent first.")
@@ -422,9 +429,8 @@ class CaptureService:
                 return 0
             inserted = 0
             now = time.monotonic()
-            if now - self._last_process_check >= 10:
-                self._processes = self._detect_processes()
-                self._last_process_check = now
+            if now - self._last_process_check >= 2:
+                self._refresh_connections()
             if now - self._last_discovery_check >= 5 or not self._known_sources:
                 self._known_sources = self._discover_sources()
                 self._last_discovery_check = now
@@ -672,30 +678,21 @@ class CaptureService:
         value = os.environ.get(name, "")
         return [Path(item.strip()) for item in value.split(os.pathsep) if item.strip()]
 
-    @staticmethod
-    def _detect_processes() -> dict[str, bool]:
-        detected = {"nx": False, "powermill": False}
-        if os.name != "nt":
-            return detected
-        try:
-            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            result = subprocess.run(
-                ["tasklist", "/FO", "CSV", "/NH"],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=3,
-                creationflags=flags,
-            )
-            names = {row[0].casefold() for row in csv.reader(result.stdout.splitlines()) if row}
-            detected["nx"] = bool(names & {"ugraf.exe", "nx.exe"})
-            detected["powermill"] = bool(names & {"powermill.exe", "pmill.exe"})
-        except (OSError, subprocess.SubprocessError):
-            pass
-        return detected
+    def _refresh_connections(self, *, force: bool = False) -> None:
+        self._instances = detect_cam_instances(force=force)
+        self._processes = {
+            product: bool(instances)
+            for product, instances in self._instances.items()
+        }
+        self._last_process_check = time.monotonic()
 
-    def status(self) -> dict[str, Any]:
+    def status(self, *, refresh_connections: bool = False) -> dict[str, Any]:
         with self._lock:
+            if self.config.consent and (
+                refresh_connections
+                or time.monotonic() - self._last_process_check >= 2
+            ):
+                self._refresh_connections(force=refresh_connections)
             state = (
                 "awaiting_consent"
                 if not self.config.consent
@@ -712,6 +709,10 @@ class CaptureService:
                 "counts": self.store.counts(),
                 "sources": self.store.sources(),
                 "processes": dict(self._processes),
+                "instances": {
+                    product: [dict(instance) for instance in instances]
+                    for product, instances in self._instances.items()
+                },
                 "last_scan": self._last_scan,
                 "last_error": self._last_runtime_error,
             }
@@ -747,6 +748,9 @@ class CaptureService:
                     "command": self.redactor.text(command),
                     "risk": str(request.get("risk", "blocked")),
                     "mode": "automation",
+                    "target_instance_id": str(
+                        request.get("target_instance_id", "")
+                    ),
                     "execution": self.redactor.value(dict(result)),
                     "capture": {
                         "captured_at": captured_at,

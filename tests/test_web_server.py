@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -48,6 +49,22 @@ class RecorderHttpTests(unittest.TestCase):
                 self.assertEqual(200, status)
                 self.assertEqual(["cam-local-capture"], plugins["changed"])
                 self.assertIsNotNone(server.recorder)
+                capture_plugin = next(
+                    item
+                    for item in plugins["plugins"]
+                    if item["id"] == "cam-local-capture"
+                )
+                self.assertEqual("awaiting_consent", capture_plugin["runtime"]["status"])
+                self.assertIn("instances", capture_plugin["runtime"])
+
+                status, plugins = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/install",
+                    {"plugin_id": "powermill-cam-copilot"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(["powermill-cam-copilot"], plugins["changed"])
 
                 status, plugins = self._request(
                     connection,
@@ -58,6 +75,12 @@ class RecorderHttpTests(unittest.TestCase):
                 self.assertEqual(200, status)
                 self.assertEqual(["cam-execution-gateway"], plugins["changed"])
                 self.assertIsNotNone(server.execution)
+                execution_plugin = next(
+                    item
+                    for item in plugins["plugins"]
+                    if item["id"] == "cam-execution-gateway"
+                )
+                self.assertEqual("ready", execution_plugin["runtime"]["status"])
 
                 status, recorder = self._request(connection, "GET", "/api/recorder")
                 self.assertEqual(200, status)
@@ -77,6 +100,54 @@ class RecorderHttpTests(unittest.TestCase):
                 )
                 self.assertEqual(200, status)
                 self.assertEqual("recording", recorder["state"])
+                server.recorder._instances["powermill"] = [
+                    {
+                        "instance_id": "powermill:301:A1",
+                        "product": "powermill",
+                        "pid": 301,
+                        "process_name": "PowerMill.exe",
+                        "window_handle": "0xA1",
+                        "window_title": "Project A - PowerMill",
+                        "is_foreground": True,
+                        "window_state": "foreground",
+                    },
+                    {
+                        "instance_id": "powermill:302:B1",
+                        "product": "powermill",
+                        "pid": 302,
+                        "process_name": "PowerMill.exe",
+                        "window_handle": "0xB1",
+                        "window_title": "Project B - PowerMill",
+                        "is_foreground": False,
+                        "window_state": "visible",
+                    },
+                ]
+                server.recorder._processes["powermill"] = True
+                server.recorder._last_process_check = time.monotonic()
+
+                status, connections = self._request(
+                    connection, "GET", "/api/connections"
+                )
+                self.assertEqual(200, status)
+                powermill = next(
+                    item
+                    for item in connections["connections"]
+                    if item["key"] == "powermill"
+                )
+                self.assertEqual("connected", powermill["status"])
+                self.assertEqual(2, powermill["instance_count"])
+                self.assertEqual(
+                    "powermill:301:A1", powermill["active_instance_id"]
+                )
+
+                status, plugins = self._request(connection, "GET", "/api/plugins")
+                self.assertEqual(200, status)
+                power_plugin = next(
+                    item
+                    for item in plugins["plugins"]
+                    if item["id"] == "powermill-cam-copilot"
+                )
+                self.assertEqual(2, power_plugin["runtime"]["instance_count"])
 
                 request = {
                     "product": "powermill",

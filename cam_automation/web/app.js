@@ -70,6 +70,8 @@ const state = {
   installedPluginIds: new Set(),
   installedProducts: [],
   recorderTimer: null,
+  connectionTimer: null,
+  connections: [],
   result: null,
   parameters: {},
   context: null,
@@ -119,11 +121,15 @@ const PRODUCT_UI = {
 const FEATURE_LABELS = {
   "analysis:nx": "NX 日志分析",
   "preview:nx": "NX dry-run",
+  "connection:nx": "NX 连接状态",
   "analysis:powermill": "宏日志分析",
   "preview:powermill": "PowerMill 配方",
+  "connection:powermill": "PowerMill 连接状态",
   "capture:local": "本机采集",
   "logs:filter": "日志筛选",
+  "connection:multi-instance": "多窗口状态",
   "execution:dry-run": "命令 dry-run",
+  "execution:target-instance": "按实例定向",
   "audit:execution": "执行审计",
   "codex:review": "Codex 审阅",
   "context:export": "上下文导出",
@@ -164,6 +170,58 @@ function pluginDisplayName(pluginId) {
   return state.plugins.find((plugin) => plugin.id === pluginId)?.name || pluginId;
 }
 
+function pluginRuntime(plugin) {
+  if (!plugin.installed) {
+    return plugin.runtime || {
+      status: "not_installed",
+      label: "未安装",
+      detail: "安装后可用",
+      instance_count: 0,
+    };
+  }
+  const liveConnection = state.connections.find(
+    (connection) => connection.plugin_id === plugin.id,
+  );
+  return liveConnection || plugin.runtime || {
+    status: plugin.installed ? "ready" : "not_installed",
+    label: plugin.installed ? "已安装" : "未安装",
+    detail: "",
+    instance_count: 0,
+  };
+}
+
+function pluginRuntimeLabel(runtime) {
+  const count = Number(runtime.instance_count || 0);
+  if (count > 0) {
+    return `${runtime.monitoring ? "监测中" : "已检测"} · ${count} 个实例`;
+  }
+  const statusLabel = {
+    ready: "已就绪",
+    available: "可连接",
+    awaiting_consent: "待授权",
+    disconnected: "未连接",
+    unconfigured: "未配置",
+    recording: "记录中",
+    paused: "已暂停",
+  }[runtime.status];
+  if (runtime.key) return statusLabel || runtime.status;
+  return runtime.label || statusLabel || runtime.status;
+}
+
+function updatePluginRuntimeBadges() {
+  document.querySelectorAll("[data-plugin-runtime]").forEach((container) => {
+    const plugin = state.plugins.find((item) => item.id === container.dataset.pluginRuntime);
+    if (!plugin) return;
+    const runtime = pluginRuntime(plugin);
+    const dot = container.querySelector(".plugin-runtime-dot");
+    const label = container.querySelector(".plugin-runtime-label");
+    container.className = `plugin-runtime ${runtime.status || ""}`;
+    container.title = runtime.detail || "";
+    dot.className = `plugin-runtime-dot ${runtime.status || ""}`;
+    label.textContent = pluginRuntimeLabel(runtime);
+  });
+}
+
 function renderPluginCard(plugin) {
   const card = document.createElement("article");
   card.className = `plugin-card${plugin.installed ? " installed" : ""}`;
@@ -189,6 +247,15 @@ function renderPluginCard(plugin) {
 
   const summary = document.createElement("p");
   summary.textContent = plugin.summary;
+
+  const runtime = document.createElement("div");
+  runtime.className = "plugin-runtime";
+  runtime.dataset.pluginRuntime = plugin.id;
+  const runtimeDot = document.createElement("span");
+  runtimeDot.className = "plugin-runtime-dot";
+  const runtimeLabel = document.createElement("span");
+  runtimeLabel.className = "plugin-runtime-label";
+  runtime.append(runtimeDot, runtimeLabel);
 
   const capabilities = document.createElement("div");
   capabilities.className = "plugin-capabilities";
@@ -237,7 +304,8 @@ function renderPluginCard(plugin) {
   });
   actionGroup.append(action);
   footer.append(detail, status, actionGroup);
-  card.append(header, summary, capabilities, footer);
+  card.append(header, summary, runtime, capabilities, footer);
+  requestAnimationFrame(updatePluginRuntimeBadges);
   return card;
 }
 
@@ -278,6 +346,22 @@ function configurePluginModules() {
     window.clearInterval(state.recorderTimer);
     state.recorderTimer = null;
     state.recorder = null;
+  }
+
+  const hasConnectionPlugin = state.plugins.some(
+    (plugin) => plugin.installed && plugin.features.some(
+      (feature) => feature.startsWith("connection:") || feature === "codex:review",
+    ),
+  );
+  if (hasConnectionPlugin) {
+    loadConnections();
+    if (!state.connectionTimer) {
+      state.connectionTimer = window.setInterval(loadConnections, 3000);
+    }
+  } else if (state.connectionTimer) {
+    window.clearInterval(state.connectionTimer);
+    state.connectionTimer = null;
+    state.connections = [];
   }
 }
 
@@ -335,6 +419,24 @@ function renderRecorder(status) {
   elements.runtimeLabel.textContent = status.state === "recording"
     ? `后台记录 · ${total}`
     : `本地 dry-run · ${RECORDER_LABELS[status.state] || status.state}`;
+  const capturePlugin = state.plugins.find((plugin) => plugin.id === "cam-local-capture");
+  if (capturePlugin) {
+    const instanceCount = Object.values(status.instances || {}).reduce(
+      (count, instances) => count + (Array.isArray(instances) ? instances.length : 0),
+      0,
+    );
+    capturePlugin.runtime = {
+      status: status.state,
+      label: instanceCount
+        ? `${RECORDER_LABELS[status.state] || status.state} · ${instanceCount} 个实例`
+        : RECORDER_LABELS[status.state] || status.state,
+      detail: status.consent
+        ? `本机监测 ${instanceCount} 个窗口/进程`
+        : "授权后才会检测 CAM 软件窗口",
+      instance_count: instanceCount,
+    };
+    updatePluginRuntimeBadges();
+  }
 }
 
 async function loadRecorderStatus() {
@@ -716,23 +818,56 @@ async function loadSample() {
   }
 }
 
-async function loadConnections() {
-  try {
-    const response = await fetch("/api/connections");
-    const payload = await response.json();
-    elements.connectionList.replaceChildren();
-    payload.connections.forEach((connection) => {
-      const row = document.createElement("div");
-      row.className = "connection-row";
-      const dot = document.createElement("span");
-      dot.className = `connection-dot ${connection.status}`;
-      const label = document.createElement("strong");
-      label.textContent = connection.label;
-      const detail = document.createElement("small");
-      detail.textContent = connection.detail;
-      row.append(dot, label, detail);
-      elements.connectionList.append(row);
+function renderConnections(connections) {
+  elements.connectionList.replaceChildren();
+  connections.forEach((connection) => {
+    const group = document.createElement("section");
+    group.className = `connection-group ${connection.status}`;
+    const row = document.createElement("div");
+    row.className = "connection-row";
+    const dot = document.createElement("span");
+    dot.className = `connection-dot ${connection.status}`;
+    const label = document.createElement("strong");
+    label.textContent = connection.label;
+    const count = document.createElement("span");
+    count.className = "connection-count";
+    count.textContent = connection.instance_count
+      ? `${connection.instance_count} 个实例`
+      : pluginRuntimeLabel(connection);
+    const detail = document.createElement("small");
+    detail.textContent = connection.detail;
+    row.append(dot, label, count, detail);
+    group.append(row);
+
+    (connection.instances || []).forEach((instance, index) => {
+      const instanceRow = document.createElement("div");
+      instanceRow.className = `connection-instance${instance.is_foreground ? " foreground" : ""}`;
+      const instanceName = document.createElement("strong");
+      instanceName.textContent = `窗口 ${index + 1}`;
+      const identity = document.createElement("code");
+      identity.textContent = `PID ${instance.pid} · ${instance.instance_id}`;
+      const title = document.createElement("span");
+      title.textContent = instance.window_title || instance.process_name || "后台进程";
+      instanceRow.append(instanceName, identity, title);
+      if (instance.is_foreground) {
+        const active = document.createElement("em");
+        active.textContent = "当前前台";
+        instanceRow.append(active);
+      }
+      group.append(instanceRow);
     });
+    elements.connectionList.append(group);
+  });
+}
+
+async function loadConnections(force = false) {
+  try {
+    const response = await fetch(`/api/connections${force ? "?refresh=1" : ""}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "连接状态读取失败");
+    state.connections = payload.connections || [];
+    renderConnections(state.connections);
+    updatePluginRuntimeBadges();
   } catch (error) {
     elements.connectionList.textContent = error.message;
   }
@@ -795,7 +930,7 @@ elements.sampleButton.addEventListener("click", loadSample);
 elements.analyzeButton.addEventListener("click", analyze);
 elements.applyParameters.addEventListener("click", analyze);
 elements.allowReview.addEventListener("change", analyze);
-elements.refreshConnections.addEventListener("click", loadConnections);
+elements.refreshConnections.addEventListener("click", () => loadConnections(true));
 elements.recorderConsent.addEventListener("click", async () => {
   try {
     await postRecorder("/api/recorder/consent", { accepted: true });

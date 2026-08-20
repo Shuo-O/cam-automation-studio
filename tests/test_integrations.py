@@ -72,6 +72,46 @@ operation.GenerateToolPath()
         keys = {item["key"] for item in connection_statuses()}
         self.assertEqual({"codex", "nx", "powermill"}, keys)
 
+    def test_connection_statuses_expose_multiple_product_instances(self) -> None:
+        statuses = connection_statuses(
+            {"ug-cam-copilot", "powermill-cam-copilot"},
+            capture_status={
+                "state": "recording",
+                "consent": True,
+                "instances": {
+                    "nx": [
+                        {
+                            "instance_id": "nx:101:A",
+                            "pid": 101,
+                            "window_title": "Part A - NX",
+                            "is_foreground": True,
+                        },
+                        {
+                            "instance_id": "nx:102:B",
+                            "pid": 102,
+                            "window_title": "Part B - NX",
+                            "is_foreground": False,
+                        },
+                    ],
+                    "powermill": [
+                        {
+                            "instance_id": "powermill:201:C",
+                            "pid": 201,
+                            "window_title": "Project C - PowerMill",
+                            "is_foreground": False,
+                        }
+                    ],
+                },
+            },
+        )
+        by_key = {item["key"]: item for item in statuses}
+
+        self.assertEqual("connected", by_key["nx"]["status"])
+        self.assertEqual(2, by_key["nx"]["instance_count"])
+        self.assertEqual(2, by_key["nx"]["process_count"])
+        self.assertEqual("nx:101:A", by_key["nx"]["active_instance_id"])
+        self.assertEqual(1, by_key["powermill"]["instance_count"])
+
 
 if __name__ == "__main__":
     unittest.main()

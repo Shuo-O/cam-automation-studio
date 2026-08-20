@@ -1,6 +1,6 @@
 # Architecture
 
-## CAM Automation Studio 0.4
+## CAM Automation Studio 0.5
 
 The application starts as a minimal core. Product and operational modules are discovered from
 `plugins/*/app-plugin.json`, but none are installed by default:
@@ -42,6 +42,10 @@ does not execute returned text or attach to a CAD/CAM process.
 deduplication, SQLite persistence, and JSONL export. It reads only configured CAM source types and
 is not imported until `cam-local-capture` is installed. Collection starts only after explicit
 first-use consent; the persisted setting enables automatic recording on later launches.
+`cam_automation/connection_monitor.py` enumerates CAM host processes and visible top-level windows
+without attaching to them. Runtime instance IDs combine product, PID, and window handle so the UI
+can distinguish multiple NX/PowerMill windows. Window titles remain ephemeral local status and are
+not persisted into learned events.
 `cam_automation/execution.py` is a separate fail-closed gateway and is not imported until
 `cam-execution-gateway` is installed. Dry-run is the only built-in transport, and execution
 attempts are written back as ActivityEvent audit evidence when recording consent exists.
@@ -99,6 +103,8 @@ This is explainable, fast, reproducible, and usable without an API key. A future
 - Command text is independently checked even when its submitted risk label is `safe`.
 - Live and review-classified requests require a reviewed recipe, target version, test project
   snapshot, and identified approver.
+- Live requests require an explicit runtime `target_instance_id`; automatic foreground targeting is
+  not allowed because multiple CAM windows may be open.
 - External writes, project saves, exports, and NC output are `review`.
 - Delete, quit, project reset/close, nested macro execution, and external process commands are `blocked`.
 - String parameters reject control characters and escape the learned quote delimiter.

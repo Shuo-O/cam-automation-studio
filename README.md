@@ -1,6 +1,6 @@
 # CAM Automation Studio
 
-这是一个插件优先、本地运行的 CAM 自动化工作台。`0.4.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
+这是一个插件优先、本地运行的 CAM 自动化工作台。`0.5.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
 
 每个软件模块位于 `plugins/<plugin-id>`，使用 `app-plugin.json` 声明功能、依赖和本地权限；Codex 插件继续使用 `.codex-plugin/plugin.json`。UG/NX 插件仍在 `plugins/ug-cam-copilot` 独立开发，PowerMill 使用 `plugins/powermill-cam-copilot`。
 
@@ -21,10 +21,10 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 统一 HTTP 接口：
 
-- `GET /api/plugins`：插件目录、依赖、权限和本机安装状态。
+- `GET /api/plugins`：插件目录、依赖、权限、安装状态和插件运行/连接状态。
 - `POST /api/plugins/install|uninstall`：在本机安装或移除模块；移除不会删除模块数据。
 - `GET /api/capabilities`：产品、输入格式、dry-run 安全门禁。
-- `GET /api/connections`：Codex、UG/NX、PowerMill 的本机桥接状态。
+- `GET /api/connections`：Codex、UG/NX、PowerMill 的本机桥接状态；经采集授权后包含每个可见窗口的实例 ID、PID、窗口标题和前台标记。
 - `POST /api/analyze`：`product=nx|powermill`，返回 recipe、ActivityEvent、预览和 Codex context。
 - `POST /api/codex/context`：生成可交换的 Codex 审阅请求，可持久化到 `build/codex-exchange`。
 - `POST /api/codex/review`：回传 `review_status`、`findings` 和 `required_gates`。
@@ -45,7 +45,9 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 ## 后台行为记录
 
-安装 `cam-local-capture` 后才会导入并启动 `CaptureService`。首次明确授权后，它会在后续启动时默认继续记录，并自动检测 UG/NX 与 PowerMill 进程及受支持的日志源。采集线程只读源文件，不导入或执行 Journal，不向网络上传数据。
+安装 `cam-local-capture` 后才会导入并启动 `CaptureService`。首次明确授权后，它会在后续启动时默认继续记录，并自动检测 UG/NX 与 PowerMill 进程、多个可见软件窗口及受支持的日志源。每个运行实例都有临时 `instance_id`（产品、PID、窗口句柄），界面会显示实例数量并标记查询时位于前台的 CAM 窗口。采集线程只读源文件，不导入或执行 Journal，不向网络上传数据。
+
+进程列表和窗口标题的读取属于采集插件的显式本地权限。标题只用于当前本机连接状态，不写入 ActivityEvent、学习配方或导出 JSONL。一个日志源无法可靠映射到多个同时运行的 CAM 窗口时，首版不会猜测归属。
 
 默认入口：
 
@@ -59,7 +61,7 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 相关本机接口：
 
-- `GET /api/recorder`：授权、运行状态、进程、日志源和计数。
+- `GET /api/recorder`：授权、运行状态、兼容进程布尔值、实例列表、日志源和计数。
 - `POST /api/recorder/consent|control|label|scan`：授权、暂停/继续、标注和立即扫描。
 - `GET /api/recorder/events?limit=500`：读取最近的脱敏 ActivityEvent。
 - `GET /api/recorder/export`：导出本地 JSONL。
@@ -67,7 +69,7 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 ## 命令执行门禁
 
-安装 `cam-execution-gateway` 时会自动安装 `cam-local-capture` 审计依赖。`POST /api/execution/run` 接受结构化执行请求，并把请求、拒绝原因、响应和耗时写入同一采集审计链。当前仅注册 `dry-run` 传输；`live` 会在没有目标版本原生适配器时失败关闭。
+安装 `cam-execution-gateway` 时会自动安装 `cam-local-capture` 审计依赖。`POST /api/execution/run` 接受结构化执行请求，并把请求、目标实例、拒绝原因、响应和耗时写入同一采集审计链。当前仅注册 `dry-run` 传输；`live` 除目标版本原生适配器外，还必须提供明确的 `target_instance_id`，避免同时打开多个 CAM 窗口时把命令发错目标。
 
 执行请求至少包含：
 
@@ -80,6 +82,7 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
   "recipe_hash": "reviewed-recipe-sha256",
   "target_version": "PowerMill 2026",
   "test_project": true,
+  "target_instance_id": "powermill:4321:1A02F4",
   "mode": "dry-run"
 }
 ```

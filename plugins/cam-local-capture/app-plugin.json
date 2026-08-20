@@ -3,7 +3,7 @@
   "id": "cam-local-capture",
   "name": "本地行为记录",
   "version": "0.2.0",
-  "summary": "经首次授权后，区分多个 NX/PowerMill 窗口并在本机后台读取、脱敏和整理行为日志。",
+  "summary": "安装后默认一次授权，区分多个 NX/PowerMill 窗口并在本机后台读取、脱敏和整理行为日志，可随时撤销。",
   "category": "数据",
   "order": 30,
   "features": ["capture:local", "logs:filter", "connection:multi-instance"],
@@ -14,6 +14,8 @@
     "read:cam-window-titles",
     "write:local-database"
   ],
-  "consent_required": true,
+  "consent_required": false,
+  "auto_authorize": true,
+  "consent_reversible": true,
   "icon": "LOG"
 }

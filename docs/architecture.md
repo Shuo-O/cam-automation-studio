@@ -40,12 +40,16 @@ does not execute returned text or attach to a CAD/CAM process.
 
 `cam_automation/recorder.py` owns background source discovery, process detection, redaction,
 deduplication, SQLite persistence, and JSONL export. It reads only configured CAM source types and
-is not imported until `cam-local-capture` is installed. Collection starts only after explicit
-first-use consent; the persisted setting enables automatic recording on later launches.
+is not imported until `cam-local-capture` is installed. On first installation the local capture
+plugin grants a reversible local-only consent and starts collection automatically. Users can revoke
+the grant or disable log capture, instance detection, and execution audit independently in advanced
+settings. Revocation stops collection and clears in-memory window metadata without deleting saved
+local data; a previously revoked configuration is not auto-authorized again after reinstall.
 `cam_automation/connection_monitor.py` enumerates CAM host processes and visible top-level windows
 without attaching to them. Runtime instance IDs combine product, PID, and window handle so the UI
-can distinguish multiple NX/PowerMill windows. Window titles remain ephemeral local status and are
-not persisted into learned events.
+can distinguish multiple NX/PowerMill windows. The plugin home always shows compact Codex, UG/NX,
+and PowerMill connection summaries; the workbench connection panel expands instance details.
+Window titles remain ephemeral local status and are not persisted into learned events.
 `cam_automation/execution.py` is a separate fail-closed gateway and is not imported until
 `cam-execution-gateway` is installed. Dry-run is the only built-in transport, and execution
 attempts are written back as ActivityEvent audit evidence when recording consent exists.

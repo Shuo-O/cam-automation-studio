@@ -25,6 +25,8 @@ class AppPlugin:
     dependencies: tuple[str, ...]
     permissions: tuple[str, ...]
     consent_required: bool
+    auto_authorize: bool
+    consent_reversible: bool
     icon: str
     source_dir: str
 
@@ -52,6 +54,8 @@ class AppPlugin:
             dependencies=tuple(str(item) for item in value.get("dependencies", [])),
             permissions=tuple(str(item) for item in value.get("permissions", [])),
             consent_required=bool(value.get("consent_required", False)),
+            auto_authorize=bool(value.get("auto_authorize", False)),
+            consent_reversible=bool(value.get("consent_reversible", False)),
             icon=str(value.get("icon", "MOD"))[:4].upper(),
             source_dir=str(path.parent.resolve()),
         )
@@ -71,6 +75,8 @@ class AppPlugin:
         value["installed"] = installed
         value["enabled"] = installed
         value["installed_at"] = installed_at
+        value["auto_authorize"] = self.auto_authorize
+        value["consent_reversible"] = self.consent_reversible
         return value
 
 

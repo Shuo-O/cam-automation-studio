@@ -254,6 +254,73 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
+.plugin-connections {
+  display: grid;
+  gap: 10px;
+  max-width: 1180px;
+  margin: 0 auto 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: var(--paper);
+}
+
+.plugin-connections .section-heading {
+  margin: 0;
+}
+
+.plugin-connections .section-heading h2 {
+  margin-top: 2px;
+  font-size: 15px;
+}
+
+.plugin-connection-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.plugin-connection-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 9px 10px;
+  background: #fbfcfc;
+}
+
+.plugin-connection-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.plugin-connection-heading strong,
+.plugin-connection-state,
+.plugin-connection-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-connection-state {
+  color: #3e4b47;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.plugin-connection-card small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.plugin-connections-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .plugin-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(240px, 1fr));
@@ -645,6 +712,31 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.recorder-advanced {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.recorder-advanced summary {
+  cursor: pointer;
+  color: #4d5855;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recorder-category-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
+.recorder-advanced p {
+  margin: 7px 0 0;
 }
 
 .button.danger {
@@ -1252,6 +1344,10 @@ pre {
 }
 
 @media (max-width: 1100px) {
+  .plugin-connection-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .plugin-grid {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
@@ -1328,6 +1424,10 @@ pre {
   }
 
   .plugin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plugin-connection-summary {
     grid-template-columns: 1fr;
   }
 

@@ -6,6 +6,8 @@ const elements = {
   pluginGrid: document.querySelector("#pluginGrid"),
   installedPluginCount: document.querySelector("#installedPluginCount"),
   availablePluginCount: document.querySelector("#availablePluginCount"),
+  pluginConnectionSummary: document.querySelector("#pluginConnectionSummary"),
+  pluginConnectionsRefresh: document.querySelector("#pluginConnectionsRefresh"),
   sourceInput: document.querySelector("#sourceInput"),
   sourceLabel: document.querySelector("#sourceLabel"),
   sourceFormat: document.querySelector("#sourceFormat"),
@@ -56,11 +58,15 @@ const elements = {
   recorderSourceSummary: document.querySelector("#recorderSourceSummary"),
   recorderLabel: document.querySelector("#recorderLabel"),
   recorderConsent: document.querySelector("#recorderConsent"),
+  recorderRevoke: document.querySelector("#recorderRevoke"),
   recorderToggle: document.querySelector("#recorderToggle"),
   recorderScan: document.querySelector("#recorderScan"),
   recorderView: document.querySelector("#recorderView"),
   recorderExport: document.querySelector("#recorderExport"),
   recorderClear: document.querySelector("#recorderClear"),
+  captureLogsToggle: document.querySelector("#captureLogsToggle"),
+  detectInstancesToggle: document.querySelector("#detectInstancesToggle"),
+  auditExecutionToggle: document.querySelector("#auditExecutionToggle"),
 };
 
 const state = {
@@ -96,6 +102,12 @@ const RECORDER_LABELS = {
   recording: "记录中",
   paused: "已暂停",
 };
+
+const PLUGIN_CONNECTIONS = [
+  { key: "nx", pluginId: "ug-cam-copilot", label: "UG / NX" },
+  { key: "powermill", pluginId: "powermill-cam-copilot", label: "PowerMill" },
+  { key: "codex", pluginId: "cam-codex-review", label: "Codex" },
+];
 
 const PRODUCT_UI = {
   nx: {
@@ -196,6 +208,7 @@ function pluginRuntimeLabel(runtime) {
     return `${runtime.monitoring ? "监测中" : "已检测"} · ${count} 个实例`;
   }
   const statusLabel = {
+    not_installed: "未安装",
     ready: "已就绪",
     available: "可连接",
     awaiting_consent: "待授权",
@@ -206,6 +219,31 @@ function pluginRuntimeLabel(runtime) {
   }[runtime.status];
   if (runtime.key) return statusLabel || runtime.status;
   return runtime.label || statusLabel || runtime.status;
+}
+
+function renderPluginConnectionSummary() {
+  elements.pluginConnectionSummary.replaceChildren();
+  PLUGIN_CONNECTIONS.forEach(({ pluginId, label }) => {
+    const plugin = state.plugins.find((item) => item.id === pluginId);
+    if (!plugin) return;
+    const runtime = pluginRuntime(plugin);
+    const card = document.createElement("article");
+    card.className = `plugin-connection-card ${runtime.status || ""}`;
+    const heading = document.createElement("div");
+    heading.className = "plugin-connection-heading";
+    const dot = document.createElement("span");
+    dot.className = `plugin-runtime-dot ${runtime.status || ""}`;
+    const name = document.createElement("strong");
+    name.textContent = label;
+    heading.append(dot, name);
+    const stateLabel = document.createElement("span");
+    stateLabel.className = "plugin-connection-state";
+    stateLabel.textContent = pluginRuntimeLabel(runtime);
+    const detail = document.createElement("small");
+    detail.textContent = runtime.detail || "";
+    card.append(heading, stateLabel, detail);
+    elements.pluginConnectionSummary.append(card);
+  });
 }
 
 function updatePluginRuntimeBadges() {
@@ -271,6 +309,8 @@ function renderPluginCard(plugin) {
   detail.className = "plugin-dependency";
   if (plugin.dependencies.length) {
     detail.textContent = `依赖：${plugin.dependencies.map(pluginDisplayName).join("、")}`;
+  } else if (plugin.auto_authorize && plugin.consent_reversible) {
+    detail.textContent = "安装后默认授权，可随时撤销";
   } else if (plugin.consent_required) {
     detail.textContent = "首次启用需授权";
   } else {
@@ -348,20 +388,10 @@ function configurePluginModules() {
     state.recorder = null;
   }
 
-  const hasConnectionPlugin = state.plugins.some(
-    (plugin) => plugin.installed && plugin.features.some(
-      (feature) => feature.startsWith("connection:") || feature === "codex:review",
-    ),
-  );
-  if (hasConnectionPlugin) {
-    loadConnections();
-    if (!state.connectionTimer) {
-      state.connectionTimer = window.setInterval(loadConnections, 3000);
-    }
-  } else if (state.connectionTimer) {
-    window.clearInterval(state.connectionTimer);
-    state.connectionTimer = null;
-    state.connections = [];
+  renderPluginConnectionSummary();
+  loadConnections();
+  if (!state.connectionTimer) {
+    state.connectionTimer = window.setInterval(loadConnections, 3000);
   }
 }
 
@@ -372,6 +402,7 @@ function renderPluginCatalog(payload) {
   elements.pluginGrid.replaceChildren();
   state.plugins.forEach((plugin) => elements.pluginGrid.append(renderPluginCard(plugin)));
   configurePluginModules();
+  renderPluginConnectionSummary();
   if (!state.installedPluginIds.has("cam-local-capture")) {
     elements.runtimeDot.className = "status-dot";
     elements.runtimeLabel.textContent = `${payload.installed_count || 0} 个插件`;
@@ -401,7 +432,9 @@ function renderRecorder(status) {
   const processNames = [];
   if (status.processes?.nx) processNames.push("NX");
   if (status.processes?.powermill) processNames.push("PowerMill");
-  elements.recorderState.textContent = RECORDER_LABELS[status.state] || status.state;
+  elements.recorderState.textContent = status.consent
+    ? `已授权 · ${RECORDER_LABELS[status.state] || status.state}`
+    : "未授权";
   elements.recorderState.className = `recorder-state ${status.state}`;
   elements.recorderCount.textContent = total;
   elements.recorderSourceSummary.textContent =
@@ -409,12 +442,25 @@ function renderRecorder(status) {
   elements.recorderLabel.value = status.operator_label || "unlabeled";
   elements.recorderLabel.disabled = !status.consent;
   elements.recorderConsent.hidden = status.consent;
+  elements.recorderConsent.textContent = status.consent_source === "revoked"
+    ? "恢复授权并记录"
+    : "允许并记录";
+  elements.recorderRevoke.hidden = !status.consent;
   elements.recorderToggle.hidden = !status.consent;
   elements.recorderToggle.textContent = status.enabled ? "暂停" : "继续";
   elements.recorderScan.disabled = status.state !== "recording";
   elements.recorderView.disabled = total === 0;
   elements.recorderExport.disabled = total === 0;
   elements.recorderClear.disabled = total === 0;
+  const categories = status.categories || {};
+  [
+    [elements.captureLogsToggle, categories.logs],
+    [elements.detectInstancesToggle, categories.instances],
+    [elements.auditExecutionToggle, categories.execution_audit],
+  ].forEach(([toggle, enabled]) => {
+    toggle.checked = Boolean(enabled);
+    toggle.disabled = !status.consent;
+  });
   elements.runtimeDot.className = `status-dot ${status.state}`;
   elements.runtimeLabel.textContent = status.state === "recording"
     ? `后台记录 · ${total}`
@@ -437,6 +483,7 @@ function renderRecorder(status) {
     };
     updatePluginRuntimeBadges();
   }
+  renderPluginConnectionSummary();
 }
 
 async function loadRecorderStatus() {
@@ -455,6 +502,7 @@ async function postRecorder(path, body) {
     body: JSON.stringify(body),
   });
   renderRecorder(payload.recorder || payload);
+  await loadConnections();
   return payload;
 }
 
@@ -862,14 +910,18 @@ function renderConnections(connections) {
 
 async function loadConnections(force = false) {
   try {
-    const response = await fetch(`/api/connections${force ? "?refresh=1" : ""}`);
+    const query = new URLSearchParams({ include_uninstalled: "1" });
+    if (force) query.set("refresh", "1");
+    const response = await fetch(`/api/connections?${query.toString()}`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "连接状态读取失败");
     state.connections = payload.connections || [];
     renderConnections(state.connections);
+    renderPluginConnectionSummary();
     updatePluginRuntimeBadges();
   } catch (error) {
     elements.connectionList.textContent = error.message;
+    elements.pluginConnectionSummary.textContent = error.message;
   }
 }
 
@@ -931,10 +983,22 @@ elements.analyzeButton.addEventListener("click", analyze);
 elements.applyParameters.addEventListener("click", analyze);
 elements.allowReview.addEventListener("change", analyze);
 elements.refreshConnections.addEventListener("click", () => loadConnections(true));
+elements.pluginConnectionsRefresh.addEventListener("click", () => loadConnections(true));
 elements.recorderConsent.addEventListener("click", async () => {
   try {
     await postRecorder("/api/recorder/consent", { accepted: true });
     await postRecorder("/api/recorder/scan", {});
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+});
+elements.recorderRevoke.addEventListener("click", async () => {
+  if (!window.confirm("撤销本机 CAM 监测授权？将立即停止窗口检测和后台记录，已保存的本地日志不会删除。")) {
+    return;
+  }
+  try {
+    await postRecorder("/api/recorder/consent", { accepted: false });
+    setStatus("已撤销本机监测授权");
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -955,6 +1019,16 @@ elements.recorderLabel.addEventListener("change", () => {
     "/api/recorder/label",
     { operator_label: elements.recorderLabel.value },
   ).catch((error) => setStatus(error.message, true));
+});
+[
+  [elements.captureLogsToggle, "capture_logs"],
+  [elements.detectInstancesToggle, "detect_instances"],
+  [elements.auditExecutionToggle, "audit_execution"],
+].forEach(([toggle, key]) => {
+  toggle.addEventListener("change", () => {
+    postRecorder("/api/recorder/settings", { [key]: toggle.checked })
+      .catch((error) => setStatus(error.message, true));
+  });
 });
 elements.recorderView.addEventListener("click", () => {
   viewCapturedEvents().catch((error) => setStatus(error.message, true));

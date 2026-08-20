@@ -98,11 +98,42 @@ class CaptureServiceTests(unittest.TestCase):
             finally:
                 service.close()
 
+    def test_category_settings_disable_each_capture_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service = CaptureService(directory, start_background=False)
+            try:
+                service.configure(
+                    consent=True,
+                    capture_logs=False,
+                    detect_instances=False,
+                    audit_execution=False,
+                )
+                self.assertEqual(0, service.scan_once())
+                self.assertEqual(0, service.status()["counts"]["total"])
+                self.assertEqual(
+                    {"logs": False, "instances": False, "execution_audit": False},
+                    service.status()["categories"],
+                )
+                self.assertEqual(
+                    0,
+                    service.record_execution(
+                        request={
+                            "product": "nx",
+                            "action": "cam.model.import",
+                            "command": "IMPORT MODEL",
+                        },
+                        result={"status": "dry_run"},
+                    ),
+                )
+            finally:
+                service.close()
+
     def test_revoking_consent_clears_runtime_window_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             service = CaptureService(directory, start_background=False)
             try:
                 service.config.consent = True
+                service.config.consent_source = "auto_install"
                 service._instances["nx"] = [
                     {
                         "instance_id": "nx:100:A1",
@@ -115,6 +146,7 @@ class CaptureServiceTests(unittest.TestCase):
                 status = service.configure(consent=False)
 
                 self.assertFalse(status["consent"])
+                self.assertEqual("revoked", status["consent_source"])
                 self.assertEqual([], status["instances"]["nx"])
                 self.assertFalse(status["processes"]["nx"])
             finally:

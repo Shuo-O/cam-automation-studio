@@ -46,6 +46,17 @@
           <span>健康检查、插件安装与本地状态</span>
         </div>
       </div>
+      <section id="pluginConnections" class="plugin-connections" aria-label="多软件连接状态">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">CONNECTIONS</span>
+            <h2>多软件连接状态</h2>
+          </div>
+          <button id="pluginConnectionsRefresh" class="button link-button" type="button">刷新</button>
+        </header>
+        <div id="pluginConnectionSummary" class="plugin-connection-summary" aria-live="polite"></div>
+        <p class="plugin-connections-note">首页显示摘要；打开工作台可查看每个窗口的 PID、实例 ID 和前台状态。</p>
+      </section>
       <div id="pluginGrid" class="plugin-grid" aria-live="polite"></div>
     </section>
 
@@ -114,12 +125,31 @@
           </label>
           <div class="recorder-actions">
             <button id="recorderConsent" class="button primary compact" type="button">允许并记录</button>
+            <button id="recorderRevoke" class="button danger compact" type="button" hidden>撤销授权</button>
             <button id="recorderToggle" class="button secondary compact" type="button" hidden>暂停</button>
             <button id="recorderScan" class="button secondary compact" type="button">扫描</button>
             <button id="recorderView" class="button secondary compact" type="button">查看</button>
             <button id="recorderExport" class="button secondary compact" type="button">导出</button>
             <button id="recorderClear" class="button danger compact" type="button">清除</button>
           </div>
+          <details class="recorder-advanced">
+            <summary>高级设置 · 分类授权</summary>
+            <div class="recorder-category-settings">
+              <label class="switch-row">
+                <input id="captureLogsToggle" type="checkbox">
+                <span>记录日志</span>
+              </label>
+              <label class="switch-row">
+                <input id="detectInstancesToggle" type="checkbox">
+                <span>检测软件窗口</span>
+              </label>
+              <label class="switch-row">
+                <input id="auditExecutionToggle" type="checkbox">
+                <span>执行审计</span>
+              </label>
+            </div>
+            <p>关闭某一类后会立即停止对应采集；已保存的本地数据不会删除。</p>
+          </details>
         </section>
 
         <section class="connection-panel" aria-label="连接状态">

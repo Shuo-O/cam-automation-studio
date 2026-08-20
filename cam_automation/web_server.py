@@ -148,7 +148,8 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "connections": self.server.connection_statuses(
-                        force=query.get("refresh", ["0"])[0] == "1"
+                        force=query.get("refresh", ["0"])[0] == "1",
+                        include_uninstalled=query.get("include_uninstalled", ["0"])[0] == "1",
                     ),
                 },
             )
@@ -209,6 +210,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             "/api/plugins/uninstall",
             "/api/recorder/consent",
             "/api/recorder/control",
+            "/api/recorder/settings",
             "/api/recorder/label",
             "/api/recorder/scan",
             "/api/recorder/clear",
@@ -252,6 +254,24 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.OK,
                     self.server.recorder.configure(enabled=body["enabled"]),
+                )
+                return
+            if path == "/api/recorder/settings":
+                self.server.plugins.require("cam-local-capture")
+                settings = {
+                    key: body[key]
+                    for key in ("capture_logs", "detect_instances", "audit_execution")
+                    if key in body
+                }
+                if not settings or not all(
+                    isinstance(value, bool) for value in settings.values()
+                ):
+                    raise ValueError(
+                        "settings must include boolean capture_logs, detect_instances, or audit_execution."
+                    )
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.recorder.configure(**settings),
                 )
                 return
             if path == "/api/recorder/label":
@@ -427,6 +447,16 @@ class _WorkflowServer(ThreadingHTTPServer):
             result = self.plugins.install(plugin_id)
             changed = list(result.get("changed", []))
             self._sync_modules()
+            if (
+                "cam-local-capture" in changed
+                and self.recorder is not None
+                and not self.recorder.config.consent
+                and self.recorder.config.consent_source != "revoked"
+            ):
+                self.recorder.configure(
+                    consent=True,
+                    consent_source="auto_install",
+                )
             status = self.plugin_status()
             status["changed"] = changed
             return status
@@ -465,6 +495,7 @@ class _WorkflowServer(ThreadingHTTPServer):
         self,
         *,
         force: bool = False,
+        include_uninstalled: bool = False,
     ) -> list[dict[str, Any]]:
         from .integrations import connection_statuses
 
@@ -476,6 +507,7 @@ class _WorkflowServer(ThreadingHTTPServer):
         return connection_statuses(
             self.plugins.installed_ids(),
             capture_status=capture_status,
+            include_uninstalled=include_uninstalled,
         )
 
     def plugin_status(self) -> dict[str, Any]:

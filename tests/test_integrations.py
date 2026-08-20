@@ -72,6 +72,13 @@ operation.GenerateToolPath()
         keys = {item["key"] for item in connection_statuses()}
         self.assertEqual({"codex", "nx", "powermill"}, keys)
 
+    def test_connection_statuses_can_include_uninstalled_bridges(self) -> None:
+        keys = {
+            item["key"]
+            for item in connection_statuses(set(), include_uninstalled=True)
+        }
+        self.assertEqual({"codex", "nx", "powermill"}, keys)
+
     def test_connection_statuses_expose_multiple_product_instances(self) -> None:
         statuses = connection_statuses(
             {"ug-cam-copilot", "powermill-cam-copilot"},

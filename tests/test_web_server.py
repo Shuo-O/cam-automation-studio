@@ -54,7 +54,7 @@ class RecorderHttpTests(unittest.TestCase):
                     for item in plugins["plugins"]
                     if item["id"] == "cam-local-capture"
                 )
-                self.assertEqual("awaiting_consent", capture_plugin["runtime"]["status"])
+                self.assertEqual("recording", capture_plugin["runtime"]["status"])
                 self.assertIn("instances", capture_plugin["runtime"])
 
                 status, plugins = self._request(
@@ -84,7 +84,32 @@ class RecorderHttpTests(unittest.TestCase):
 
                 status, recorder = self._request(connection, "GET", "/api/recorder")
                 self.assertEqual(200, status)
-                self.assertEqual("awaiting_consent", recorder["state"])
+                self.assertEqual("recording", recorder["state"])
+                self.assertEqual("auto_install", recorder["consent_source"])
+                self.assertTrue(recorder["auto_authorized"])
+                self.assertEqual(
+                    {"logs": True, "instances": True, "execution_audit": True},
+                    recorder["categories"],
+                )
+
+                status, recorder = self._request(
+                    connection,
+                    "POST",
+                    "/api/recorder/settings",
+                    {"detect_instances": False},
+                )
+                self.assertEqual(200, status)
+                self.assertFalse(recorder["categories"]["instances"])
+                self.assertEqual([], recorder["instances"]["nx"])
+
+                status, connections = self._request(
+                    connection, "GET", "/api/connections?include_uninstalled=1"
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(
+                    {"codex", "nx", "powermill"},
+                    {item["key"] for item in connections["connections"]},
+                )
 
                 status, invalid = self._request(
                     connection, "GET", "/api/recorder/events?limit=invalid"
@@ -180,6 +205,66 @@ class RecorderHttpTests(unittest.TestCase):
                 )
                 self.assertEqual(422, status)
                 self.assertEqual("rejected", rejected["status"])
+            finally:
+                connection.close()
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+
+    def test_revoked_capture_stays_revoked_after_reinstall(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(
+                os.environ,
+                {
+                    "CAM_APP_DATA_DIR": os.path.join(directory, "app"),
+                    "CAM_CAPTURE_DIR": os.path.join(directory, "capture"),
+                },
+            ):
+                server = _WorkflowServer(("127.0.0.1", 0), _WorkflowHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", server.server_port, timeout=5
+            )
+            try:
+                status, installed = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/install",
+                    {"plugin_id": "cam-local-capture"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual("recording", server.recorder.status()["state"])
+
+                status, revoked = self._request(
+                    connection,
+                    "POST",
+                    "/api/recorder/consent",
+                    {"accepted": False},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual("revoked", revoked["consent_source"])
+                self.assertFalse(revoked["consent"])
+
+                status, removed = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/uninstall",
+                    {"plugin_id": "cam-local-capture"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(["cam-local-capture"], removed["changed"])
+
+                status, reinstalled = self._request(
+                    connection,
+                    "POST",
+                    "/api/plugins/install",
+                    {"plugin_id": "cam-local-capture"},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(["cam-local-capture"], reinstalled["changed"])
+                self.assertEqual("awaiting_consent", server.recorder.status()["state"])
+                self.assertEqual("revoked", server.recorder.status()["consent_source"])
             finally:
                 connection.close()
                 server.shutdown()

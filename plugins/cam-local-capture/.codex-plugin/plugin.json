@@ -1,7 +1,7 @@
 {
   "name": "cam-local-capture",
-  "version": "0.1.0+codex.20260820152133",
-  "description": "Consent-gated, multi-instance local capture for NX and PowerMill operator logs.",
+  "version": "0.1.0+codex.20260820154742",
+  "description": "Reversible, auto-authorized-on-install, multi-instance local capture for NX and PowerMill operator logs.",
   "author": {
     "name": "CAM Automation Studio"
   },
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "CAM Local Capture",
-    "shortDescription": "Capture consented multi-window CAM behavior locally.",
-    "longDescription": "Adds local-only, redacted NX and PowerMill log capture with explicit first-use consent, per-window runtime status, source checkpoints, labels, export, and deletion controls.",
+    "shortDescription": "Capture multi-window CAM behavior locally with reversible authorization.",
+    "longDescription": "Adds local-only, redacted NX and PowerMill log capture with one-time authorization on installation, category-level advanced settings, per-window runtime status, source checkpoints, labels, export, revocation, and deletion controls.",
     "developerName": "CAM Automation Studio",
     "category": "Productivity",
     "capabilities": [

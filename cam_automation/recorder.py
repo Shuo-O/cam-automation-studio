@@ -47,9 +47,13 @@ def _utc_now() -> str:
 class CaptureConfig:
     schema_version: int = 1
     consent: bool = False
+    consent_source: str = "none"
     enabled: bool = True
     auto_connect: bool = True
     include_existing: bool = True
+    capture_logs: bool = True
+    detect_instances: bool = True
+    audit_execution: bool = True
     operator_label: str = "unlabeled"
     poll_interval_seconds: float = 1.0
     salt: str = ""
@@ -60,9 +64,16 @@ class CaptureConfig:
         return cls(
             schema_version=int(value.get("schema_version", 1)),
             consent=bool(value.get("consent", False)),
+            consent_source=str(value.get("consent_source", "none"))
+            if str(value.get("consent_source", "none"))
+            in {"none", "auto_install", "manual", "revoked"}
+            else "none",
             enabled=bool(value.get("enabled", True)),
             auto_connect=bool(value.get("auto_connect", True)),
             include_existing=bool(value.get("include_existing", True)),
+            capture_logs=bool(value.get("capture_logs", True)),
+            detect_instances=bool(value.get("detect_instances", True)),
+            audit_execution=bool(value.get("audit_execution", True)),
             operator_label=label if label in _CAPTURE_LABELS else "unlabeled",
             poll_interval_seconds=max(
                 0.25, min(float(value.get("poll_interval_seconds", 1.0)), 30.0)
@@ -401,12 +412,23 @@ class CaptureService:
         self,
         *,
         consent: bool | None = None,
+        consent_source: str | None = None,
         enabled: bool | None = None,
+        capture_logs: bool | None = None,
+        detect_instances: bool | None = None,
+        audit_execution: bool | None = None,
         operator_label: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             if consent is not None:
                 self.config.consent = bool(consent)
+                if consent:
+                    source = consent_source or "manual"
+                    if source not in {"auto_install", "manual"}:
+                        source = "manual"
+                    self.config.consent_source = source
+                else:
+                    self.config.consent_source = "revoked"
                 if not self.config.consent:
                     self._instances = {"nx": [], "powermill": []}
                     self._processes = {"nx": False, "powermill": False}
@@ -415,6 +437,15 @@ class CaptureService:
                 if enabled and not self.config.consent:
                     raise ValueError("Local recording requires explicit consent first.")
                 self.config.enabled = bool(enabled)
+            if capture_logs is not None:
+                self.config.capture_logs = bool(capture_logs)
+            if detect_instances is not None:
+                self.config.detect_instances = bool(detect_instances)
+                if not self.config.detect_instances:
+                    self._instances = {"nx": [], "powermill": []}
+                    self._processes = {"nx": False, "powermill": False}
+            if audit_execution is not None:
+                self.config.audit_execution = bool(audit_execution)
             if operator_label is not None:
                 if operator_label not in _CAPTURE_LABELS:
                     raise ValueError("Operator label must be unlabeled, routine, or expert.")
@@ -429,11 +460,19 @@ class CaptureService:
                 return 0
             inserted = 0
             now = time.monotonic()
-            if now - self._last_process_check >= 2:
+            if self.config.detect_instances and now - self._last_process_check >= 2:
                 self._refresh_connections()
-            if now - self._last_discovery_check >= 5 or not self._known_sources:
+            elif not self.config.detect_instances:
+                self._instances = {"nx": [], "powermill": []}
+                self._processes = {"nx": False, "powermill": False}
+            if (
+                self.config.capture_logs
+                and (now - self._last_discovery_check >= 5 or not self._known_sources)
+            ):
                 self._known_sources = self._discover_sources()
                 self._last_discovery_check = now
+            if not self.config.capture_logs:
+                self._known_sources = []
             for product, path in self._known_sources:
                 try:
                     stat = path.stat()
@@ -679,6 +718,11 @@ class CaptureService:
         return [Path(item.strip()) for item in value.split(os.pathsep) if item.strip()]
 
     def _refresh_connections(self, *, force: bool = False) -> None:
+        if not self.config.detect_instances:
+            self._instances = {"nx": [], "powermill": []}
+            self._processes = {"nx": False, "powermill": False}
+            self._last_process_check = time.monotonic()
+            return
         self._instances = detect_cam_instances(force=force)
         self._processes = {
             product: bool(instances)
@@ -701,8 +745,16 @@ class CaptureService:
             return {
                 "state": state,
                 "consent": self.config.consent,
+                "consent_source": self.config.consent_source,
+                "auto_authorized": self.config.consent_source == "auto_install",
+                "consent_reversible": True,
                 "enabled": self.config.enabled,
                 "auto_connect": self.config.auto_connect,
+                "categories": {
+                    "logs": self.config.capture_logs,
+                    "instances": self.config.detect_instances,
+                    "execution_audit": self.config.audit_execution,
+                },
                 "local_only": True,
                 "redaction": "redacted-local-v1",
                 "operator_label": self.config.operator_label,
@@ -728,7 +780,7 @@ class CaptureService:
         result: Mapping[str, Any],
     ) -> int:
         with self._lock:
-            if not self.config.consent:
+            if not self.config.consent or not self.config.audit_execution:
                 return 0
             product = str(request.get("product", "unknown")).lower()
             action = str(request.get("action", "cam.execution.unknown"))

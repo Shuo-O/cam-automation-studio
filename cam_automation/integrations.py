@@ -79,6 +79,7 @@ def connection_statuses(
     installed_plugins: Iterable[str] | None = None,
     *,
     capture_status: Mapping[str, Any] | None = None,
+    include_uninstalled: bool = False,
 ) -> list[dict[str, Any]]:
     """Report local bridges and consented CAM instances without attaching to them."""
 
@@ -206,7 +207,7 @@ def connection_statuses(
             root_detail="检测到 PowerMill 目录",
         ).to_dict(),
     ]
-    if installed_plugins is None:
+    if installed_plugins is None or include_uninstalled:
         return statuses
     installed = set(installed_plugins)
     enabled_keys = {
@@ -263,7 +264,9 @@ def capability_manifest(
         "capture": {
             "installed": capture_installed,
             "local_only": True,
-            "consent_required": True,
+            "consent_required": False,
+            "auto_authorize_on_install": True,
+            "consent_reversible": True,
             "auto_connect_after_consent": True,
             "redaction": "redacted-local-v1",
             "operator_labels": ["unlabeled", "routine", "expert"],

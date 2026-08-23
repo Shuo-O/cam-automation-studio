@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "target_version": "NX 2406",
+  "python_minor": "3.10",
+  "source": "offline-test-fixture"
+}

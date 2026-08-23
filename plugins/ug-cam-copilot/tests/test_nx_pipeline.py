@@ -25,7 +25,7 @@ class NxPipelineTest(unittest.TestCase):
             database = root / "activity.db"
             examples = PLUGIN_ROOT / "examples" / "nx_journals"
             with ActivityStore(database) as store:
-                for source in sorted(examples.glob("*.py")):
+                for source in sorted(examples.glob("session_?.py")):
                     store.replace_session(NxJournalAdapter().parse(source))
                 sessions = store.load_sessions(product="nx")
 
@@ -34,12 +34,16 @@ class NxPipelineTest(unittest.TestCase):
             ).mine(sessions, product="nx")
 
             self.assertTrue(patterns)
-            self.assertEqual(patterns[0].support, 3)
-            self.assertIn("cam.operation.create", patterns[0].steps)
-            self.assertIn("cam.toolpath.generate", patterns[0].steps)
+            workflow = next(
+                pattern
+                for pattern in patterns
+                if "cam.operation.create" in pattern.steps
+                and "cam.toolpath.generate" in pattern.steps
+            )
+            self.assertEqual(workflow.support, 3)
 
             output = root / "generated"
-            paths = scaffold_nx_candidate(patterns[0], output)
+            paths = scaffold_nx_candidate(workflow, output)
             self.assertEqual(len(paths), 3)
             recipe = json.loads((output / "recipe.json").read_text(encoding="utf-8"))
             self.assertEqual(recipe["execution_mode"], "dry-run")

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from .models import ActivityEvent
+from .models import ActivityEvent, OPTIONAL_ACTIVITY_FIELDS
 
 
 class ActivityStore:
@@ -57,6 +57,7 @@ class ActivityStore:
                 duration_ms INTEGER,
                 timestamp TEXT,
                 schema_version INTEGER NOT NULL,
+                extensions_json TEXT NOT NULL DEFAULT '{}',
                 PRIMARY KEY (session_id, seq),
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id)
             );
@@ -72,6 +73,10 @@ class ActivityStore:
         if "mode" not in columns:
             self.connection.execute(
                 "ALTER TABLE events ADD COLUMN mode TEXT NOT NULL DEFAULT 'manual'"
+            )
+        if "extensions_json" not in columns:
+            self.connection.execute(
+                "ALTER TABLE events ADD COLUMN extensions_json TEXT NOT NULL DEFAULT '{}'"
             )
         self.connection.execute(
             """
@@ -89,23 +94,31 @@ class ActivityStore:
             raise ValueError("replace_session accepts exactly one session")
         source_sha = self._source_hash(first.source_file)
         now = datetime.now(timezone.utc).isoformat()
-        rows = [
-            (
-                item.session_id,
-                item.seq,
-                item.product,
-                item.action,
-                item.category,
-                item.mode,
-                json.dumps(item.params, ensure_ascii=False, separators=(",", ":")),
-                item.source_file,
-                item.source_line,
-                item.duration_ms,
-                item.timestamp,
-                item.schema_version,
+        rows = []
+        for item in batch:
+            value = item.to_dict()
+            extensions = {
+                name: value[name] for name in OPTIONAL_ACTIVITY_FIELDS if name in value
+            }
+            rows.append(
+                (
+                    item.session_id,
+                    item.seq,
+                    item.product,
+                    item.action,
+                    item.category,
+                    value["mode"],
+                    json.dumps(value["params"], ensure_ascii=False, separators=(",", ":")),
+                    item.source_file,
+                    item.source_line,
+                    item.duration_ms,
+                    item.timestamp,
+                    item.schema_version,
+                    json.dumps(
+                        extensions, ensure_ascii=False, separators=(",", ":")
+                    ),
+                )
             )
-            for item in batch
-        ]
         with self.connection:
             self.connection.execute(
                 """
@@ -135,8 +148,9 @@ class ActivityStore:
                 """
                 INSERT INTO events(
                     session_id, seq, product, action, category, mode, params_json,
-                    source_file, source_line, duration_ms, timestamp, schema_version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source_file, source_line, duration_ms, timestamp, schema_version,
+                    extensions_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -147,7 +161,8 @@ class ActivityStore:
         cursor = self.connection.execute(
             """
             SELECT session_id, seq, product, action, category, mode, params_json,
-                   source_file, source_line, duration_ms, timestamp, schema_version
+                   source_file, source_line, duration_ms, timestamp, schema_version,
+                   extensions_json
             FROM events
             WHERE product = ?
             ORDER BY session_id, seq
@@ -155,22 +170,24 @@ class ActivityStore:
             (product,),
         )
         for row in cursor:
-            grouped[row[0]].append(
-                ActivityEvent(
-                    session_id=row[0],
-                    seq=row[1],
-                    product=row[2],
-                    action=row[3],
-                    category=row[4],
-                    mode=row[5],
-                    params=json.loads(row[6]),
-                    source_file=row[7],
-                    source_line=row[8],
-                    duration_ms=row[9],
-                    timestamp=row[10],
-                    schema_version=row[11],
-                )
-            )
+            value = {
+                "session_id": row[0],
+                "seq": row[1],
+                "product": row[2],
+                "action": row[3],
+                "category": row[4],
+                "mode": row[5],
+                "params": json.loads(row[6]),
+                "source_file": row[7],
+                "source_line": row[8],
+                "duration_ms": row[9],
+                "timestamp": row[10],
+                "schema_version": row[11],
+            }
+            extensions = json.loads(row[12] or "{}")
+            if isinstance(extensions, dict):
+                value.update(extensions)
+            grouped[row[0]].append(ActivityEvent.from_dict(value))
         return dict(grouped)
 
     @staticmethod

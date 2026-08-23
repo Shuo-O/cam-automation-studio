@@ -1,0 +1,1802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-automation.local/schemas/cam-flow/cam-flow.schema.json",
+  "title": "CAM Flow Graph frozen contracts v1",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "Product": {
+      "enum": [
+        "nx",
+        "powermill"
+      ]
+    },
+    "SemVer": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.+(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "Extensions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "Endpoint": {
+      "type": "object",
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "port_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        }
+      },
+      "additionalProperties": true
+    },
+    "PortContract": {
+      "type": "object",
+      "required": [
+        "port_id",
+        "direction",
+        "edge_kinds",
+        "type_ref",
+        "cardinality",
+        "required",
+        "constraints",
+        "sensitivity",
+        "extensions"
+      ],
+      "properties": {
+        "port_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "direction": {
+          "enum": [
+            "input",
+            "output"
+          ]
+        },
+        "edge_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "control",
+              "data",
+              "dependency"
+            ]
+          }
+        },
+        "type_ref": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "cardinality": {
+          "enum": [
+            "one",
+            "optional",
+            "many"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "sensitivity": {
+          "enum": [
+            "public",
+            "project_local",
+            "secret_ref"
+          ]
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ParameterBinding": {
+      "type": "object",
+      "required": [
+        "binding_id",
+        "target",
+        "kind",
+        "literal",
+        "graph_parameter_id",
+        "source_output",
+        "secret_ref",
+        "source_mapping_ids",
+        "extensions"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "target": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "kind": {
+          "enum": [
+            "literal",
+            "graph_parameter",
+            "node_output",
+            "secret_ref"
+          ]
+        },
+        "literal": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "value",
+            "type_ref",
+            "unit"
+          ],
+          "properties": {
+            "value": true,
+            "type_ref": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "graph_parameter_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_output": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "node_id",
+            "port_id"
+          ],
+          "properties": {
+            "node_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "port_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": true
+        },
+        "secret_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_mapping_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "SourceSpan": {
+      "type": "object",
+      "required": [
+        "start_byte",
+        "end_byte",
+        "start_line",
+        "end_line",
+        "start_column",
+        "end_column",
+        "column_encoding"
+      ],
+      "properties": {
+        "start_byte": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_byte": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column_encoding": {
+          "enum": [
+            "utf16",
+            "unicode_scalar"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "SourceMapping": {
+      "type": "object",
+      "required": [
+        "mapping_id",
+        "asset_id",
+        "asset_revision_id",
+        "source_digest",
+        "source_line",
+        "source_span",
+        "target",
+        "role",
+        "mapping_quality",
+        "excerpt_hash",
+        "extensions"
+      ],
+      "properties": {
+        "mapping_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "asset_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "asset_revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_span": {
+          "$ref": "#/$defs/SourceSpan"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "flow_id",
+            "node_id"
+          ],
+          "properties": {
+            "flow_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "node_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "property_path": {
+              "type": "string"
+            },
+            "port_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "role": {
+          "enum": [
+            "primary",
+            "parameter",
+            "control",
+            "trivia",
+            "opaque"
+          ]
+        },
+        "mapping_quality": {
+          "enum": [
+            "exact",
+            "derived",
+            "ambiguous",
+            "synthetic"
+          ]
+        },
+        "excerpt_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "OpaqueRegion": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "reason",
+        "asset_revision_id",
+        "source_span_ids",
+        "content_hash",
+        "round_trip_policy",
+        "semantic_editable",
+        "diagnostic_codes"
+      ],
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "asset_revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "source_span_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "content_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "round_trip_policy": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "semantic_editable": {
+          "const": false
+        },
+        "diagnostic_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlowNode": {
+      "type": "object",
+      "required": [
+        "node_id",
+        "node_type",
+        "node_type_version",
+        "enabled",
+        "risk",
+        "review_status",
+        "port_contract_refs",
+        "bindings",
+        "configuration",
+        "source_mapping_ids",
+        "fidelity",
+        "capability_ref",
+        "compatibility_status",
+        "opaque",
+        "extensions"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "node_type": {
+          "type": "string",
+          "pattern": "^(?:cam|nx|powermill|flow|opaque)\\.[A-Za-z0-9_.-]+$"
+        },
+        "node_type_version": {
+          "$ref": "#/$defs/SemVer"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "risk": {
+          "enum": [
+            "safe",
+            "review",
+            "blocked"
+          ]
+        },
+        "review_status": {
+          "enum": [
+            "unreviewed",
+            "needs_review",
+            "accepted",
+            "rejected"
+          ]
+        },
+        "port_contract_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParameterBinding"
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "source_mapping_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "fidelity": {
+          "enum": [
+            "F0",
+            "F1",
+            "F2",
+            "F3",
+            "FB"
+          ]
+        },
+        "capability_ref": {
+          "type": "object",
+          "required": [
+            "manifest_id",
+            "manifest_hash",
+            "node_type",
+            "node_type_version"
+          ],
+          "properties": {
+            "manifest_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "manifest_hash": {
+              "$ref": "#/$defs/Hash"
+            },
+            "node_type": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "node_type_version": {
+              "$ref": "#/$defs/SemVer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "compatibility_status": {
+          "enum": [
+            "unknown",
+            "supported",
+            "needs_review",
+            "unsupported",
+            "capability_unavailable"
+          ]
+        },
+        "opaque": {
+          "$ref": "#/$defs/OpaqueRegion"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlowEdge": {
+      "type": "object",
+      "required": [
+        "edge_id",
+        "kind",
+        "source",
+        "target",
+        "condition",
+        "priority",
+        "source_mapping_ids",
+        "extensions"
+      ],
+      "properties": {
+        "edge_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "control",
+            "data",
+            "dependency"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "target": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "condition": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "priority": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "source_mapping_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlowDefinition": {
+      "type": "object",
+      "required": [
+        "flow_id",
+        "kind",
+        "name",
+        "interface_ports",
+        "parameter_ids",
+        "nodes",
+        "edges",
+        "source_mapping_ids"
+      ],
+      "properties": {
+        "flow_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "main",
+            "subflow"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "interface_ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PortContract"
+          }
+        },
+        "parameter_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlowNode"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlowEdge"
+          }
+        },
+        "source_mapping_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "AutomationAsset": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "asset_id",
+        "asset_revision_id",
+        "product",
+        "asset_type",
+        "display_name",
+        "source_locator",
+        "content_hash",
+        "byte_length",
+        "encoding",
+        "bom",
+        "newline_profile",
+        "immutable",
+        "source_origin",
+        "rights",
+        "target_versions",
+        "runtime_modes",
+        "dependencies",
+        "imported_at",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.automation_asset.v1"
+        },
+        "asset_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "asset_revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "product": {
+          "$ref": "#/$defs/Product"
+        },
+        "asset_type": {
+          "enum": [
+            "nx_journal",
+            "nx_action_log",
+            "powermill_macro",
+            "powermill_command_log",
+            "vendor_export",
+            "capability_manifest"
+          ]
+        },
+        "display_name": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "source_locator": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "encoding": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "bom": {
+          "enum": [
+            "none",
+            "utf8",
+            "utf16le",
+            "utf16be",
+            "unknown"
+          ]
+        },
+        "newline_profile": {
+          "enum": [
+            "lf",
+            "crlf",
+            "cr",
+            "mixed",
+            "none",
+            "unknown"
+          ]
+        },
+        "immutable": {
+          "const": true
+        },
+        "source_origin": {
+          "enum": [
+            "user_authored",
+            "employer_owned",
+            "vendor_export",
+            "open_source",
+            "unknown"
+          ]
+        },
+        "rights": {
+          "type": "object",
+          "required": [
+            "status",
+            "evidence_ref",
+            "sharing_scope",
+            "redistribution_allowed",
+            "network_egress_allowed",
+            "binary_inspection"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "unreviewed",
+                "user_asserted",
+                "vendor_authorized",
+                "legal_reviewed",
+                "restricted"
+              ]
+            },
+            "evidence_ref": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "sharing_scope": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "redistribution_allowed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "network_egress_allowed": {
+              "type": "boolean"
+            },
+            "binary_inspection": {
+              "const": false
+            }
+          },
+          "additionalProperties": true
+        },
+        "target_versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "runtime_modes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "dependency_id",
+              "kind",
+              "content_hash",
+              "required",
+              "status"
+            ],
+            "properties": {
+              "dependency_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "kind": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "content_hash": {
+                "$ref": "#/$defs/Hash"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "status": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "imported_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "CapabilityManifest": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "manifest_id",
+        "manifest_version",
+        "manifest_hash",
+        "provider",
+        "product",
+        "adapter_kind",
+        "authorization",
+        "target_version_ranges",
+        "execution_modes",
+        "permissions",
+        "node_types",
+        "prohibited_operations",
+        "evidence",
+        "revocation",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.capability_manifest.v1"
+        },
+        "manifest_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "manifest_version": {
+          "$ref": "#/$defs/SemVer"
+        },
+        "manifest_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "provider": {
+          "type": "object",
+          "required": [
+            "provider_id",
+            "display_name",
+            "claim_level"
+          ],
+          "properties": {
+            "provider_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "display_name": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "claim_level": {
+              "$ref": "#/$defs/NonEmptyString"
+            }
+          },
+          "additionalProperties": true
+        },
+        "product": {
+          "$ref": "#/$defs/Product"
+        },
+        "adapter_kind": {
+          "enum": [
+            "builtin",
+            "licensed_adapter",
+            "public_api",
+            "vendor_export",
+            "manifest_only"
+          ]
+        },
+        "authorization": {
+          "type": "object",
+          "required": [
+            "status",
+            "evidence_ref",
+            "verified_by",
+            "valid_until"
+          ],
+          "properties": {
+            "status": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "evidence_ref": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "verified_by": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "valid_until": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "target_version_ranges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "execution_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "offline",
+              "read_only",
+              "fixture_dry_run"
+            ]
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "node_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "node_type",
+              "node_type_version",
+              "category",
+              "display_name",
+              "ports",
+              "configuration_schema",
+              "static_risk_floor",
+              "required_gates",
+              "forbidden_modes",
+              "parse_support",
+              "preview_support",
+              "recipe_projection_support",
+              "fidelity"
+            ],
+            "properties": {
+              "node_type": {
+                "type": "string",
+                "pattern": "^(?:cam|nx|powermill|flow)\\.[A-Za-z0-9_.-]+$"
+              },
+              "node_type_version": {
+                "$ref": "#/$defs/SemVer"
+              },
+              "category": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "display_name": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/PortContract"
+                }
+              },
+              "configuration_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "static_risk_floor": {
+                "enum": [
+                  "safe",
+                  "review",
+                  "blocked"
+                ]
+              },
+              "required_gates": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "forbidden_modes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "parse_support": {
+                "type": "boolean"
+              },
+              "preview_support": {
+                "type": "boolean"
+              },
+              "recipe_projection_support": {
+                "type": "boolean"
+              },
+              "fidelity": {
+                "enum": [
+                  "byte_exact",
+                  "token_exact_outside_edits",
+                  "semantic_round_trip",
+                  "opaque_preserved",
+                  "blocked"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "prohibited_operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref",
+              "version",
+              "checked_at"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "revocation": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlowGraph": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "graph_id",
+        "revision_id",
+        "parent_revision_id",
+        "product",
+        "target_versions",
+        "entry_flow_id",
+        "graph_parameters",
+        "flows",
+        "asset_refs",
+        "source_mappings",
+        "capability_lock",
+        "required_gates",
+        "semantic_hash",
+        "source_snapshot_hash",
+        "layout",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.flowgraph.v1"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "parent_revision_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "product": {
+          "$ref": "#/$defs/Product"
+        },
+        "target_versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "entry_flow_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "graph_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "parameter_id",
+              "name",
+              "type_ref",
+              "unit",
+              "required",
+              "default",
+              "constraints",
+              "evidence_mapping_ids",
+              "review_status"
+            ],
+            "properties": {
+              "parameter_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "name": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "type_ref": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "default": true,
+              "constraints": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "evidence_mapping_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "review_status": {
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "accepted",
+                  "rejected"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "flows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FlowDefinition"
+          }
+        },
+        "asset_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "asset_id",
+              "asset_revision_id",
+              "content_hash"
+            ],
+            "properties": {
+              "asset_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "asset_revision_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "content_hash": {
+                "$ref": "#/$defs/Hash"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "source_mappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceMapping"
+          }
+        },
+        "capability_lock": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "manifest_id",
+              "manifest_version",
+              "manifest_hash"
+            ],
+            "properties": {
+              "manifest_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "manifest_version": {
+                "$ref": "#/$defs/SemVer"
+              },
+              "manifest_hash": {
+                "$ref": "#/$defs/Hash"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required_gates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "semantic_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_snapshot_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "layout": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "RoundTripReport": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "report_id",
+        "graph_id",
+        "revision_id",
+        "asset_revision_id",
+        "original_content_hash",
+        "candidate_content_hash",
+        "original_semantic_hash",
+        "candidate_semantic_hash",
+        "status",
+        "fidelity",
+        "untouched_spans_exact",
+        "opaque_spans_preserved",
+        "candidate_reparsed",
+        "changed_mapping_ids",
+        "checks",
+        "issues",
+        "candidate_artifact_ref",
+        "checked_at",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.round_trip_report.v1"
+        },
+        "report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "asset_revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "original_content_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_content_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_semantic_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_semantic_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "not_checked",
+            "passed",
+            "blocked",
+            "failed"
+          ]
+        },
+        "fidelity": {
+          "enum": [
+            "F0",
+            "F1",
+            "F2",
+            "F3",
+            "FB"
+          ]
+        },
+        "untouched_spans_exact": {
+          "type": "boolean"
+        },
+        "opaque_spans_preserved": {
+          "type": "boolean"
+        },
+        "candidate_reparsed": {
+          "type": "boolean"
+        },
+        "changed_mapping_ids": {
+          "type": "array"
+        },
+        "checks": {
+          "type": "array"
+        },
+        "issues": {
+          "type": "array"
+        },
+        "candidate_artifact_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "CompatibilityReport": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "report_id",
+        "graph_id",
+        "revision_id",
+        "product",
+        "source_profile",
+        "target_profile",
+        "capability_lock_hash",
+        "checked_manifest_hashes",
+        "status",
+        "node_results",
+        "symbol_results",
+        "selector_results",
+        "coverage_gaps",
+        "issues",
+        "blocker_codes",
+        "preview_eligible",
+        "checked_at",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.compatibility_report.v1"
+        },
+        "report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "product": {
+          "$ref": "#/$defs/Product"
+        },
+        "source_profile": {
+          "type": "object",
+          "required": [
+            "target_version"
+          ],
+          "additionalProperties": true
+        },
+        "target_profile": {
+          "type": "object",
+          "required": [
+            "target_version"
+          ],
+          "additionalProperties": true
+        },
+        "capability_lock_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "checked_manifest_hashes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Hash"
+          }
+        },
+        "status": {
+          "enum": [
+            "compatible",
+            "needs_review",
+            "incompatible",
+            "unknown"
+          ]
+        },
+        "node_results": {
+          "type": "array"
+        },
+        "symbol_results": {
+          "type": "array"
+        },
+        "selector_results": {
+          "type": "array"
+        },
+        "coverage_gaps": {
+          "type": "array"
+        },
+        "issues": {
+          "type": "array"
+        },
+        "blocker_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "preview_eligible": {
+          "type": "boolean"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "PreviewPlan": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "plan_id",
+        "graph_id",
+        "revision_id",
+        "flow_version_id",
+        "status",
+        "execution_mode",
+        "transport",
+        "target",
+        "hashes",
+        "steps",
+        "gate_results",
+        "round_trip_report_id",
+        "compatibility_report_id",
+        "diagnostics",
+        "commands_sent",
+        "journal_executed",
+        "macro_executed",
+        "machine_output_count",
+        "created_at",
+        "completed_at",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.preview_plan.v1"
+        },
+        "plan_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "flow_version_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "validating",
+            "blocked",
+            "ready",
+            "previewing",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "execution_mode": {
+          "const": "fixture_dry_run"
+        },
+        "transport": {
+          "const": "none"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "product",
+            "target_version",
+            "target_instance_id",
+            "project_id",
+            "project_snapshot_hash",
+            "target_kind"
+          ],
+          "properties": {
+            "product": {
+              "$ref": "#/$defs/Product"
+            },
+            "target_version": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "target_instance_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "project_id": {
+              "$ref": "#/$defs/NonEmptyString"
+            },
+            "project_snapshot_hash": {
+              "$ref": "#/$defs/Hash"
+            },
+            "target_kind": {
+              "const": "fixture"
+            }
+          },
+          "additionalProperties": true
+        },
+        "hashes": {
+          "type": "object",
+          "required": [
+            "source_snapshot_hash",
+            "semantic_hash",
+            "capability_lock_hash",
+            "reviewed_recipe_hash"
+          ],
+          "properties": {
+            "source_snapshot_hash": {
+              "$ref": "#/$defs/Hash"
+            },
+            "semantic_hash": {
+              "$ref": "#/$defs/Hash"
+            },
+            "capability_lock_hash": {
+              "$ref": "#/$defs/Hash"
+            },
+            "reviewed_recipe_hash": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Hash"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "order",
+              "node_id",
+              "action",
+              "parameters",
+              "source_mapping_ids",
+              "effects",
+              "risk",
+              "compatibility_status",
+              "approval_required"
+            ],
+            "properties": {
+              "order": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "node_id": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "action": {
+                "type": "string",
+                "pattern": "^(?:cam|nx|powermill)\\.[A-Za-z0-9_.-]+$"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "source_mapping_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "effects": {
+                "type": "array"
+              },
+              "risk": {
+                "enum": [
+                  "safe",
+                  "review",
+                  "blocked"
+                ]
+              },
+              "compatibility_status": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "approval_required": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "gate_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "gate",
+              "status"
+            ],
+            "properties": {
+              "gate": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "status": {
+                "enum": [
+                  "passed",
+                  "failed",
+                  "required",
+                  "not_run",
+                  "unavailable"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "round_trip_report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "compatibility_report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "diagnostics": {
+          "type": "array"
+        },
+        "commands_sent": {
+          "const": 0
+        },
+        "journal_executed": {
+          "const": false
+        },
+        "macro_executed": {
+          "const": false
+        },
+        "machine_output_count": {
+          "const": 0
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlowVersion": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract",
+        "version_id",
+        "graph_id",
+        "revision_id",
+        "parent_version_ids",
+        "semantic_hash",
+        "artifact_hash",
+        "source_snapshot_hash",
+        "capability_lock_hash",
+        "status",
+        "author_ref",
+        "message",
+        "round_trip_report_id",
+        "compatibility_report_id",
+        "created_at",
+        "immutable",
+        "extensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract": {
+          "const": "cam.flow_version.v1"
+        },
+        "version_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "revision_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "parent_version_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "semantic_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "artifact_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_snapshot_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "capability_lock_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "review_required",
+            "reviewed_for_fixture",
+            "retired"
+          ]
+        },
+        "author_ref": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "message": {
+          "type": "string"
+        },
+        "round_trip_report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "compatibility_report_id": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "immutable": {
+          "const": true
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

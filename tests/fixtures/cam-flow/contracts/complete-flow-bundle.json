@@ -1,0 +1,398 @@
+{
+  "capability_manifest": {
+    "schema_version": 1,
+    "contract": "cam.capability_manifest.v1",
+    "manifest_id": "manifest:fixture:nx:typed",
+    "manifest_version": "1.0.0",
+    "manifest_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "provider": {
+      "provider_id": "fixture-provider",
+      "display_name": "Typed fixture provider",
+      "claim_level": "fixture_verified"
+    },
+    "product": "nx",
+    "adapter_kind": "manifest_only",
+    "authorization": {
+      "status": "fixture_verified",
+      "evidence_ref": "fixture:typed",
+      "verified_by": "test-suite",
+      "valid_until": null
+    },
+    "target_version_ranges": [
+      "NX fixture"
+    ],
+    "execution_modes": [
+      "offline",
+      "fixture_dry_run"
+    ],
+    "permissions": [
+      "read:selected-files"
+    ],
+    "node_types": [
+      {
+        "node_type": "cam.flow.start",
+        "node_type_version": "1.0.0",
+        "category": "control",
+        "display_name": "Start",
+        "ports": [
+          {
+            "port_id": "next",
+            "direction": "output",
+            "edge_kinds": [
+              "control"
+            ],
+            "type_ref": "cam.control",
+            "cardinality": "many",
+            "required": false,
+            "constraints": {},
+            "sensitivity": "public",
+            "extensions": {}
+          }
+        ],
+        "configuration_schema": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "static_risk_floor": "safe",
+        "required_gates": [
+          "recipe_review"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      },
+      {
+        "node_type": "cam.value.length",
+        "node_type_version": "1.0.0",
+        "category": "parameter",
+        "display_name": "Length value",
+        "ports": [
+          {
+            "port_id": "value",
+            "direction": "output",
+            "edge_kinds": [
+              "data"
+            ],
+            "type_ref": "cam.length",
+            "cardinality": "many",
+            "required": false,
+            "constraints": {
+              "unit_dimension": "length",
+              "unit": "mm"
+            },
+            "sensitivity": "project_local",
+            "extensions": {}
+          }
+        ],
+        "configuration_schema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "static_risk_floor": "safe",
+        "required_gates": [
+          "recipe_review"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      },
+      {
+        "node_type": "cam.operation.inspect",
+        "node_type_version": "1.0.0",
+        "category": "inspection",
+        "display_name": "Inspect",
+        "ports": [
+          {
+            "port_id": "previous",
+            "direction": "input",
+            "edge_kinds": [
+              "control"
+            ],
+            "type_ref": "cam.control",
+            "cardinality": "one",
+            "required": true,
+            "constraints": {},
+            "sensitivity": "public",
+            "extensions": {}
+          },
+          {
+            "port_id": "next",
+            "direction": "output",
+            "edge_kinds": [
+              "control"
+            ],
+            "type_ref": "cam.control",
+            "cardinality": "many",
+            "required": false,
+            "constraints": {},
+            "sensitivity": "public",
+            "extensions": {}
+          },
+          {
+            "port_id": "tolerance",
+            "direction": "input",
+            "edge_kinds": [
+              "data"
+            ],
+            "type_ref": "cam.length",
+            "cardinality": "one",
+            "required": true,
+            "constraints": {
+              "unit_dimension": "length",
+              "unit": "mm"
+            },
+            "sensitivity": "project_local",
+            "extensions": {}
+          }
+        ],
+        "configuration_schema": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "static_risk_floor": "review",
+        "required_gates": [
+          "recipe_review",
+          "target_version_validation",
+          "cam_simulation",
+          "collision_check",
+          "shop_approval"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      }
+    ],
+    "prohibited_operations": [
+      "live_journal",
+      "live_macro",
+      "nc",
+      "gcode",
+      "clsf",
+      "postprocess",
+      "machine_control"
+    ],
+    "evidence": [
+      {
+        "kind": "fixture_test",
+        "ref": "fixture:typed",
+        "version": "1",
+        "checked_at": "2026-08-24T00:00:00Z"
+      }
+    ],
+    "revocation": null,
+    "extensions": {
+      "fixture.example/evidence": {
+        "semantic": false,
+        "value": "offline-only"
+      }
+    }
+  },
+  "flow_graph": {
+    "schema_version": 1,
+    "contract": "cam.flowgraph.v1",
+    "graph_id": "graph:fixture:typed",
+    "revision_id": "revision:fixture:typed:1",
+    "parent_revision_id": null,
+    "product": "nx",
+    "target_versions": [
+      "NX fixture"
+    ],
+    "entry_flow_id": "flow:main",
+    "graph_parameters": [
+      {
+        "parameter_id": "parameter:tolerance",
+        "name": "tolerance",
+        "type_ref": "cam.length",
+        "unit": "mm",
+        "required": true,
+        "default": 0.01,
+        "constraints": {
+          "minimum": 0
+        },
+        "evidence_mapping_ids": [],
+        "review_status": "accepted",
+        "extensions": {}
+      }
+    ],
+    "flows": [
+      {
+        "flow_id": "flow:main",
+        "kind": "main",
+        "name": "Main",
+        "interface_ports": [],
+        "parameter_ids": [
+          "parameter:tolerance"
+        ],
+        "nodes": [
+          {
+            "node_id": "node:start",
+            "node_type": "cam.flow.start",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "safe",
+            "review_status": "accepted",
+            "port_contract_refs": [
+              "cam.flow.start@1.0.0#next"
+            ],
+            "bindings": [],
+            "configuration": {},
+            "source_mapping_ids": [],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:nx:typed",
+              "manifest_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+              "node_type": "cam.flow.start",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          },
+          {
+            "node_id": "node:value",
+            "node_type": "cam.value.length",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "safe",
+            "review_status": "accepted",
+            "port_contract_refs": [
+              "cam.value.length@1.0.0#value"
+            ],
+            "bindings": [],
+            "configuration": {
+              "value": 0.01,
+              "unit": "mm"
+            },
+            "source_mapping_ids": [],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:nx:typed",
+              "manifest_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+              "node_type": "cam.value.length",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          },
+          {
+            "node_id": "node:inspect",
+            "node_type": "cam.operation.inspect",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "review",
+            "review_status": "accepted",
+            "port_contract_refs": [
+              "cam.operation.inspect@1.0.0#previous",
+              "cam.operation.inspect@1.0.0#next",
+              "cam.operation.inspect@1.0.0#tolerance"
+            ],
+            "bindings": [],
+            "configuration": {},
+            "source_mapping_ids": [],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:nx:typed",
+              "manifest_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+              "node_type": "cam.operation.inspect",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge:start-inspect",
+            "kind": "control",
+            "source": {
+              "node_id": "node:start",
+              "port_id": "next"
+            },
+            "target": {
+              "node_id": "node:inspect",
+              "port_id": "previous"
+            },
+            "condition": null,
+            "priority": null,
+            "source_mapping_ids": [],
+            "extensions": {}
+          },
+          {
+            "edge_id": "edge:value-tolerance",
+            "kind": "data",
+            "source": {
+              "node_id": "node:value",
+              "port_id": "value"
+            },
+            "target": {
+              "node_id": "node:inspect",
+              "port_id": "tolerance"
+            },
+            "condition": null,
+            "priority": null,
+            "source_mapping_ids": [],
+            "extensions": {}
+          }
+        ],
+        "source_mapping_ids": [],
+        "extensions": {}
+      }
+    ],
+    "asset_refs": [],
+    "source_mappings": [],
+    "capability_lock": [
+      {
+        "manifest_id": "manifest:fixture:nx:typed",
+        "manifest_version": "1.0.0",
+        "manifest_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    ],
+    "required_gates": [
+      "recipe_review",
+      "target_version_validation",
+      "cam_simulation",
+      "collision_check",
+      "shop_approval"
+    ],
+    "semantic_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "source_snapshot_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "layout": {
+      "nodes": {
+        "node:start": {
+          "x": 0,
+          "y": 0
+        },
+        "node:value": {
+          "x": 0,
+          "y": 100
+        },
+        "node:inspect": {
+          "x": 200,
+          "y": 0
+        }
+      }
+    },
+    "extensions": {
+      "fixture.example/process_rule": {
+        "semantic": true,
+        "value": {
+          "fixture_only": true
+        }
+      }
+    }
+  }
+}

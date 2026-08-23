@@ -3,304 +3,491 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
     <title>CAM Automation Studio</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">CAM</span>
-        <div>
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
+
+    <header class="connection-bar">
+      <div class="brand-zone">
+        <button id="navToggle" class="icon-button mobile-only" type="button" aria-label="打开导航" title="打开导航">
+          <span data-icon="menu"></span>
+        </button>
+        <div class="product-mark" aria-hidden="true">CA</div>
+        <div class="brand-copy">
           <strong>CAM Automation Studio</strong>
-          <span>Plugin Core</span>
+          <span>本地工作台</span>
         </div>
       </div>
-      <div class="topbar-actions">
-        <nav class="primary-nav" aria-label="主导航">
-          <button id="pluginNav" class="primary-nav-button active" type="button">插件</button>
-          <button id="workspaceNav" class="primary-nav-button" type="button" disabled>工作台</button>
-        </nav>
-        <div class="topbar-status">
-          <span id="runtimeDot" class="status-dot" aria-hidden="true"></span>
-          <span id="runtimeLabel">基础内核</span>
-        </div>
+
+      <button id="connectionButton" class="connection-summary" type="button" aria-haspopup="dialog" aria-controls="connectionDrawer">
+        <span class="connection-chip">
+          <span class="product-dot codex" aria-hidden="true"></span>
+          <span>Codex</span>
+          <strong id="codexCount">1</strong>
+        </span>
+        <span class="connection-chip">
+          <span class="product-dot nx" aria-hidden="true"></span>
+          <span>NX</span>
+          <strong id="nxCount">2</strong>
+        </span>
+        <span class="connection-chip">
+          <span class="product-dot powermill" aria-hidden="true"></span>
+          <span>PowerMill</span>
+          <strong id="powermillCount">2</strong>
+        </span>
+        <span id="recorderChip" class="recorder-chip missing">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>记录</span>
+          <strong id="recorderTopState">未安装</strong>
+        </span>
+        <span data-icon="chevronDown"></span>
+      </button>
+
+      <div class="top-actions">
+        <span class="fixture-label">固定 API fixture</span>
+        <button id="refreshButton" class="icon-button" type="button" aria-label="刷新状态" title="刷新状态">
+          <span data-icon="refresh"></span>
+        </button>
+        <button id="settingsButton" class="icon-button" type="button" aria-label="高级设置" title="高级设置">
+          <span data-icon="settings"></span>
+        </button>
       </div>
     </header>
 
-    <section id="pluginHome" class="plugin-home" aria-labelledby="pluginHomeTitle">
-      <header class="plugin-home-header">
-        <div>
-          <span class="eyebrow">MODULES</span>
-          <h1 id="pluginHomeTitle">插件中心</h1>
-        </div>
-        <div class="plugin-summary" aria-label="插件统计">
-          <strong id="installedPluginCount">0</strong>
-          <span>/</span>
-          <span id="availablePluginCount">0 个模块</span>
-        </div>
-      </header>
-      <div class="core-status">
-        <span class="core-status-mark" aria-hidden="true">CORE</span>
-        <div>
-          <strong>基础内核已就绪</strong>
-          <span>健康检查、插件安装与本地状态</span>
-        </div>
-      </div>
-      <section id="pluginConnections" class="plugin-connections" aria-label="多软件连接状态">
-        <header class="section-heading">
-          <div>
-            <span class="eyebrow">CONNECTIONS</span>
-            <h2>多软件连接状态</h2>
+    <div class="app-shell">
+      <aside id="appNav" class="app-nav" aria-label="主导航">
+        <nav>
+          <div class="nav-group">
+            <span class="nav-label">基础软件</span>
+            <button class="nav-item active" type="button" data-view="plugins">
+              <span data-icon="boxes"></span><span>插件中心</span>
+              <span id="navPluginCount" class="nav-count">0</span>
+            </button>
+            <button class="nav-item" type="button" data-view="diagnostics">
+              <span data-icon="gauge"></span><span>诊断</span>
+            </button>
           </div>
-          <button id="pluginConnectionsRefresh" class="button link-button" type="button">刷新</button>
-        </header>
-        <div id="pluginConnectionSummary" class="plugin-connection-summary" aria-live="polite"></div>
-        <p class="plugin-connections-note">首页显示摘要；打开工作台可查看每个窗口的 PID、实例 ID 和前台状态。</p>
-      </section>
-      <div id="pluginGrid" class="plugin-grid" aria-live="polite"></div>
-    </section>
 
-    <main id="workspace" class="workspace" hidden>
-      <aside class="source-pane">
-        <div class="pane-heading">
-          <div>
-            <span class="eyebrow">WORKFLOW</span>
-            <h1>导入工作流</h1>
+          <div class="nav-group">
+            <span class="nav-label">工作台</span>
+            <button class="nav-item locked" type="button" data-view="logs" data-module="cam-local-capture">
+              <span data-icon="fileText"></span><span>日志</span><span data-icon="lock"></span>
+            </button>
+            <button class="nav-item locked" type="button" data-view="sessions" data-module="cam-local-capture">
+              <span data-icon="users"></span><span>会话</span><span data-icon="lock"></span>
+            </button>
+            <button class="nav-item locked" type="button" data-view="learning" data-module="ug-cam-copilot|powermill-cam-copilot">
+              <span data-icon="workflow"></span><span>学习候选</span><span data-icon="lock"></span>
+            </button>
+            <button class="nav-item locked" type="button" data-view="recipe" data-module="ug-cam-copilot|powermill-cam-copilot">
+              <span data-icon="layers"></span><span>配方</span><span data-icon="lock"></span>
+            </button>
+            <button class="nav-item locked" type="button" data-view="command" data-module="cam-execution-gateway">
+              <span data-icon="terminal"></span><span>命令</span><span data-icon="lock"></span>
+            </button>
           </div>
-          <span id="lineCount">0 行</span>
+        </nav>
+
+        <div class="nav-foot">
+          <span class="nav-health"><span class="status-dot ok"></span>内核就绪</span>
+          <span>v0.5.0 · offline</span>
         </div>
-
-        <label class="field-label">产品</label>
-        <div class="segmented" role="group" aria-label="选择 CAM 产品">
-          <button class="segment" type="button" data-product="nx" data-plugin-id="ug-cam-copilot">UG / NX</button>
-          <button class="segment" type="button" data-product="powermill" data-plugin-id="powermill-cam-copilot">PowerMill</button>
-        </div>
-
-        <label class="field-label" for="sourceFormat">输入格式</label>
-        <select id="sourceFormat" class="text-input">
-          <option value="nx_journal">NX Open Journal (.py)</option>
-          <option value="jsonl">ActivityEvent JSONL</option>
-        </select>
-
-        <label class="field-label" for="recipeName">配方名称</label>
-        <input id="recipeName" class="text-input" value="nx-workflow" autocomplete="off">
-
-        <div class="source-actions">
-          <button id="sampleButton" class="button secondary" type="button">载入样例</button>
-          <button id="fileButton" class="button secondary" type="button">打开文件</button>
-          <input id="fileInput" type="file" accept=".py,.log,.txt,.mac,.jsonl" hidden>
-        </div>
-
-        <label id="sourceLabel" class="field-label" for="sourceInput">NX Open Journal</label>
-        <textarea id="sourceInput" spellcheck="false" aria-label="CAM 行为日志"></textarea>
-
-        <div class="source-footer">
-          <label class="switch-row">
-            <input id="allowReview" type="checkbox">
-            <span>将复核步骤放入预览</span>
-          </label>
-          <button id="analyzeButton" class="button primary" type="button">分析工作流</button>
-        </div>
-
-        <section class="recorder-panel" data-requires-plugin="cam-local-capture" aria-label="后台记录" hidden>
-          <div class="recorder-header">
-            <div>
-              <span class="eyebrow">CAPTURE</span>
-              <h2>后台记录</h2>
-            </div>
-            <span id="recorderState" class="recorder-state">正在连接</span>
-          </div>
-          <p class="recorder-note">仅在本机读取 CAM 日志，路径脱敏，不上传。</p>
-          <div class="recorder-metrics">
-            <span><strong id="recorderCount">0</strong> 条事件</span>
-            <span id="recorderSourceSummary">0 个日志源</span>
-          </div>
-          <label class="recorder-label" for="recorderLabel">
-            <span>会话标签</span>
-            <select id="recorderLabel">
-              <option value="unlabeled">未标注</option>
-              <option value="routine">日常操作</option>
-              <option value="expert">专家示范</option>
-            </select>
-          </label>
-          <div class="recorder-actions">
-            <button id="recorderConsent" class="button primary compact" type="button">允许并记录</button>
-            <button id="recorderRevoke" class="button danger compact" type="button" hidden>撤销授权</button>
-            <button id="recorderToggle" class="button secondary compact" type="button" hidden>暂停</button>
-            <button id="recorderScan" class="button secondary compact" type="button">扫描</button>
-            <button id="recorderView" class="button secondary compact" type="button">查看</button>
-            <button id="recorderExport" class="button secondary compact" type="button">导出</button>
-            <button id="recorderClear" class="button danger compact" type="button">清除</button>
-          </div>
-          <details class="recorder-advanced">
-            <summary>高级设置 · 分类授权</summary>
-            <div class="recorder-category-settings">
-              <label class="switch-row">
-                <input id="captureLogsToggle" type="checkbox">
-                <span>记录日志</span>
-              </label>
-              <label class="switch-row">
-                <input id="detectInstancesToggle" type="checkbox">
-                <span>检测软件窗口</span>
-              </label>
-              <label class="switch-row">
-                <input id="auditExecutionToggle" type="checkbox">
-                <span>执行审计</span>
-              </label>
-            </div>
-            <p>关闭某一类后会立即停止对应采集；已保存的本地数据不会删除。</p>
-          </details>
-        </section>
-
-        <section class="connection-panel" aria-label="连接状态">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">BRIDGES</span>
-              <h2>连接状态</h2>
-            </div>
-            <button id="refreshConnections" class="button link-button" type="button">刷新</button>
-          </div>
-          <div id="connectionList" class="connection-list"></div>
-        </section>
       </aside>
 
-      <section class="result-pane" aria-live="polite">
-        <div class="result-header">
-          <nav class="tabs" aria-label="输出视图">
-            <button class="tab active" type="button" role="tab" data-tab="overview">概览</button>
-            <button class="tab" type="button" role="tab" data-tab="logs">日志</button>
-            <button class="tab" type="button" role="tab" data-tab="recipe">配方 JSON</button>
-            <button class="tab" type="button" role="tab" data-tab="preview">
-              <span id="previewTabLabel">NX 预览</span>
-            </button>
-            <button class="tab" data-requires-plugin="cam-codex-review" type="button" role="tab" data-tab="codex" hidden>Codex 审阅</button>
-          </nav>
-          <div id="analysisState" class="analysis-state">等待输入</div>
-        </div>
+      <div id="navScrim" class="nav-scrim" hidden></div>
 
-        <div id="overviewPanel" class="tab-panel active" data-panel="overview">
-          <div class="metrics" aria-label="分析指标">
-            <div class="metric"><span>会话</span><strong id="sessionMetric">0</strong></div>
-            <div class="metric"><span>动作</span><strong id="commandMetric">0</strong></div>
-            <div class="metric"><span>参数</span><strong id="parameterMetric">0</strong></div>
-            <div class="metric"><span>需复核</span><strong id="reviewMetric">0</strong></div>
-            <div class="metric blocked"><span>已阻断</span><strong id="blockedMetric">0</strong></div>
-          </div>
+      <main id="mainContent" class="main-content">
+        <section id="pluginsView" class="view active" data-view-panel="plugins" aria-labelledby="pluginsTitle">
+          <header class="view-header">
+            <div>
+              <p class="breadcrumb">基础软件 / 插件中心</p>
+              <h1 id="pluginsTitle">插件中心</h1>
+            </div>
+            <div class="header-metrics" aria-label="插件摘要">
+              <span><strong id="installedCount">0</strong> 已安装</span>
+              <span><strong id="updateCount">0</strong> 可更新</span>
+            </div>
+          </header>
 
-          <div class="overview-grid">
-            <section class="flow-section">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">SEQUENCE</span>
-                  <h2>动作序列</h2>
-                </div>
-                <span id="matchLabel">0 / 0 会话</span>
+          <section id="coreEmptyState" class="core-empty-band" aria-live="polite">
+            <div class="empty-symbol"><span data-icon="plug"></span></div>
+            <div>
+              <strong>业务模块尚未安装</strong>
+              <p>连接摘要、插件管理与诊断可用。</p>
+            </div>
+            <span class="core-state">CORE READY</span>
+          </section>
+
+          <section class="content-band" aria-labelledby="bundleTitle">
+            <header class="section-header">
+              <div>
+                <p class="section-kicker">推荐组合</p>
+                <h2 id="bundleTitle">按工作流安装</h2>
               </div>
-              <canvas id="workflowCanvas" aria-label="工作流动作序列"></canvas>
-              <div id="stepList" class="step-list"></div>
+            </header>
+            <div id="bundleList" class="bundle-list"></div>
+          </section>
+
+          <section class="content-band plugin-band" aria-labelledby="catalogTitle">
+            <header class="section-header">
+              <div>
+                <p class="section-kicker">本机模块</p>
+                <h2 id="catalogTitle">全部插件</h2>
+              </div>
+              <label class="compact-search" for="pluginSearch">
+                <span data-icon="search"></span>
+                <input id="pluginSearch" type="search" placeholder="搜索插件" autocomplete="off">
+              </label>
+            </header>
+            <div id="pluginGrid" class="plugin-grid" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <section id="logsView" class="view" data-view-panel="logs" aria-labelledby="logsTitle" hidden>
+          <header class="view-header">
+            <div>
+              <p class="breadcrumb">工作台 / 日志</p>
+              <h1 id="logsTitle">日志</h1>
+            </div>
+            <div class="header-metrics">
+              <span><strong id="eventTotal">612</strong> 事件</span>
+              <span>游标 <code id="cursorLabel">0612</code></span>
+            </div>
+          </header>
+
+          <section class="filter-toolbar" aria-label="日志筛选">
+            <div class="filter-primary">
+              <button id="manualOnlyButton" class="button quiet" type="button">
+                <span data-icon="filter"></span>仅手动
+              </button>
+              <label>
+                <span>source_mode</span>
+                <select id="sourceModeFilter">
+                  <option value="all">全部来源</option>
+                  <option value="manual">manual</option>
+                  <option value="automation">automation</option>
+                  <option value="system">system</option>
+                  <option value="execution_audit">execution_audit</option>
+                </select>
+              </label>
+              <fieldset class="level-fieldset">
+                <legend>view_level</legend>
+                <div id="levelFilter" class="segmented" role="group" aria-label="view_level">
+                  <button class="segment active" type="button" data-level="all">全部</button>
+                  <button class="segment" type="button" data-level="L0">L0</button>
+                  <button class="segment" type="button" data-level="L1">L1</button>
+                  <button class="segment" type="button" data-level="L2">L2</button>
+                  <button class="segment" type="button" data-level="L3">L3</button>
+                  <button class="segment" type="button" data-level="L4">L4</button>
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="filter-grid">
+              <label><span>产品</span><select id="productFilter"><option value="all">全部产品</option><option value="nx">NX</option><option value="powermill">PowerMill</option></select></label>
+              <label><span>实例</span><select id="instanceFilter"><option value="all">全部实例</option></select></label>
+              <label><span>项目</span><select id="projectFilter"><option value="all">全部项目</option></select></label>
+              <label><span>动作</span><select id="actionFilter"><option value="all">全部动作</option></select></label>
+              <label><span>开始时间</span><input id="fromTimeFilter" type="datetime-local"></label>
+              <label><span>结束时间</span><input id="toTimeFilter" type="datetime-local"></label>
+              <label class="text-filter"><span>全文</span><input id="textFilter" type="search" placeholder="动作、项目、实例、来源" autocomplete="off"></label>
+              <button id="clearFiltersButton" class="icon-button bordered" type="button" aria-label="清除筛选" title="清除筛选"><span data-icon="x"></span></button>
+            </div>
+          </section>
+
+          <section class="event-surface" aria-label="日志结果">
+            <div class="table-scroll">
+              <table class="event-table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>产品 / 实例</th>
+                    <th>来源</th>
+                    <th>层级</th>
+                    <th>动作</th>
+                    <th>项目</th>
+                    <th>耗时</th>
+                  </tr>
+                </thead>
+                <tbody id="eventRows"></tbody>
+              </table>
+              <div id="eventState" class="table-state" hidden></div>
+            </div>
+            <footer class="pagination">
+              <span id="paginationSummary">0 条结果</span>
+              <div>
+                <label>每页
+                  <select id="pageSizeSelect"><option value="15">15</option><option value="25" selected>25</option><option value="50">50</option></select>
+                </label>
+                <button id="previousPage" class="icon-button bordered" type="button" aria-label="上一页" title="上一页"><span data-icon="arrowLeft"></span></button>
+                <span id="pageIndicator">1 / 1</span>
+                <button id="nextPage" class="icon-button bordered" type="button" aria-label="下一页" title="下一页"><span data-icon="arrowRight"></span></button>
+              </div>
+            </footer>
+          </section>
+        </section>
+
+        <section id="sessionsView" class="view" data-view-panel="sessions" aria-labelledby="sessionsTitle" hidden>
+          <header class="view-header">
+            <div>
+              <p class="breadcrumb">工作台 / 会话</p>
+              <h1 id="sessionsTitle">会话</h1>
+            </div>
+            <div class="header-actions">
+              <button id="markExpertButton" class="button quiet" type="button"><span data-icon="star"></span>专家标记</button>
+              <button id="splitSessionButton" class="button quiet" type="button"><span data-icon="split"></span>拆分</button>
+              <button id="mergeSessionsButton" class="button quiet" type="button"><span data-icon="merge"></span>合并</button>
+              <button id="compareSessionsButton" class="button primary" type="button"><span data-icon="compare"></span>对比 <span id="compareCount">3</span></button>
+            </div>
+          </header>
+
+          <div class="session-layout">
+            <section class="session-list-pane" aria-labelledby="sessionListTitle">
+              <header class="subhead">
+                <div><h2 id="sessionListTitle">会话列表</h2><span>选择 2-5 个对比</span></div>
+                <span id="sessionSelectionCount">已选 3</span>
+              </header>
+              <div id="sessionList" class="session-list"></div>
             </section>
 
-            <section class="parameter-section">
-              <div class="section-heading">
-                <div>
-                  <span class="eyebrow">PARAMETERS</span>
-                  <h2>可变参数</h2>
-                </div>
-                <button id="applyParameters" class="button secondary compact" type="button">重新生成</button>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>参数</th><th>类型</th><th>当前值</th></tr></thead>
-                  <tbody id="parameterRows"></tbody>
-                </table>
-              </div>
-              <div id="diagnosticList" class="diagnostics"></div>
+            <section class="timeline-pane" aria-labelledby="timelineTitle">
+              <header class="subhead">
+                <div><h2 id="timelineTitle">时间线</h2><span id="timelineMeta">NX · nx-project-a</span></div>
+                <span id="timelineDuration">08:21</span>
+              </header>
+              <ol id="sessionTimeline" class="session-timeline"></ol>
             </section>
           </div>
-        </div>
 
-        <div id="logPanel" class="tab-panel log-panel" data-panel="logs">
-          <div class="log-filterbar">
-            <div class="mode-filter">
-              <span class="filter-label">模式</span>
-              <div class="mode-options" role="group" aria-label="日志模式">
-                <button class="mode-option active" type="button" data-log-mode="all">全部</button>
-                <button class="mode-option" type="button" data-log-mode="manual">仅手动</button>
-                <button class="mode-option" type="button" data-log-mode="automation">自动化</button>
-                <button class="mode-option" type="button" data-log-mode="system">系统</button>
+          <section id="comparisonPanel" class="comparison-panel" aria-labelledby="comparisonTitle">
+            <header class="section-header">
+              <div><p class="section-kicker">SessionDiff</p><h2 id="comparisonTitle">三会话对比</h2></div>
+              <span class="status-badge review">基线 session:nx:a</span>
+            </header>
+            <div id="comparisonGrid" class="comparison-grid"></div>
+          </section>
+        </section>
+
+        <section id="learningView" class="view" data-view-panel="learning" aria-labelledby="learningTitle" hidden>
+          <header class="view-header">
+            <div>
+              <p class="breadcrumb">工作台 / 学习候选</p>
+              <h1 id="learningTitle">学习候选</h1>
+            </div>
+            <div class="header-metrics">
+              <span><strong>2</strong> 候选</span>
+              <span><strong>5</strong> 来源会话</span>
+            </div>
+          </header>
+          <div id="candidateList" class="candidate-list"></div>
+        </section>
+
+        <section id="recipeView" class="view recipe-view" data-view-panel="recipe" aria-labelledby="recipeTitle" hidden>
+          <header class="view-header recipe-header">
+            <div>
+              <p class="breadcrumb">工作台 / 配方</p>
+              <h1 id="recipeTitle">NX 平面铣工序预览</h1>
+            </div>
+            <div class="recipe-identity">
+              <span class="status-badge review">review_required</span>
+              <code id="recipeHash">sha256:9f86…00a08</code>
+              <button id="copyHashButton" class="icon-button bordered" type="button" aria-label="复制配方 hash" title="复制配方 hash"><span data-icon="copy"></span></button>
+            </div>
+          </header>
+
+          <div class="recipe-columns">
+            <section class="recipe-column steps-column" aria-labelledby="stepsTitle">
+              <header class="subhead"><div><h2 id="stepsTitle">步骤</h2><span>3 个有序步骤</span></div></header>
+              <div id="recipeSteps" class="recipe-steps"></div>
+            </section>
+            <section class="recipe-column parameters-column" aria-labelledby="parametersTitle">
+              <header class="subhead"><div><h2 id="parametersTitle">参数 / 条件 / 版本</h2><span>语义变更会更新 hash</span></div></header>
+              <div id="recipeParameters" class="parameter-list"></div>
+              <div class="recipe-facts">
+                <div><span>目标版本</span><strong>NX 2312 · NX 2406</strong></div>
+                <div><span>项目条件</span><strong>测试副本 · mm</strong></div>
+                <div><span>分支</span><strong>NX 2312 legacy builder</strong></div>
               </div>
-            </div>
-            <label class="filter-field" for="logProductFilter">
-              <span>一级 · 产品</span>
-              <select id="logProductFilter"><option value="all">全部产品</option></select>
-            </label>
-            <label class="filter-field" for="logCategoryFilter">
-              <span>二级 · 类别</span>
-              <select id="logCategoryFilter"><option value="all">全部类别</option></select>
-            </label>
-            <label class="filter-field" for="logActionFilter">
-              <span>三级 · 动作</span>
-              <select id="logActionFilter"><option value="all">全部动作</option></select>
-            </label>
-            <span id="logEventCount" class="event-count">0 / 0 条</span>
+            </section>
+            <section class="recipe-column provenance-column" aria-labelledby="provenanceTitle">
+              <header class="subhead"><div><h2 id="provenanceTitle">来源 / 差异</h2><span>3 / 3 会话支持</span></div></header>
+              <div id="recipeEvidence" class="evidence-list"></div>
+            </section>
           </div>
-          <div class="event-log">
-            <div class="event-header" aria-hidden="true">
-              <span>来源</span><span>模式</span><span>层级</span><span>原始动作</span><span>风险</span>
-            </div>
-            <div id="logEventRows" class="event-rows"></div>
-          </div>
-        </div>
+          <footer class="safety-footer">
+            <span data-icon="shield"></span>
+            <strong>只允许 dry-run</strong>
+            <span>配方审阅、目标版本验证、CAM 仿真、碰撞检查和车间批准仍是独立门禁。</span>
+          </footer>
+        </section>
 
-        <div id="recipePanel" class="tab-panel code-panel" data-panel="recipe">
-          <div class="code-toolbar">
-            <span>recipe.json</span>
-            <button id="copyRecipe" class="button secondary compact" type="button">复制</button>
-          </div>
-          <pre id="recipeOutput"></pre>
-        </div>
-
-        <div id="previewPanel" class="tab-panel code-panel" data-panel="preview">
-          <div class="code-toolbar">
-            <span id="previewFileLabel">nx_preview_journal.py</span>
+        <section id="commandView" class="view" data-view-panel="command" aria-labelledby="commandTitle" hidden>
+          <header class="view-header">
             <div>
-              <button id="copyPreview" class="button secondary compact" type="button">复制</button>
-              <button id="downloadPreview" class="button secondary compact" type="button">下载</button>
+              <p class="breadcrumb">工作台 / 命令与诊断</p>
+              <h1 id="commandTitle">命令</h1>
             </div>
-          </div>
-          <pre id="previewOutput"></pre>
-        </div>
+            <div class="mode-switch" role="group" aria-label="命令类型">
+              <button class="mode-button active" type="button" data-command-mode="query">只读查询</button>
+              <button class="mode-button" type="button" data-command-mode="dry_run">配方 dry-run</button>
+            </div>
+          </header>
 
-        <div id="codexPanel" class="tab-panel codex-panel" data-panel="codex" data-requires-plugin="cam-codex-review" hidden>
-          <div class="codex-header">
+          <div class="command-layout">
+            <section class="command-form-panel" aria-labelledby="targetTitle">
+              <header class="subhead"><div><h2 id="targetTitle">任务目标</h2><span>提交前再次校验</span></div></header>
+              <div class="command-form">
+                <label><span>产品</span><select id="commandProduct"><option value="powermill">PowerMill</option><option value="nx">NX</option></select></label>
+                <label><span>目标实例</span><select id="commandInstance"></select></label>
+                <label><span>版本</span><input id="commandVersion" value="PowerMill 2026" readonly></label>
+                <label><span>项目</span><input id="commandProject" value="pm-project-a" readonly></label>
+                <label class="form-wide"><span>recipe_hash</span><input id="commandHash" value="sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" readonly></label>
+                <label class="form-wide"><span>操作</span><select id="commandOperation"><option value="project.summary">project.summary</option><option value="cam.recipe.preview">cam.recipe.preview</option></select></label>
+                <label class="form-wide"><span>参数</span><textarea id="commandArguments" rows="4" spellcheck="false">{"capture_diff":true,"tolerance":0.05}</textarea></label>
+              </div>
+              <div class="command-submit">
+                <span><span class="status-dot ok"></span>fixture transport · 每实例串行队列</span>
+                <button id="runCommandButton" class="button primary" type="button"><span data-icon="play"></span>运行只读查询</button>
+              </div>
+            </section>
+
+            <section class="queue-panel" aria-labelledby="queueTitle">
+              <header class="subhead"><div><h2 id="queueTitle">实例队列</h2><span>按目标隔离</span></div><span id="queueTotal">1 等待</span></header>
+              <div id="queueList" class="queue-list"></div>
+            </section>
+          </div>
+
+          <section id="commandResult" class="command-result" aria-labelledby="resultTitle">
+            <header class="section-header">
+              <div><p class="section-kicker">CommandResponse</p><h2 id="resultTitle">尚未提交任务</h2></div>
+              <span id="commandStatusBadge" class="status-badge muted">idle</span>
+            </header>
+            <div id="commandResultBody" class="result-empty">
+              <span data-icon="terminal"></span>
+              <p>等待只读查询或 dry-run。</p>
+            </div>
+          </section>
+        </section>
+
+        <section id="diagnosticsView" class="view" data-view-panel="diagnostics" aria-labelledby="diagnosticsTitle" hidden>
+          <header class="view-header">
             <div>
-              <span class="eyebrow">CODEX BRIDGE V1</span>
-              <h2>审阅交换</h2>
+              <p class="breadcrumb">基础软件 / 诊断</p>
+              <h1 id="diagnosticsTitle">诊断</h1>
             </div>
-            <span id="codexState" class="review-state">等待分析</span>
-          </div>
-          <p class="codex-note">
-            导出的内容只包含动作、参数、风险和证据。Codex 的结论会回到本地模块，不能直接执行 CAD/CAM 命令。
-          </p>
-          <div class="codex-actions">
-            <button id="exportContext" class="button primary" type="button">导出 Codex 上下文</button>
-            <button id="copyContext" class="button secondary" type="button">复制上下文</button>
-          </div>
-          <label class="field-label" for="reviewStatus">回传审阅结论</label>
-          <select id="reviewStatus" class="text-input">
-            <option value="needs_review">待审阅</option>
-            <option value="needs_changes">需要修改</option>
-            <option value="approved_for_simulation">可进入仿真</option>
-            <option value="rejected">拒绝</option>
-          </select>
-          <label class="field-label" for="reviewFindings">发现与门禁</label>
-          <textarea id="reviewFindings" class="review-input" placeholder="每行一条，例如：确认 MCS 与刀具库映射"></textarea>
-          <button id="submitReview" class="button secondary" type="button">保存审阅结论</button>
-          <pre id="contextOutput" class="context-output"></pre>
-        </div>
-      </section>
-    </main>
+            <button id="exportDiagnosticsButton" class="button quiet" type="button"><span data-icon="download"></span>导出本地诊断</button>
+          </header>
 
+          <div class="diagnostic-metrics">
+            <div><span>事件游标</span><strong>0612</strong><code>稳定</code></div>
+            <div><span>日志延迟</span><strong>184 ms</strong><code>目标 &lt; 2 s</code></div>
+            <div><span>查询 p95</span><strong>76 ms</strong><code>目标 &lt; 200 ms</code></div>
+            <div><span>实例队列</span><strong>1</strong><code>4 个隔离队列</code></div>
+          </div>
+
+          <div class="diagnostics-layout">
+            <section aria-labelledby="healthTitle">
+              <header class="subhead"><div><h2 id="healthTitle">运行状态</h2><span>离线 fixture</span></div></header>
+              <div id="healthList" class="health-list"></div>
+            </section>
+            <section aria-labelledby="taskHistoryTitle">
+              <header class="subhead"><div><h2 id="taskHistoryTitle">最近任务</h2><span>包含超时与取消</span></div></header>
+              <div id="taskHistory" class="task-history"></div>
+            </section>
+          </div>
+
+          <section class="state-matrix" aria-labelledby="stateMatrixTitle">
+            <header class="section-header">
+              <div><p class="section-kicker">状态覆盖</p><h2 id="stateMatrixTitle">界面状态</h2></div>
+            </header>
+            <div id="stateMatrix" class="state-grid"></div>
+          </section>
+        </section>
+
+        <section id="lockedView" class="view locked-view" data-view-panel="locked" hidden aria-live="polite">
+          <div class="locked-content">
+            <span data-icon="lock"></span>
+            <h1 id="lockedTitle">能力未安装</h1>
+            <p id="lockedDescription">请从插件中心安装所需业务模块。</p>
+            <button id="openPluginsButton" class="button primary" type="button"><span data-icon="boxes"></span>打开插件中心</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="drawerScrim" class="drawer-scrim" hidden></div>
+    <aside id="connectionDrawer" class="connection-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
+      <header class="drawer-header">
+        <div>
+          <p class="section-kicker">统一连接中心</p>
+          <h2 id="drawerTitle">所有实例</h2>
+        </div>
+        <button id="closeDrawerButton" class="icon-button" type="button" aria-label="关闭连接抽屉" title="关闭连接抽屉"><span data-icon="x"></span></button>
+      </header>
+      <div class="drawer-summary">
+        <span><span class="status-dot ok"></span>3 已连接</span>
+        <span><span class="status-dot warn"></span>1 仅检测</span>
+        <span><span class="status-dot danger"></span>1 断连</span>
+      </div>
+      <div id="instanceList" class="instance-list"></div>
+      <footer class="drawer-footer">
+        <span>最近扫描 08:15:15</span>
+        <button id="drawerRefreshButton" class="button quiet" type="button"><span data-icon="refresh"></span>重新扫描</button>
+      </footer>
+    </aside>
+
+    <div id="modalScrim" class="modal-scrim" hidden></div>
+    <section id="installModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="installModalTitle" hidden>
+      <header class="modal-header">
+        <div class="modal-icon"><span data-icon="shield"></span></div>
+        <div>
+          <p class="section-kicker">ON_INSTALL · 一次集中授权</p>
+          <h2 id="installModalTitle">启用本地工作流能力</h2>
+        </div>
+        <button id="cancelInstallButton" class="icon-button" type="button" aria-label="取消安装" title="取消安装"><span data-icon="x"></span></button>
+      </header>
+      <div class="modal-body">
+        <p id="installIntent">安装所选模块，并默认启用其所需本地能力。</p>
+        <div class="permission-list">
+          <div><span data-icon="check"></span><span><strong>日志记录</strong><small>增量读取受支持的本地 CAM 日志</small></span><em>开启</em></div>
+          <div><span data-icon="check"></span><span><strong>实例连接</strong><small>发现进程、窗口、版本与项目映射</small></span><em>开启</em></div>
+          <div><span data-icon="check"></span><span><strong>命令 dry-run</strong><small>只读查询与预览，不提供 live 模式</small></span><em>开启</em></div>
+          <div><span data-icon="check"></span><span><strong>Codex 审阅</strong><small>仅交换脱敏结构化上下文</small></span><em>开启</em></div>
+          <div><span data-icon="check"></span><span><strong>数据导出</strong><small>由用户显式下载本地数据</small></span><em>开启</em></div>
+        </div>
+        <div class="privacy-notice">
+          <span data-icon="database"></span>
+          <div><strong>本地记录将在安装后立即开启</strong><p>不会静默上传。网络交换必须由用户在 Codex 审阅中显式发起。</p></div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button id="declineInstallButton" class="button quiet" type="button">取消</button>
+        <button id="authorizeInstallButton" class="button primary" type="button"><span data-icon="shield"></span>授权并安装</button>
+      </footer>
+    </section>
+
+    <section id="settingsModal" class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle" hidden>
+      <header class="modal-header">
+        <div>
+          <p class="section-kicker">分类控制</p>
+          <h2 id="settingsModalTitle">高级设置</h2>
+        </div>
+        <button id="closeSettingsButton" class="icon-button" type="button" aria-label="关闭高级设置" title="关闭高级设置"><span data-icon="x"></span></button>
+      </header>
+      <div id="permissionSettings" class="permission-settings"></div>
+      <footer class="settings-foot">
+        <span><span data-icon="shield"></span>变更仅作用于本机；撤销不会删除已有数据。</span>
+      </footer>
+    </section>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="/components/icons.js"></script>
+    <script src="/components/fixtures.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

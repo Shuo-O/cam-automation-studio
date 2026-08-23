@@ -1,0 +1,11 @@
+FUNCTION Main(REAL $limit) {
+  REAL $value = 0
+  WHILE $value < $limit {
+    IF $value == 2 {
+      BREAK
+    } ELSE {
+      $value = $value + 1
+    }
+  }
+  RETURN
+}

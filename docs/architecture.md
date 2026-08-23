@@ -15,11 +15,11 @@ static UI + health
         v
  installed-plugins.json
         |
-        +--> UG/NX adapter (lazy import)
-        +--> PowerMill adapter (lazy import)
-        +--> CaptureService (lazy construction)
-        +--> ExecutionGateway (lazy construction)
-        +--> Codex Bridge v1 (lazy import)
+        +--> RecorderService + EventQuery/EventPage
+        +--> ConnectionMonitor + NX/PowerMill transports
+        +--> SessionService + WorkflowLearner + RecipeService
+        +--> CommandTaskService + DiagnosticsService
+        +--> Codex Bridge v1
 ```
 
 `cam_automation/plugin_manager.py` owns discovery, dependency validation, the empty-by-default
@@ -35,8 +35,9 @@ both products. Product-only actions remain prefixed with `nx.*` or `powermill.*`
 use `cam.*`.
 
 `cam_automation/codex_bridge.py` implements `cam.codex.bridge.v1`. It exports evidence and review
-instructions, validates an operator/Codex review response, and can persist an exchange bundle. It
-does not execute returned text or attach to a CAD/CAM process.
+instructions, validates strict `CodexReviewRequest` and `CodexReviewResult` objects, rejects prompt
+injection and machine-output content, and can persist an exchange bundle inside an explicit local
+boundary. It does not execute returned text or attach to a CAD/CAM process.
 
 `cam_automation/recorder.py` owns background source discovery, process detection, redaction,
 deduplication, SQLite persistence, and JSONL export. It reads only configured CAM source types and
@@ -50,37 +51,45 @@ without attaching to them. Runtime instance IDs combine product, PID, and window
 can distinguish multiple NX/PowerMill windows. The plugin home always shows compact Codex, UG/NX,
 and PowerMill connection summaries; the workbench connection panel expands instance details.
 Window titles remain ephemeral local status and are not persisted into learned events.
-`cam_automation/execution.py` is a separate fail-closed gateway and is not imported until
-`cam-execution-gateway` is installed. Dry-run is the only built-in transport, and execution
-attempts are written back as ActivityEvent audit evidence when recording consent exists.
+`cam_automation/command_tasks.py` owns immutable task snapshots, exact five-part target binding,
+per-instance serial queues, cancellation, timeouts, bounded result retention, response attribution,
+and response rescanning. `cam_automation/diagnostics.py` reports the same queues and connection
+heartbeats used by the API. `cam_automation/execution.py` remains the fail-closed compatibility
+gateway. Dry-run is the only built-in mutation mode, and attempts are written back as ActivityEvent
+`execution_audit` evidence when recording consent exists.
 
-## Data Flow
+`cam_automation/fixture_runtime.py` assembles the default repository demo graph. It discovers two
+NX and two PowerMill fixture instances, authorizes only `nx:3101:A1` and
+`powermill:4101:C1`, and registers offline transports with `live_connected=false`. This graph is
+for deterministic integration and browser acceptance only; it does not claim a live CAM session.
+
+## End-to-End Data Flow
 
 ```text
-PowerMill macro / command log / JSONL
-                  |
-                  v
-        generic streaming parser
-                  |
-                  v
-       normalized command events
-                  |
-          +-------+-------+
-          |               |
-          v               v
-  PowerMill profile   sequence learner
-  operation + risk    dominant shape +
-          |           varying literals
-          +-------+-------+
-                  |
-                  v
-        reviewed workflow recipe
-          |        |               |
-          v        v               v
-    events.jsonl report.md     workflow.mac
+NX Journal / PowerMill macro or log / ActivityEvent JSONL
+                         |
+                         v
+                product-isolated parser
+                         |
+                         v
+        RecorderService -> EventPage -> SessionService
+                                         |
+                                         v
+                                 WorkflowLearner
+                                         |
+                                         v
+                  RecipeService -> Codex structured review
+                         |
+                         v
+             explicit target_instance dry-run preview
+                         |
+                         v
+              CommandResponse + DiffReport + diagnostics
 ```
 
-The parser and sequence learner are CAM-neutral. `cam_automation/profiles/powermill.py` owns the current product vocabulary and safety rules. An NX profile can reuse the event, recipe, parameter, report, CLI, and UI layers.
+The session, learner, recipe, task, and diagnostics services are product-neutral. NX syntax stays in
+`plugins/ug-cam-copilot/src/ugcam_ai/adapters/nx_journal.py`; PowerMill syntax stays in
+`cam_automation/adapters/powermill_macro.py` and its profile. Neither parser imports the other.
 
 `events.jsonl` follows the repository's existing `ActivityEvent v1` fields. Shared actions use a `cam.*` prefix and PowerMill-only actions use `powermill.*`; the original macro operation remains an additive recipe field for display and audit.
 
@@ -109,11 +118,17 @@ This is explainable, fast, reproducible, and usable without an API key. A future
   snapshot, and identified approver.
 - Live requests require an explicit runtime `target_instance_id`; automatic foreground targeting is
   not allowed because multiple CAM windows may be open.
+- Product, instance ID, target version, project ID, and recipe hash are revalidated immediately
+  before transport use and again against the response.
 - External writes, project saves, exports, and NC output are `review`.
 - Delete, quit, project reset/close, nested macro execution, and external process commands are `blocked`.
+- Encoded command variants, Codex injection, Journal live calls, machine-control vocabulary,
+  NC/G-code, and postprocess output fail closed before transport use.
 - String parameters reject control characters and escape the learned quote delimiter.
 - Real execution must add project snapshots, version checks, command acknowledgements, audit records, and an operator confirmation gate.
 - Machine-ready NC and postprocessing output are rejected by the execution gateway.
+- Simulation, collision, and shop-approval gates remain `not_run` or `required` in every fixture
+  DiffReport.
 
 ## PowerMill Adapter, Phase 2
 
@@ -143,4 +158,18 @@ Keep this transport out of the learner. This allows the same reviewed recipe to 
 
 ## Performance
 
-Log parsing is a single pass over input lines. Session signature construction and aligned literal inference are linear in the selected command count. The included test parses 20,000 commands under a conservative three-second ceiling on the bundled local runtime.
+Log parsing is a single pass over input lines. Session signature construction and aligned literal
+inference are linear in the selected command count and bounded by candidate/shape limits.
+
+Release smoke on the bundled Windows runtime (2026-08-24):
+
+| Path | Result |
+|---|---:|
+| 100,000 event SQLite import | 5.489 s |
+| Filtered query, 200 runs | p95 0.404 ms |
+| 10,000 sessions / 30,000 events build | 0.802 s |
+| 10,000-session learning | 1.021 s, deterministic under reversed input |
+| 1,000 same-instance command tasks | 0.770 s, ordered, max concurrency 1 |
+
+These are offline fixture measurements, not production CAM latency or a customer workstation
+capacity guarantee.

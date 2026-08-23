@@ -10,7 +10,10 @@
 python -m cam_automation serve --port 8765
 ```
 
-浏览器启动后访问 `http://127.0.0.1:8765`。首次进入只显示插件中心，安装 UG/NX 或 PowerMill 工作流插件后才会开放工作台。软件不会自动载入样例，也不会自动安装业务模块。
+浏览器启动后访问 `http://127.0.0.1:8765`。首次进入只显示插件中心，安装
+UG/NX 或 PowerMill 工作流插件后才会开放工作台。软件不会自动安装业务模块。
+本仓库默认服务图只注册离线 fixture transport；安装本地记录插件后会自动扫描打包的
+本地演示事件源，便于在不连接真实 CAM 的情况下验证完整工作流。
 
 无界面命令仍然可用：
 
@@ -66,12 +69,25 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 - `GET /api/recorder`：授权、运行状态、兼容进程布尔值、实例列表、日志源和计数。
 - `POST /api/recorder/consent|control|settings|label|scan`：授权、暂停/继续、分类设置、标注和立即扫描。
 - `GET /api/recorder/events?limit=500`：读取最近的脱敏 ActivityEvent。
+- `GET /api/recorder/events?...`：按 `source_mode`、`view_level`、产品、实例、项目、
+  动作、时间和文本进行稳定游标分页。
 - `GET /api/recorder/export`：导出本地 JSONL。
 - `POST /api/recorder/clear`：使用确认令牌清除采集库。
+- `GET /api/sessions`、`POST /api/sessions/compare`：生成会话并比较 2-5 个同产品会话。
+- `POST /api/workflows/mine`：从选定会话生成确定性的学习候选。
+- `POST /api/recipes`、`GET /api/recipes/:id`、`POST /api/recipes/:id/preview`：
+  保存版本化配方并且只通过产品 adapter 生成预览。
+- `POST /api/execution/tasks`、`GET /api/execution/tasks/:id`、
+  `POST /api/execution/tasks/:id/cancel`：提交、轮询和取消按实例隔离的任务。
+- `GET /api/diagnostics`：查看连接心跳、实例队列、延迟和任务指标。
 
 ## 命令执行门禁
 
-安装 `cam-execution-gateway` 时会自动安装 `cam-local-capture` 审计依赖。`POST /api/execution/run` 接受结构化执行请求，并把请求、目标实例、拒绝原因、响应和耗时写入同一采集审计链。当前仅注册 `dry-run` 传输；`live` 除目标版本原生适配器外，还必须提供明确的 `target_instance_id`，避免同时打开多个 CAM 窗口时把命令发错目标。
+安装 `cam-execution-gateway` 时会自动安装 `cam-local-capture` 审计依赖。
+`CommandTaskService` 接受结构化查询或配方预览任务，为每个实例维护独立串行队列，
+并把请求、目标实例、拒绝原因、响应和耗时写入同一 `execution_audit` 链。
+`POST /api/execution/run` 作为旧同步路由继续兼容。当前 fixture transport 只支持
+`read_only` 和 `dry_run`，不会向 CAM 发送命令。
 
 执行请求至少包含：
 
@@ -89,7 +105,22 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 }
 ```
 
-原始命令会再次检查删除、退出、外部进程和 NC/postprocess 特征，不能只依赖调用方提交的风险标签。`review`、所有 live 请求和生产变更仍需要识别到具体审批人、测试项目快照及目标版本适配器；NC 输出在此门禁中始终阻断。
+任务必须同时绑定产品、目标实例、目标版本、项目和 recipe hash。请求和响应都会再次
+检查删除、退出、外部进程、Journal live、机床控制、NC/G-code 和 postprocess
+特征，不能只依赖调用方风险标签或 Codex 审阅文本。生产门禁保持
+`cam_simulation=not_run`、`collision_check=required`、`shop_approval=required`；
+machine-ready NC 在入口和响应扫描中始终阻断。
+
+## Codex Skills
+
+产品插件提供 8 个结构化、review-first Skills：
+
+- NX：活动查询预览、会话比较、配方审阅、工作流学习。
+- PowerMill：活动查询预览、会话比较、配方审阅、工作流学习。
+
+NX Skills 只引用 NX adapter，PowerMill Skills 只引用 PowerMill adapter。Codex 交换
+严格使用 `CodexReviewRequest` / `CodexReviewResult` JSON，不执行自由文本，不接受
+live 指令，也不生成 machine-ready NC。
 
 ## Siemens NX / UG Demo
 
@@ -122,10 +153,19 @@ PowerMill 公共工作流内核位于 `cam_automation`；NX 的 AST/SQLite 适�
 
 NX 首版同样只生成 dry-run 配方和预览 Journal，不修改零件、不生成或下发机床 NC 代码。实际 NXOpen 实现必须对照目标版本自带的 Python stubs，并通过碰撞/过切检查、机床仿真和人工审批。
 
+仓库发布验收只使用两个 NX、两个 PowerMill 的 fixture 实例。真实 PowerMill/NX
+连接、项目映射、目标版本 API、机床仿真、碰撞检查和现场批准都必须在客户环境单独
+验证；当前结果不代表 live execution 已实现或获批。
+
 技术边界见 [architecture.md](docs/architecture.md)，Codex 交换协议实现见 `cam_automation/codex_bridge.py`，产品适配入口见 `cam_automation/integrations.py`。
 
 ## Test
 
 ```powershell
 python -m unittest discover -s tests -v
+python -m unittest discover -s plugins/ug-cam-copilot/tests -v
+python -m unittest discover -s plugins/powermill-cam-copilot/tests -v
+node --test cam_automation/web/components/fixtures.test.cjs
 ```
+
+本次发布结果见 [release-notes-0.5.0.md](docs/release-notes-0.5.0.md)。

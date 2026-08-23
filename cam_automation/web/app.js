@@ -66,6 +66,7 @@
     eventRows: $("#eventRows"),
     eventState: $("#eventState"),
     eventTotal: $("#eventTotal"),
+    cursorLabel: $("#cursorLabel"),
     paginationSummary: $("#paginationSummary"),
     previousPage: $("#previousPage"),
     nextPage: $("#nextPage"),
@@ -85,6 +86,8 @@
     comparisonTitle: $("#comparisonTitle"),
     comparisonGrid: $("#comparisonGrid"),
     candidateList: $("#candidateList"),
+    candidateCount: $("#candidateCount"),
+    candidateSessionCount: $("#candidateSessionCount"),
     recipeSteps: $("#recipeSteps"),
     recipeParameters: $("#recipeParameters"),
     recipeEvidence: $("#recipeEvidence"),
@@ -128,6 +131,8 @@
   ];
 
   const state = {
+    apiReady: false,
+    apiError: null,
     activeView: "plugins",
     installed: new Set(),
     installedVersions: new Map(fixture.plugins.map((plugin) => [plugin.id, plugin.version])),
@@ -149,7 +154,12 @@
       text: "",
       page: 1,
       pageSize: 25,
-      loading: false
+      loading: false,
+      cursor: null,
+      nextCursor: null,
+      cursors: [null],
+      hasMore: false,
+      remote: false
     },
     activeSessionId: fixture.sessions[0].session_id,
     selectedSessions: new Set(fixture.sessions.slice(0, 3).map((session) => session.session_id)),
@@ -158,8 +168,311 @@
     ),
     commandMode: "query",
     commandRunning: false,
-    recipeHash: fixture.recipe.recipe_hash
+    commandTaskId: null,
+    recipeHash: fixture.recipe.recipe_hash,
+    sessionDiff: null,
+    codexReviewStatus: null
   };
+
+  async function requestJson(path, options = {}) {
+    const request = {
+      method: options.method || "GET",
+      headers: { Accept: "application/json" }
+    };
+    if (options.body !== undefined) {
+      request.headers["Content-Type"] = "application/json";
+      request.body = JSON.stringify(options.body);
+    }
+    const response = await fetch(path, request);
+    const payload = await response.json().catch(() => ({
+      code: "invalid_response",
+      error: "API returned a non-JSON response."
+    }));
+    if (!response.ok) {
+      const error = new Error(payload.error || payload.message || `HTTP ${response.status}`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  }
+
+  function reportApiError(error, action) {
+    state.apiError = error;
+    const message = error?.payload?.error || error?.message || "本地 API 不可用";
+    toast(`${action}失败`, message, "warning");
+  }
+
+  function mergePluginStatus(payload) {
+    const byId = new Map(payload.plugins.map((plugin) => [plugin.id, plugin]));
+    fixture.plugins.forEach((plugin) => {
+      const current = byId.get(plugin.id);
+      if (!current) {
+        return;
+      }
+      plugin.name = current.name || plugin.name;
+      plugin.description = current.summary || current.description || plugin.description;
+      plugin.category = current.category || plugin.category;
+      plugin.features = current.features || plugin.features;
+      plugin.dependencies = current.dependencies || plugin.dependencies;
+      plugin.version = current.version || plugin.version;
+      plugin.latest_version = current.update?.available_version || current.version || plugin.latest_version;
+      plugin.api = current;
+    });
+    state.installed = new Set(
+      payload.plugins.filter((plugin) => plugin.installed).map((plugin) => plugin.id)
+    );
+    payload.plugins.forEach((plugin) => {
+      if (plugin.installed) {
+        state.installedVersions.set(
+          plugin.id,
+          plugin.update?.installed_version || plugin.version
+        );
+      }
+    });
+    const capture = byId.get("cam-local-capture");
+    state.authorized = Boolean(capture?.authorization?.granted);
+    if (!state.installed.has("cam-local-capture")) {
+      state.recorderState = "missing";
+    }
+  }
+
+  function normalizeInstances(payload) {
+    fixture.instances = payload.instances.map((instance) => ({
+      ...instance,
+      connection_response: instance.last_response?.duration_ms == null
+        ? instance.connection_status === "connected" ? "fixture ready" : "未建立连接"
+        : `${instance.last_response.duration_ms} ms`,
+      metadata: {
+        headless: Boolean(instance.metadata?.headless),
+        ...instance.metadata
+      }
+    }));
+  }
+
+  function normalizeSessions(sessions) {
+    const fallbackSteps = [
+      "创建 CAM 工序",
+      "设置审阅参数",
+      "生成刀路预览"
+    ];
+    return sessions.map((session) => {
+      const started = Date.parse(session.started_at);
+      const ended = Date.parse(session.ended_at);
+      return {
+        ...session,
+        duration_ms: Number.isFinite(started) && Number.isFinite(ended)
+          ? Math.max(0, ended - started)
+          : 0,
+        labels: session.labels || [],
+        steps: session.steps || fallbackSteps
+      };
+    });
+  }
+
+  async function refreshConnections(force = false) {
+    const payload = await requestJson(
+      `/api/connections?include_uninstalled=1&refresh=${force ? 1 : 0}`
+    );
+    normalizeInstances(payload);
+    renderInstances();
+    populateLogFilters();
+    renderCommandControls();
+    return payload;
+  }
+
+  async function refreshDiagnostics() {
+    const payload = await requestJson("/api/diagnostics");
+    const instances = payload.diagnostics.instances || [];
+    fixture.diagnostics.queues = instances.map((item) => ({
+      instance_id: item.instance_id,
+      queued: item.queue_length,
+      running: item.running_count,
+      last_duration_ms: item.duration?.count ? item.duration.average_ms : null
+    }));
+    fixture.diagnostics.api = payload.diagnostics;
+    renderQueues();
+    renderDiagnostics();
+    return payload;
+  }
+
+  async function refreshSessions() {
+    const payload = await requestJson("/api/sessions?limit=10000&sort=asc");
+    fixture.sessions = normalizeSessions(payload.sessions);
+    const existing = new Set(fixture.sessions.map((session) => session.session_id));
+    state.selectedSessions = new Set(
+      Array.from(state.selectedSessions).filter((sessionId) => existing.has(sessionId))
+    );
+    const nxSessions = fixture.sessions.filter((session) => session.product === "nx");
+    if (state.selectedSessions.size < 2) {
+      state.selectedSessions = new Set(
+        nxSessions.slice(0, 3).map((session) => session.session_id)
+      );
+    }
+    if (!existing.has(state.activeSessionId)) {
+      state.activeSessionId = fixture.sessions[0]?.session_id || "";
+    }
+    state.expertSessions = new Set(
+      fixture.sessions
+        .filter((session) => session.labels.includes("expert"))
+        .map((session) => session.session_id)
+    );
+    renderSessions();
+    return payload;
+  }
+
+  function normalizeCandidates(candidates) {
+    return candidates.map((candidate) => ({
+      ...candidate,
+      name: candidate.name || `${candidate.product === "nx" ? "NX" : "PowerMill"} 重复工作流`,
+      main_flow: (candidate.common_steps || []).map((step) => step.action),
+      branches: (candidate.branches || []).map((branch) =>
+        typeof branch === "string" ? branch : JSON.stringify(branch)
+      ),
+      rework: (candidate.differences || []).map((difference) =>
+        typeof difference === "string" ? difference : JSON.stringify(difference)
+      ),
+      parameters: (candidate.parameters || []).map((parameter) =>
+        typeof parameter === "string" ? parameter : parameter.name
+      )
+    }));
+  }
+
+  async function ensureWorkflowAssets() {
+    if (
+      !state.installed.has("cam-local-capture")
+      || !state.installed.has("ug-cam-copilot")
+    ) {
+      return;
+    }
+    const nxSessions = fixture.sessions
+      .filter((session) => session.product === "nx" && session.source_modes.includes("manual"))
+      .map((session) => session.session_id);
+    if (nxSessions.length >= 3) {
+      const learned = await requestJson("/api/workflows/mine", {
+        method: "POST",
+        body: { session_ids: nxSessions.slice(0, 5) }
+      });
+      fixture.candidates = normalizeCandidates(learned.candidates);
+      renderCandidates();
+    }
+
+    const recipePayload = JSON.parse(JSON.stringify(fixture.recipe));
+    recipePayload.source_session_ids = nxSessions.slice(0, 3);
+    const saved = await requestJson("/api/recipes", {
+      method: "POST",
+      body: { recipe: recipePayload }
+    });
+    fixture.recipe = saved.recipe;
+    state.recipeHash = saved.recipe.recipe_hash;
+    renderRecipe();
+
+    if (state.installed.has("cam-codex-review")) {
+      const sourceEvent = fixture.events.find((event) => event.product === "nx");
+      const sessionIds = nxSessions.slice(0, 3);
+      const reviewRecipe = JSON.parse(JSON.stringify(fixture.recipe));
+      reviewRecipe.description = "Review-first offline workflow draft.";
+      reviewRecipe.parameters = reviewRecipe.parameters.filter(
+        (parameter) => parameter.value_type !== "object_selector"
+      );
+      reviewRecipe.steps = reviewRecipe.steps.map((step) => ({
+        ...step,
+        notes: "Preview-only reviewed step."
+      }));
+      const context = {
+        schema_version: 1,
+        protocol: "cam.codex.bridge.v1",
+        request_id: `codex-ui-${state.recipeHash.slice(7, 23)}`,
+        request_type: "workflow_review",
+        created_at: new Date().toISOString(),
+        execution_mode: "dry-run",
+        product: "nx",
+        target_version: "NX 2406",
+        recipe: reviewRecipe,
+        source_events: sourceEvent ? [sourceEvent] : [],
+        session_diff: state.sessionDiff || {
+          schema_version: 1,
+          diff_id: "session-diff:ui-fallback",
+          session_ids: sessionIds,
+          baseline_session_id: sessionIds[0],
+          common_steps: [],
+          session_deltas: sessionIds.map((sessionId) => ({
+            session_id: sessionId,
+            missing_step_keys: [],
+            extra_steps: []
+          })),
+          parameter_differences: [],
+          duration_ms_by_session: Object.fromEntries(sessionIds.map((sessionId) => [sessionId, 0])),
+          created_at: new Date().toISOString()
+        },
+        questions: ["Confirm stable selectors before simulation."],
+        context_metadata: {
+          redaction: "redacted-local-v1",
+          source_event_count: sourceEvent ? 1 : 0,
+          machine_ready_nc_included: false
+        }
+      };
+      const request = await requestJson("/api/codex/context", {
+        method: "POST",
+        body: { context }
+      });
+      const reviewed = await requestJson("/api/codex/review", {
+        method: "POST",
+        body: {
+          review: {
+            request_id: request.request_id,
+            review_status: "needs_changes",
+            findings: [
+              "Stable object selectors and production safety gates still require human review."
+            ],
+            required_gates: [
+              "cam_simulation",
+              "collision_check",
+              "shop_approval"
+            ],
+            reviewer: "Codex fixture reviewer",
+            notes: "Structured offline review imported; no execution was authorized."
+          }
+        }
+      });
+      state.codexReviewStatus = reviewed.review_status;
+      renderRecipe();
+    }
+  }
+
+  async function hydrateFromApi({ force = false } = {}) {
+    try {
+      const plugins = await requestJson("/api/plugins");
+      mergePluginStatus(plugins);
+      await refreshConnections(force);
+      if (state.installed.has("cam-local-capture")) {
+        const recorder = await requestJson("/api/recorder");
+        state.recorderState = recorder.state;
+        state.permissions.logs = Boolean(recorder.enabled && recorder.categories.logs);
+        state.permissions.instances = Boolean(recorder.categories.instances);
+        await Promise.all([loadEventsFromApi(true), refreshSessions()]);
+      }
+      await refreshDiagnostics();
+      state.apiReady = true;
+      state.apiError = null;
+      renderAll();
+      if (fixture.sessions.length >= 2 && state.installed.has("cam-local-capture")) {
+        await compareSessions(true);
+      }
+      if (state.installed.has("ug-cam-copilot")) {
+        try {
+          await ensureWorkflowAssets();
+        } catch (error) {
+          reportApiError(error, "构建审阅上下文");
+        }
+      }
+    } catch (error) {
+      state.apiReady = false;
+      state.apiError = error;
+      renderAll();
+      reportApiError(error, "加载本地状态");
+    }
+  }
 
   function hydrateIcons(root = document) {
     $$("[data-icon]", root).forEach((target) => {
@@ -273,47 +586,60 @@
     installPlugins(ids, label);
   }
 
-  function installPlugins(pluginIds, label) {
+  async function installPlugins(pluginIds, label) {
     if (state.installing) {
       return;
     }
     state.installing = true;
     renderPlugins();
-    window.setTimeout(() => {
-      dependenciesFor(pluginIds).forEach((pluginId) => state.installed.add(pluginId));
-      if (state.installed.has("cam-local-capture")) {
-        state.recorderState = state.permissions.logs ? "recording" : "paused";
+    try {
+      for (const pluginId of dependenciesFor(pluginIds)) {
+        await requestJson("/api/plugins/install", {
+          method: "POST",
+          body: { plugin_id: pluginId }
+        });
       }
+      await hydrateFromApi({ force: true });
+      toast("安装完成", `${label} · 本地记录已开启`);
+    } catch (error) {
+      reportApiError(error, "安装");
+    } finally {
       state.installing = false;
       renderAll();
-      toast("安装完成", `${label} · 本地记录已开启`);
-    }, 360);
-  }
-
-  function uninstallPlugin(pluginId) {
-    state.installed.delete(pluginId);
-    if (pluginId === "cam-local-capture") {
-      fixture.plugins
-        .filter((plugin) => plugin.dependencies.includes("cam-local-capture"))
-        .forEach((plugin) => state.installed.delete(plugin.id));
-      state.recorderState = "missing";
-    }
-    renderAll();
-    toast("插件已卸载", fixture.plugins.find((plugin) => plugin.id === pluginId)?.name || pluginId, "warning");
-    if (!moduleAvailable($(`.nav-item[data-view="${state.activeView}"]`)?.dataset.module)) {
-      showView("plugins");
     }
   }
 
-  function updatePlugin(pluginId) {
+  async function uninstallPlugin(pluginId) {
+    try {
+      await requestJson("/api/plugins/uninstall", {
+        method: "POST",
+        body: { plugin_id: pluginId }
+      });
+      await hydrateFromApi({ force: true });
+      toast("插件已卸载", fixture.plugins.find((plugin) => plugin.id === pluginId)?.name || pluginId, "warning");
+      if (!moduleAvailable($(`.nav-item[data-view="${state.activeView}"]`)?.dataset.module)) {
+        showView("plugins");
+      }
+    } catch (error) {
+      reportApiError(error, "卸载");
+    }
+  }
+
+  async function updatePlugin(pluginId) {
     const plugin = fixture.plugins.find((item) => item.id === pluginId);
     if (!plugin) {
       return;
     }
-    state.installedVersions.set(pluginId, plugin.latest_version);
-    renderPlugins();
-    renderPluginSummary();
-    toast("更新完成", `${plugin.name} ${plugin.latest_version}`);
+    try {
+      await requestJson("/api/plugins/update", {
+        method: "POST",
+        body: { plugin_id: pluginId }
+      });
+      await hydrateFromApi();
+      toast("更新检查完成", `${plugin.name} ${plugin.latest_version}`);
+    } catch (error) {
+      reportApiError(error, "更新");
+    }
   }
 
   function renderPluginSummary() {
@@ -417,22 +743,38 @@
       .join("");
   }
 
-  function togglePermission(key) {
+  async function togglePermission(key) {
     if (!state.authorized || !(key in state.permissions)) {
       return;
     }
-    state.permissions[key] = !state.permissions[key];
-    if (key === "logs" && state.installed.has("cam-local-capture")) {
-      state.recorderState = state.permissions.logs ? "recording" : "paused";
+    const enabled = !state.permissions[key];
+    try {
+      if (key === "logs" && state.installed.has("cam-local-capture")) {
+        const recorder = await requestJson("/api/recorder/control", {
+          method: "POST",
+          body: { enabled }
+        });
+        state.recorderState = recorder.state;
+      } else if (key === "instances" && state.installed.has("cam-local-capture")) {
+        await requestJson("/api/recorder/settings", {
+          method: "POST",
+          body: { detect_instances: enabled }
+        });
+        await refreshConnections(true);
+      }
+      state.permissions[key] = enabled;
+    } catch (error) {
+      reportApiError(error, enabled ? "恢复分类能力" : "撤销分类能力");
+      return;
     }
     renderPermissions();
     renderRecorder();
     renderPluginSummary();
     renderCommandControls();
     toast(
-      state.permissions[key] ? "分类能力已恢复" : "分类能力已撤销",
+      enabled ? "分类能力已恢复" : "分类能力已撤销",
       permissionDefinitions.find((item) => item.key === key)?.name || key,
-      state.permissions[key] ? "success" : "warning"
+      enabled ? "success" : "warning"
     );
   }
 
@@ -452,6 +794,28 @@
 
   function renderInstances() {
     const productNames = { codex: "Codex", nx: "NX", powermill: "PowerMill" };
+    const codexCount = $("#codexCount");
+    const nxCount = $("#nxCount");
+    const powermillCount = $("#powermillCount");
+    if (codexCount) {
+      codexCount.textContent = state.installed.has("cam-codex-review") ? "1" : "0";
+    }
+    if (nxCount) {
+      nxCount.textContent = fixture.instances.filter((item) => item.product === "nx").length;
+    }
+    if (powermillCount) {
+      powermillCount.textContent = fixture.instances.filter((item) => item.product === "powermill").length;
+    }
+    const connected = fixture.instances.filter((item) => item.connection_status === "connected").length;
+    const detected = fixture.instances.filter((item) => item.connection_status === "detected").length;
+    const unavailable = fixture.instances.length - connected - detected;
+    const drawerSummary = $(".drawer-summary");
+    if (drawerSummary) {
+      drawerSummary.innerHTML = `
+        <span><span class="status-dot ok"></span>${connected} 已连接</span>
+        <span><span class="status-dot warn"></span>${detected} 仅检测</span>
+        <span><span class="status-dot danger"></span>${unavailable} 断连</span>`;
+    }
     elements.instanceList.innerHTML = fixture.instances
       .map((instance) => {
         const headless = Boolean(instance.metadata?.headless);
@@ -526,6 +890,62 @@
     });
   }
 
+  async function loadEventsFromApi(reset = false) {
+    if (!state.installed.has("cam-local-capture")) {
+      return;
+    }
+    if (reset) {
+      state.log.page = 1;
+      state.log.cursor = null;
+      state.log.nextCursor = null;
+      state.log.cursors = [null];
+    }
+    const params = new URLSearchParams({
+      limit: String(state.log.pageSize),
+      sort: "asc"
+    });
+    const fields = {
+      source_mode: state.log.sourceMode,
+      view_level: state.log.viewLevel,
+      product: state.log.product,
+      instance_id: state.log.instance,
+      project_id: state.log.project,
+      action: state.log.action
+    };
+    Object.entries(fields).forEach(([name, value]) => {
+      if (value && value !== "all") {
+        params.set(name, value);
+      }
+    });
+    if (state.log.fromTime) {
+      params.set("from_time", new Date(state.log.fromTime).toISOString());
+    }
+    if (state.log.toTime) {
+      params.set("to_time", new Date(state.log.toTime).toISOString());
+    }
+    if (state.log.text.trim()) {
+      params.set("text", state.log.text.trim());
+    }
+    if (state.log.cursor) {
+      params.set("cursor", state.log.cursor);
+    }
+    state.log.loading = true;
+    renderEvents();
+    try {
+      const payload = await requestJson(`/api/recorder/events?${params}`);
+      fixture.events = payload.events;
+      state.log.nextCursor = payload.next_cursor;
+      state.log.hasMore = payload.has_more;
+      state.log.remote = true;
+      elements.cursorLabel.textContent = payload.next_cursor
+        ? payload.next_cursor.slice(-8)
+        : "END";
+    } finally {
+      state.log.loading = false;
+      renderEvents();
+    }
+  }
+
   function renderEvents() {
     if (state.log.loading) {
       elements.eventRows.innerHTML = "";
@@ -534,25 +954,31 @@
       return;
     }
 
-    const filtered = applyLogFilters();
-    const pageCount = Math.max(1, Math.ceil(filtered.length / state.log.pageSize));
+    const remote = state.log.remote && state.installed.has("cam-local-capture");
+    const filtered = remote ? fixture.events : applyLogFilters();
+    const pageCount = remote
+      ? state.log.page + (state.log.hasMore ? 1 : 0)
+      : Math.max(1, Math.ceil(filtered.length / state.log.pageSize));
     state.log.page = Math.min(Math.max(1, state.log.page), pageCount);
     const start = (state.log.page - 1) * state.log.pageSize;
-    const page = filtered.slice(start, start + state.log.pageSize);
-    elements.eventTotal.textContent = filtered.length;
+    const page = remote ? filtered : filtered.slice(start, start + state.log.pageSize);
+    elements.eventTotal.textContent = remote
+      ? `${start + page.length}${state.log.hasMore ? "+" : ""}`
+      : filtered.length;
     elements.eventRows.innerHTML = page
       .map((event) => {
-        const time = event.timestamp.replace("2026-08-23T", "").replace("Z", "");
+        const eventId = event.event_id || `${event.session_id}:${event.seq}`;
+        const time = String(event.timestamp || "").replace("2026-08-23T", "").replace("Z", "");
         const product = event.product === "nx" ? "NX" : "PowerMill";
         return `
-          <tr data-event-id="${esc(event.event_id)}">
-            <td><strong>${esc(time)}</strong><small>${esc(event.event_id)}</small></td>
+          <tr data-event-id="${esc(eventId)}">
+            <td><strong>${esc(time)}</strong><small>${esc(eventId)}</small></td>
             <td><strong>${product}</strong><small title="${esc(event.instance_id)}">${esc(event.instance_id)}</small></td>
             <td><span class="source-badge ${esc(event.source_mode)}">${esc(event.source_mode)}</span></td>
             <td><span class="level-badge">${esc(event.view_level)}</span></td>
             <td title="${esc(event.action)}"><code>${esc(event.action)}</code></td>
             <td title="${esc(event.project_id || "未映射")}">${esc(event.project_id || "未映射")}</td>
-            <td>${event.duration_ms} ms</td>
+            <td>${event.duration_ms == null ? "—" : `${event.duration_ms} ms`}</td>
           </tr>`;
       })
       .join("");
@@ -561,29 +987,34 @@
     if (!page.length) {
       elements.eventState.innerHTML = `${icon("search")}<strong>没有匹配结果</strong><span>当前筛选返回 0 条事件。</span>`;
     }
-    elements.paginationSummary.textContent = filtered.length
-      ? `${start + 1}-${Math.min(start + page.length, filtered.length)} / ${filtered.length} 条 · DOM ${page.length} 行`
+    elements.paginationSummary.textContent = page.length
+      ? remote
+        ? `${start + 1}-${start + page.length} · API 游标页 · DOM ${page.length} 行`
+        : `${start + 1}-${Math.min(start + page.length, filtered.length)} / ${filtered.length} 条 · DOM ${page.length} 行`
       : "0 条结果 · DOM 0 行";
     elements.pageIndicator.textContent = `${state.log.page} / ${pageCount}`;
     elements.previousPage.disabled = state.log.page <= 1;
-    elements.nextPage.disabled = state.log.page >= pageCount;
+    elements.nextPage.disabled = remote ? !state.log.hasMore : state.log.page >= pageCount;
     elements.manualOnlyButton.classList.toggle("primary", state.log.sourceMode === "manual");
     elements.manualOnlyButton.classList.toggle("quiet", state.log.sourceMode !== "manual");
   }
 
-  function loadLogView() {
+  async function loadLogView() {
     if (state.log.loading) {
       return;
     }
-    state.log.loading = true;
+    if (state.apiReady && state.installed.has("cam-local-capture")) {
+      try {
+        await loadEventsFromApi(false);
+      } catch (error) {
+        reportApiError(error, "加载日志");
+      }
+      return;
+    }
     renderEvents();
-    window.setTimeout(() => {
-      state.log.loading = false;
-      renderEvents();
-    }, 120);
   }
 
-  function syncLogState() {
+  async function syncLogState() {
     state.log.sourceMode = elements.sourceModeFilter.value;
     state.log.product = elements.productFilter.value;
     state.log.instance = elements.instanceFilter.value;
@@ -593,7 +1024,15 @@
     state.log.toTime = elements.toTimeFilter.value;
     state.log.text = elements.textFilter.value;
     state.log.page = 1;
-    renderEvents();
+    if (state.apiReady && state.installed.has("cam-local-capture")) {
+      try {
+        await loadEventsFromApi(true);
+      } catch (error) {
+        reportApiError(error, "筛选日志");
+      }
+    } else {
+      renderEvents();
+    }
   }
 
   function clearLogFilters() {
@@ -683,14 +1122,34 @@
     renderSessionSelection();
   }
 
-  function compareSessions(silent = false) {
+  async function compareSessions(silent = false) {
     const selected = fixture.sessions.filter((session) => state.selectedSessions.has(session.session_id));
     if (selected.length < 2 || selected.length > 5) {
       toast("请选择 2-5 个会话", "", "warning");
       return;
     }
     const baseline = selected[0];
+    if (new Set(selected.map((session) => session.product)).size !== 1) {
+      toast("会话产品必须一致", "SessionDiff 不跨 NX 与 PowerMill。", "warning");
+      return;
+    }
+    if (state.apiReady && state.installed.has("cam-local-capture")) {
+      try {
+        const payload = await requestJson("/api/sessions/compare", {
+          method: "POST",
+          body: {
+            session_ids: selected.map((session) => session.session_id),
+            baseline_session_id: baseline.session_id
+          }
+        });
+        state.sessionDiff = payload.diff;
+      } catch (error) {
+        reportApiError(error, "会话对比");
+        return;
+      }
+    }
     const toleranceValues = [0.02, 0.03, 0.015, 0.05, 0.04];
+    const durationBySession = state.sessionDiff?.duration_ms_by_session || {};
     elements.comparisonTitle.textContent = `${selected.length} 会话对比`;
     $(".status-badge", elements.comparisonPanel).textContent = `基线 ${baseline.session_id}`;
     elements.comparisonGrid.style.setProperty("--compare-columns", selected.length);
@@ -701,7 +1160,7 @@
           <dl>
             <dt>工序创建</dt><dd>共同步骤</dd>
             <dt>公差</dt><dd>${toleranceValues[index].toFixed(3)} mm</dd>
-            <dt>时长</dt><dd>${formatDuration(session.duration_ms)}</dd>
+            <dt>时长</dt><dd>${formatDuration(durationBySession[session.session_id] ?? session.duration_ms)}</dd>
             <dt>额外步骤</dt><dd>${session.steps.length > baseline.steps.length ? esc(session.steps.filter((step) => !baseline.steps.includes(step)).join("、") || "无") : "无"}</dd>
             <dt>标记</dt><dd>${state.expertSessions.has(session.session_id) ? "expert" : "routine"}</dd>
           </dl>
@@ -709,11 +1168,16 @@
       .join("");
     elements.comparisonPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     if (!silent) {
-      toast("SessionDiff 已更新", `${selected.length} 个会话 · fixture`);
+      toast("SessionDiff 已更新", `${selected.length} 个会话 · ${state.apiReady ? "本地 API" : "fixture 回退"}`);
     }
   }
 
   function renderCandidates() {
+    const sourceSessions = new Set(
+      fixture.candidates.flatMap((candidate) => candidate.source_session_ids || [])
+    );
+    elements.candidateCount.textContent = String(fixture.candidates.length);
+    elements.candidateSessionCount.textContent = String(sourceSessions.size);
     elements.candidateList.innerHTML = fixture.candidates
       .map((candidate) => `
         <article class="candidate-row">
@@ -746,6 +1210,16 @@
   }
 
   function renderRecipe() {
+    const recipeTitle = $("#recipeTitle");
+    if (recipeTitle) {
+      recipeTitle.textContent = fixture.recipe.name;
+    }
+    const reviewBadge = $(".recipe-header .status-badge");
+    if (reviewBadge) {
+      reviewBadge.textContent = state.codexReviewStatus
+        ? `Codex ${state.codexReviewStatus}`
+        : fixture.recipe.status;
+    }
     elements.recipeHash.textContent = shortHash(state.recipeHash);
     elements.recipeHash.title = state.recipeHash;
     elements.recipeSteps.innerHTML = fixture.recipe.steps
@@ -773,7 +1247,7 @@
         <article class="evidence-row">
           <strong>${esc(sessionId)}</strong>
           <span>${index + 1} 个关键事件引用 · expert ${index === 1 ? "no" : "yes"}</span>
-          <code>${esc(fixture.recipe.steps[Math.min(index, fixture.recipe.steps.length - 1)].source_event_refs[0].event_session_id)}:${index}</code>
+          <code>${esc(fixture.recipe.steps[Math.min(index, fixture.recipe.steps.length - 1)]?.source_event_refs?.[0]?.event_session_id || sessionId)}:${index}</code>
           <div class="diff-line">${index === 0 ? "基线 tolerance 0.020 mm" : index === 1 ? "差异 tolerance 0.030 mm；包含选择器返工" : "差异 tolerance 0.015 mm"}</div>
         </article>`)
       .join("");
@@ -784,6 +1258,27 @@
       id: toggle.dataset.recipeStep,
       enabled: toggle.checked
     }));
+    fixture.recipe.steps = fixture.recipe.steps.map((step) => ({
+      ...step,
+      enabled: enabled.find((item) => item.id === step.step_id)?.enabled ?? step.enabled
+    }));
+    if (state.apiReady && state.installed.has("ug-cam-copilot")) {
+      try {
+        const saved = await requestJson("/api/recipes", {
+          method: "POST",
+          body: { recipe: fixture.recipe }
+        });
+        fixture.recipe = saved.recipe;
+        state.recipeHash = saved.recipe.recipe_hash;
+        renderRecipe();
+        toast("配方语义 hash 已更新", shortHash(state.recipeHash), "warning");
+        return;
+      } catch (error) {
+        reportApiError(error, "保存配方版本");
+        renderRecipe();
+        return;
+      }
+    }
     const payload = JSON.stringify({
       schema_version: 1,
       product: fixture.recipe.product,
@@ -805,9 +1300,12 @@
   }
 
   function renderCommandControls() {
+    if (state.commandMode === "dry_run") {
+      elements.commandProduct.value = fixture.recipe.product;
+    }
     const product = elements.commandProduct.value;
     const instances = fixture.instances.filter(
-      (instance) => instance.product === product && instance.connection_status !== "disconnected"
+      (instance) => instance.product === product && instance.connection_status === "connected"
     );
     const previous = elements.commandInstance.value;
     elements.commandInstance.innerHTML = instances
@@ -820,13 +1318,21 @@
 
     const dryRun = state.commandMode === "dry_run";
     elements.commandHash.value = dryRun
-      ? fixture.command_response.diff_report.recipe_hash
+      ? state.recipeHash
       : "null (query)";
-    elements.commandOperation.value = dryRun ? "cam.recipe.preview" : "project.summary";
-    elements.runCommandButton.innerHTML = `${icon("play")}${dryRun ? "运行 dry-run" : "运行只读查询"}`;
+    const operation = dryRun
+      ? "cam.recipe.preview"
+      : product === "nx"
+        ? "nx.session.describe"
+        : "powermill.project.info";
+    elements.commandOperation.innerHTML = `<option value="${esc(operation)}">${esc(operation)}</option>`;
+    elements.runCommandButton.innerHTML = state.commandRunning
+      ? `${icon("x")}取消任务`
+      : `${icon("play")}${dryRun ? "运行 dry-run" : "运行只读查询"}`;
     const allowed = state.permissions.dry_run;
-    elements.runCommandButton.disabled = state.commandRunning || !allowed;
+    elements.runCommandButton.disabled = !allowed || instances.length === 0;
     elements.runCommandButton.title = allowed ? "" : "命令 dry-run 分类能力已撤销";
+    elements.commandProduct.disabled = dryRun;
   }
 
   function syncCommandTarget() {
@@ -857,8 +1363,28 @@
       .join("");
   }
 
-  function runCommand() {
-    if (state.commandRunning || !state.permissions.dry_run) {
+  async function runCommand() {
+    if (!state.permissions.dry_run) {
+      return;
+    }
+    if (state.commandRunning && state.commandTaskId) {
+      try {
+        const payload = await requestJson(
+          `/api/execution/tasks/${encodeURIComponent(state.commandTaskId)}/cancel`,
+          { method: "POST", body: {} }
+        );
+        state.commandRunning = false;
+        state.commandTaskId = null;
+        renderCommandControls();
+        renderCommandResult(
+          fixture.instances.find((item) => item.instance_id === payload.task.target_instance_id),
+          payload.task.response,
+          payload.task
+        );
+        toast("任务已取消", payload.task.task_id, "warning");
+      } catch (error) {
+        reportApiError(error, "取消任务");
+      }
       return;
     }
     const instance = fixture.instances.find((item) => item.instance_id === elements.commandInstance.value);
@@ -874,30 +1400,108 @@
     elements.commandResultBody.className = "result-empty";
     elements.commandResultBody.innerHTML = `${icon("refresh")}<p>fixture transport 正在处理；未发送 CAM 命令。</p>`;
     elements.queueTotal.textContent = "1 运行";
-
-    window.setTimeout(() => {
-      state.commandRunning = false;
+    try {
+      let argumentsValue = {};
+      try {
+        argumentsValue = JSON.parse(elements.commandArguments.value || "{}");
+      } catch {
+        throw new Error("参数必须是有效 JSON。");
+      }
+      const dryRun = state.commandMode === "dry_run";
+      if (dryRun) {
+        const allowedParameters = new Set(
+          fixture.recipe.parameters.map((parameter) => parameter.name)
+        );
+        argumentsValue = Object.fromEntries(
+          Object.entries(argumentsValue).filter(([name]) => allowedParameters.has(name))
+        );
+      }
+      const taskId = `task:ui:${Date.now()}:${Math.random().toString(16).slice(2, 10)}`;
+      const task = {
+        schema_version: 1,
+        task_id: taskId,
+        task_type: dryRun ? "recipe_preview" : "query",
+        execution_mode: dryRun ? "dry_run" : "read_only",
+        product: instance.product,
+        target_version: instance.target_version,
+        target_instance_id: instance.instance_id,
+        project_id: instance.project_id,
+        recipe_hash: dryRun ? state.recipeHash : null,
+        operation: elements.commandOperation.value,
+        arguments: dryRun ? { parameters: argumentsValue } : argumentsValue,
+        status: "queued",
+        submitted_at: new Date().toISOString(),
+        timeout_ms: 5000,
+        requested_by: "operator:studio-ui",
+        review: dryRun
+          ? {
+              status: "accepted",
+              reviewer: "operator:studio-ui",
+              scope: "dry_run_only"
+            }
+          : null
+      };
+      const submitted = await requestJson("/api/execution/run", {
+        method: "POST",
+        body: task
+      });
+      state.commandTaskId = submitted.task.task_id;
+      const submittedTaskId = state.commandTaskId;
       renderCommandControls();
-      elements.queueTotal.textContent = "1 等待";
-      renderCommandResult(instance);
-    }, 520);
+      let current = submitted.task;
+      for (let attempt = 0; attempt < 100 && state.commandRunning; attempt += 1) {
+        if (!["queued", "running"].includes(current.status)) {
+          break;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+        const payload = await requestJson(
+          `/api/execution/tasks/${encodeURIComponent(submittedTaskId)}`
+        );
+        current = payload.task;
+      }
+      if (state.commandTaskId !== submittedTaskId) {
+        return;
+      }
+      state.commandRunning = false;
+      state.commandTaskId = null;
+      renderCommandControls();
+      renderCommandResult(instance, current.response, current);
+      await refreshDiagnostics();
+    } catch (error) {
+      state.commandRunning = false;
+      state.commandTaskId = null;
+      renderCommandControls();
+      reportApiError(error, "提交任务");
+    }
   }
 
-  function renderCommandResult(instance) {
+  function renderCommandResult(instance, apiResponse = null, task = null) {
+    if (!instance) {
+      return;
+    }
     const dryRun = state.commandMode === "dry_run";
-    const response = fixture.command_response;
-    elements.resultTitle.textContent = dryRun ? "dry-run 已完成（fixture）" : "只读查询已完成（fixture）";
-    elements.commandStatusBadge.className = "status-badge ready";
-    elements.commandStatusBadge.textContent = "transport succeeded";
+    const response = apiResponse || fixture.command_response;
+    const status = task?.status || response.status;
+    if (task?.task_id) {
+      fixture.diagnostics.recent_tasks = [
+        {
+          task_id: task.task_id,
+          status,
+          mode: task.execution_mode,
+          duration_ms: response?.duration_ms ?? task.elapsed_ms ?? 0
+        },
+        ...fixture.diagnostics.recent_tasks.filter((item) => item.task_id !== task.task_id)
+      ].slice(0, 8);
+    }
+    elements.resultTitle.textContent = dryRun ? "dry-run 任务结果" : "只读查询结果";
+    elements.commandStatusBadge.className = `status-badge ${status === "succeeded" ? "ready" : status === "cancelled" ? "cancelled" : "required"}`;
+    elements.commandStatusBadge.textContent = status;
 
-    const targetHash = dryRun ? response.diff_report.recipe_hash : "null";
-    const diffMarkup = dryRun
+    const targetHash = dryRun ? response?.diff_report?.recipe_hash || state.recipeHash : "null";
+    const diffMarkup = dryRun && response?.diff_report
       ? `
         <div class="diff-pane">
-          <div class="change-row">
-            <div><code>${esc(response.diff_report.changes[0].path)}</code><small>${response.diff_report.changes[0].before} → ${response.diff_report.changes[0].after} · proposed_update</small></div>
-            <span class="status-badge review">review</span>
-          </div>
+          ${(response.diff_report.changes || []).map((change) => `<div class="change-row"><div><code>${esc(change.path)}</code><small>${esc(change.before)} → ${esc(change.after)} · ${esc(change.kind)}</small></div><span class="status-badge review">review</span></div>`).join("")}
           <div class="gate-list">${response.diff_report.gate_results.map((gate) => `<div class="gate-row"><strong>${esc(gate.gate)}</strong><span class="status-badge ${esc(gate.status)}">${esc(gate.status)}</span></div>`).join("")}</div>
         </div>`
       : `
@@ -915,14 +1519,14 @@
           <dt>project_id</dt><dd>${esc(instance.project_id || "未映射")}</dd>
           <dt>recipe_hash</dt><dd><code>${esc(targetHash)}</code></dd>
           <dt>execution_mode</dt><dd>${dryRun ? "dry_run" : "read_only"}</dd>
-          <dt>duration_ms</dt><dd>${dryRun ? response.duration_ms : 82}</dd>
+          <dt>duration_ms</dt><dd>${response?.duration_ms ?? task?.elapsed_ms ?? 0}</dd>
           <dt>queue</dt><dd>instance queue · position 0</dd>
-          <dt>status</dt><dd>transport succeeded only</dd>
+          <dt>status</dt><dd>${esc(status)} · fixture transport only</dd>
         </dl>
-        <pre class="raw-response">${esc(dryRun ? response.raw_response : "Fixture read-only project summary returned; no CAM command was sent.")}</pre>
+        <pre class="raw-response">${esc(response?.raw_response || JSON.stringify(response?.structured_response || task?.error || {}, null, 2))}</pre>
       </div>
       ${diffMarkup}`;
-    toast(dryRun ? "dry-run fixture 已返回" : "只读查询 fixture 已返回", "生产门禁状态未改变");
+    toast(dryRun ? "dry-run 已返回" : "只读查询已返回", "生产门禁状态未改变");
   }
 
   function renderDiagnostics() {
@@ -934,23 +1538,17 @@
         className: state.recorderState === "recording" ? "ready" : state.recorderState === "missing" ? "muted" : "required"
       },
       {
-        name: "NX 2312 · nx:3102:B2",
-        detail: "最近响应 08:12:06 · timeout 5.0 s",
-        status: "断连",
-        className: "disconnected"
-      },
-      {
-        name: "PowerMill 2025 · powermill:4102:process",
-        detail: "无可见窗口 · 项目未映射",
-        status: "仅检测",
-        className: "detected"
-      },
-      {
-        name: "固定 API fixture",
-        detail: "schema_version 1 · 612 events",
+        name: "本地服务图",
+        detail: `schema_version 1 · ${fixture.instances.length} CAM 实例`,
         status: "就绪",
         className: "ready"
-      }
+      },
+      ...fixture.instances.map((instance) => ({
+        name: `${instance.product === "nx" ? "NX" : "PowerMill"} · ${instance.instance_id}`,
+        detail: `${instance.target_version || "版本未知"} · ${instance.project_id || "项目未映射"}`,
+        status: instance.connection_status,
+        className: instance.connection_status === "connected" ? "ready" : instance.connection_status
+      }))
     ];
     elements.healthList.innerHTML = health
       .map((item) => `<div class="health-row"><div><strong>${esc(item.name)}</strong><small>${esc(item.detail)}</small></div><span class="status-badge ${item.className}">${esc(item.status)}</span></div>`)
@@ -1043,13 +1641,19 @@
     elements.connectionButton.addEventListener("click", openDrawer);
     elements.closeDrawerButton.addEventListener("click", closeDrawer);
     elements.drawerScrim.addEventListener("click", closeDrawer);
-    elements.drawerRefreshButton.addEventListener("click", () => {
-      toast("实例扫描完成", "5 个实例 · fixture");
+    elements.drawerRefreshButton.addEventListener("click", async () => {
+      try {
+        const payload = await refreshConnections(true);
+        toast("实例扫描完成", `${payload.instance_count} 个 CAM 实例 · 本地 API`);
+      } catch (error) {
+        reportApiError(error, "实例扫描");
+      }
     });
-    elements.refreshButton.addEventListener("click", () => {
+    elements.refreshButton.addEventListener("click", async () => {
       elements.refreshButton.classList.add("spinning");
-      window.setTimeout(() => elements.refreshButton.classList.remove("spinning"), 300);
-      toast("状态已刷新", "固定 API fixture · 08:15:15");
+      await hydrateFromApi({ force: true });
+      elements.refreshButton.classList.remove("spinning");
+      toast("状态已刷新", "本地服务图");
     });
 
     elements.settingsButton.addEventListener("click", () => {
@@ -1118,7 +1722,11 @@
       state.log.viewLevel = button.dataset.level;
       $$(".segment", elements.levelFilter).forEach((item) => item.classList.toggle("active", item === button));
       state.log.page = 1;
-      renderEvents();
+      if (state.apiReady && state.installed.has("cam-local-capture")) {
+        loadEventsFromApi(true).catch((error) => reportApiError(error, "筛选日志"));
+      } else {
+        renderEvents();
+      }
     });
     [
       elements.sourceModeFilter,
@@ -1131,18 +1739,38 @@
     ].forEach((control) => control.addEventListener("change", syncLogState));
     elements.textFilter.addEventListener("input", syncLogState);
     elements.clearFiltersButton.addEventListener("click", clearLogFilters);
-    elements.previousPage.addEventListener("click", () => {
-      state.log.page -= 1;
-      renderEvents();
+    elements.previousPage.addEventListener("click", async () => {
+      if (state.log.remote) {
+        state.log.page = Math.max(1, state.log.page - 1);
+        state.log.cursor = state.log.cursors[state.log.page - 1] || null;
+        await loadEventsFromApi(false).catch((error) => reportApiError(error, "加载上一页"));
+      } else {
+        state.log.page -= 1;
+        renderEvents();
+      }
     });
-    elements.nextPage.addEventListener("click", () => {
-      state.log.page += 1;
-      renderEvents();
+    elements.nextPage.addEventListener("click", async () => {
+      if (state.log.remote) {
+        if (!state.log.nextCursor) {
+          return;
+        }
+        state.log.cursors[state.log.page] = state.log.nextCursor;
+        state.log.page += 1;
+        state.log.cursor = state.log.cursors[state.log.page - 1];
+        await loadEventsFromApi(false).catch((error) => reportApiError(error, "加载下一页"));
+      } else {
+        state.log.page += 1;
+        renderEvents();
+      }
     });
     elements.pageSizeSelect.addEventListener("change", () => {
       state.log.pageSize = Number(elements.pageSizeSelect.value);
       state.log.page = 1;
-      renderEvents();
+      if (state.apiReady && state.installed.has("cam-local-capture")) {
+        loadEventsFromApi(true).catch((error) => reportApiError(error, "更改分页"));
+      } else {
+        renderEvents();
+      }
     });
 
     elements.sessionList.addEventListener("click", (event) => {
@@ -1216,4 +1844,5 @@
   bindEvents();
   renderAll();
   compareSessions(true);
+  hydrateFromApi();
 })();

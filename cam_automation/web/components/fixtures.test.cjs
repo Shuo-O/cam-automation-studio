@@ -2,6 +2,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const fixture = require("./fixtures.js");
 
@@ -56,4 +58,15 @@ test("recipe and dry-run fixtures preserve review-first production gates", () =>
   assert.equal(gates.cam_simulation, "not_run");
   assert.equal(gates.collision_check, "required");
   assert.equal(gates.shop_approval, "required");
+});
+
+test("learning metrics are wired to API-backed candidate state", () => {
+  const webRoot = path.resolve(__dirname, "..");
+  const index = fs.readFileSync(path.join(webRoot, "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(webRoot, "app.js"), "utf8");
+
+  assert.match(index, /id="candidateCount">0</);
+  assert.match(index, /id="candidateSessionCount">0</);
+  assert.match(app, /fixture\.candidates\.length/);
+  assert.match(app, /candidate\.source_session_ids/);
 });

@@ -234,30 +234,14 @@ class RecorderHttpTests(unittest.TestCase):
                 )
                 self.assertEqual(200, status)
                 self.assertEqual("recording", recorder["state"])
-                server.recorder._instances["powermill"] = [
-                    {
-                        "instance_id": "powermill:301:A1",
-                        "product": "powermill",
-                        "pid": 301,
-                        "process_name": "PowerMill.exe",
-                        "window_handle": "0xA1",
-                        "window_title": "Project A - PowerMill",
-                        "is_foreground": True,
-                        "window_state": "foreground",
-                    },
-                    {
-                        "instance_id": "powermill:302:B1",
-                        "product": "powermill",
-                        "pid": 302,
-                        "process_name": "PowerMill.exe",
-                        "window_handle": "0xB1",
-                        "window_title": "Project B - PowerMill",
-                        "is_foreground": False,
-                        "window_state": "visible",
-                    },
-                ]
-                server.recorder._processes["powermill"] = True
-                server.recorder._last_process_check = time.monotonic()
+                status, recorder = self._request(
+                    connection,
+                    "POST",
+                    "/api/recorder/settings",
+                    {"detect_instances": True},
+                )
+                self.assertEqual(200, status)
+                self.assertTrue(recorder["categories"]["instances"])
 
                 status, connections = self._request(
                     connection, "GET", "/api/connections"
@@ -270,8 +254,13 @@ class RecorderHttpTests(unittest.TestCase):
                 )
                 self.assertEqual("connected", powermill["status"])
                 self.assertEqual(2, powermill["instance_count"])
+                self.assertIsNone(powermill["active_instance_id"])
                 self.assertEqual(
-                    "powermill:301:A1", powermill["active_instance_id"]
+                    {"powermill:4101:C1", "powermill:4102:process"},
+                    {
+                        item["instance_id"]
+                        for item in powermill["instances"]
+                    },
                 )
 
                 status, plugins = self._request(connection, "GET", "/api/plugins")
@@ -300,7 +289,9 @@ class RecorderHttpTests(unittest.TestCase):
                 self.assertEqual("dry_run", execution["status"])
 
                 status, captured = self._request(
-                    connection, "GET", "/api/recorder/events?limit=10"
+                    connection,
+                    "GET",
+                    "/api/recorder/events?action=cam.model.import&limit=10",
                 )
                 self.assertEqual(200, status)
                 self.assertEqual(1, captured["returned"])
@@ -826,6 +817,298 @@ class Wave2ApiContractTests(unittest.TestCase):
                 recorder.close()
                 thread.join(timeout=3)
 
+    def test_default_server_runs_fixture_chain_through_real_services(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.dict(
+                os.environ,
+                {
+                    "CAM_APP_DATA_DIR": str(root / "app"),
+                    "CAM_CAPTURE_DIR": str(root / "capture"),
+                },
+            ):
+                server = _WorkflowServer(("127.0.0.1", 0), _WorkflowHandler)
+            self.assertEqual(
+                "CommandTaskService",
+                type(server.services.commands).__name__,
+            )
+            self.assertEqual(
+                "DiagnosticsService",
+                type(server.services.diagnostics).__name__,
+            )
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = http.client.HTTPConnection(
+                "127.0.0.1",
+                server.server_port,
+                timeout=5,
+            )
+            try:
+                status, plugins = self._request(connection, "GET", "/api/plugins")
+                self.assertEqual(200, status)
+                self.assertEqual(0, plugins["installed_count"])
+
+                for plugin_id in (
+                    "cam-local-capture",
+                    "ug-cam-copilot",
+                    "powermill-cam-copilot",
+                    "cam-execution-gateway",
+                    "cam-codex-review",
+                ):
+                    status, plugins = self._request(
+                        connection,
+                        "POST",
+                        "/api/plugins/install",
+                        {"plugin_id": plugin_id},
+                    )
+                    self.assertEqual(200, status)
+                self.assertEqual(5, plugins["installed_count"])
+
+                status, initial_connections = self._request(
+                    connection,
+                    "GET",
+                    "/api/connections",
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(
+                    {"nx:3101:A1", "powermill:4101:C1"},
+                    {
+                        item["instance_id"]
+                        for item in initial_connections["instances"]
+                        if item["connection_status"] == "connected"
+                    },
+                )
+
+                status, connections = self._request(
+                    connection,
+                    "GET",
+                    "/api/connections?refresh=1",
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(4, connections["instance_count"])
+                self.assertEqual(
+                    {
+                        "nx:3101:A1",
+                        "nx:3102:B2",
+                        "powermill:4101:C1",
+                        "powermill:4102:process",
+                    },
+                    {item["instance_id"] for item in connections["instances"]},
+                )
+                self.assertEqual(
+                    {"nx:3101:A1", "powermill:4101:C1"},
+                    {
+                        item["instance_id"]
+                        for item in connections["instances"]
+                        if item["connection_status"] == "connected"
+                    },
+                )
+                self.assertTrue(
+                    all(
+                        not item["live_connected"]
+                        for item in connections["instances"]
+                    )
+                )
+
+                status, first_page = self._request(
+                    connection,
+                    "GET",
+                    "/api/recorder/events"
+                    "?source_mode=manual&view_level=L2&limit=2&sort=asc",
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(2, first_page["returned_count"])
+                self.assertTrue(first_page["has_more"])
+                self.assertEqual(
+                    {"manual"},
+                    {item["source_mode"] for item in first_page["events"]},
+                )
+                self.assertEqual(
+                    {"L2"},
+                    {item["view_level"] for item in first_page["events"]},
+                )
+                status, second_page = self._request(
+                    connection,
+                    "GET",
+                    "/api/recorder/events?"
+                    + urlencode(
+                        {
+                            "source_mode": "manual",
+                            "view_level": "L2",
+                            "limit": 2,
+                            "sort": "asc",
+                            "cursor": first_page["next_cursor"],
+                        }
+                    ),
+                )
+                self.assertEqual(200, status)
+                self.assertGreaterEqual(second_page["returned_count"], 1)
+
+                status, session_page = self._request(
+                    connection,
+                    "GET",
+                    "/api/sessions?limit=10000&sort=asc",
+                )
+                self.assertEqual(200, status)
+                manual = [
+                    item
+                    for item in session_page["sessions"]
+                    if item["source_modes"] == ["manual"]
+                ]
+                nx_manual = [
+                    item["session_id"]
+                    for item in manual
+                    if item["product"] == "nx"
+                ]
+                self.assertEqual(5, len(nx_manual))
+                self.assertEqual(7, len(manual))
+
+                for selected in (nx_manual[:3], nx_manual):
+                    status, compared = self._request(
+                        connection,
+                        "POST",
+                        "/api/sessions/compare",
+                        {
+                            "session_ids": selected,
+                            "baseline_session_id": selected[0],
+                        },
+                    )
+                    self.assertEqual(200, status, compared)
+                    self.assertEqual(
+                        len(selected),
+                        len(compared["diff"]["session_ids"]),
+                    )
+
+                status, learned = self._request(
+                    connection,
+                    "POST",
+                    "/api/workflows/mine",
+                    {"session_ids": nx_manual},
+                )
+                self.assertEqual(200, status)
+                self.assertGreaterEqual(learned["returned_count"], 1)
+
+                recipe = json.loads(RECIPE_FIXTURE.read_text(encoding="utf-8"))
+                status, saved = self._request(
+                    connection,
+                    "POST",
+                    "/api/recipes",
+                    {"recipe": recipe},
+                )
+                self.assertEqual(201, status)
+                recipe_hash = saved["recipe"]["recipe_hash"]
+
+                context = json.loads(
+                    (
+                        ROOT
+                        / "examples"
+                        / "contracts"
+                        / "codex-review-request.json"
+                    ).read_text(encoding="utf-8")
+                )
+                status, request = self._request(
+                    connection,
+                    "POST",
+                    "/api/codex/context",
+                    {"context": context},
+                )
+                self.assertEqual(200, status)
+                review = json.loads(
+                    (
+                        ROOT
+                        / "examples"
+                        / "contracts"
+                        / "codex-review-result.json"
+                    ).read_text(encoding="utf-8")
+                )
+                review["request_id"] = request["request_id"]
+                status, reviewed = self._request(
+                    connection,
+                    "POST",
+                    "/api/codex/review",
+                    {"review": review},
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(request["request_id"], reviewed["request_id"])
+
+                task_request = {
+                    "schema_version": 1,
+                    "task_id": "task:final-release:preview",
+                    "task_type": "recipe_preview",
+                    "execution_mode": "dry_run",
+                    "product": "nx",
+                    "target_version": "NX 2406",
+                    "target_instance_id": "nx:3101:A1",
+                    "project_id": "nx-project-a",
+                    "recipe_hash": recipe_hash,
+                    "operation": "cam.recipe.preview",
+                    "arguments": {"parameters": {}},
+                    "status": "queued",
+                    "submitted_at": "2026-08-24T00:00:00Z",
+                    "timeout_ms": 5000,
+                    "requested_by": "operator:browser-fixture",
+                    "review": {
+                        "status": "accepted",
+                        "reviewer": "operator:browser-fixture",
+                        "scope": "dry_run_only",
+                    },
+                }
+                status, submitted = self._request(
+                    connection,
+                    "POST",
+                    "/api/execution/run",
+                    task_request,
+                )
+                self.assertEqual(202, status)
+                task_id = submitted["task"]["task_id"]
+                task = submitted["task"]
+                for _ in range(100):
+                    status, payload = self._request(
+                        connection,
+                        "GET",
+                        "/api/execution/tasks/" + quote(task_id, safe=""),
+                    )
+                    self.assertEqual(200, status)
+                    task = payload["task"]
+                    if task["status"] not in {"queued", "running"}:
+                        break
+                    time.sleep(0.01)
+                self.assertEqual("succeeded", task["status"])
+                diff = task["response"]["diff_report"]
+                self.assertEqual("nx:3101:A1", diff["target_instance_id"])
+                self.assertEqual(recipe_hash, diff["recipe_hash"])
+                self.assertEqual(
+                    {"not_run", "required"},
+                    {
+                        item["status"]
+                        for item in diff["gate_results"]
+                        if item["gate"]
+                        in {"cam_simulation", "collision_check", "shop_approval"}
+                    },
+                )
+
+                status, diagnostics = self._request(
+                    connection,
+                    "GET",
+                    "/api/diagnostics",
+                )
+                self.assertEqual(200, status)
+                self.assertEqual(
+                    4,
+                    len(diagnostics["diagnostics"]["instances"]),
+                )
+                self.assertTrue(
+                    any(
+                        item["submitted_count"] == 1
+                        for item in diagnostics["diagnostics"]["instances"]
+                    )
+                )
+            finally:
+                connection.close()
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+
     def test_missing_a_cmd_is_explicitly_unavailable_and_body_limit_is_enforced(
         self,
     ) -> None:
@@ -837,7 +1120,11 @@ class Wave2ApiContractTests(unittest.TestCase):
                     "CAM_CAPTURE_DIR": os.path.join(directory, "capture"),
                 },
             ):
-                server = _WorkflowServer(("127.0.0.1", 0), _WorkflowHandler)
+                server = _WorkflowServer(
+                    ("127.0.0.1", 0),
+                    _WorkflowHandler,
+                    services=ApiServices(),
+                )
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             connection = http.client.HTTPConnection(

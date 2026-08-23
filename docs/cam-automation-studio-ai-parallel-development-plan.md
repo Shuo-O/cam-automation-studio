@@ -710,3 +710,30 @@ git status --short --branch
 - ActivityEvent 旧输入继续兼容。
 - 根仓库和 UG 插件全量测试通过。
 - 文档、插件 manifest、Skills 和 GitHub 分支同步更新。
+
+## 15. 发布执行状态（2026-08-24）
+
+| 阶段 | 状态 | 集成基线 |
+|---|---|---|
+| Wave 0 | 完成 | `8b10612` |
+| Wave 1 / Barrier 1 | 完成 | `a225e52` |
+| Wave 2 / Barrier 2 | 完成 | 最终发布提交 |
+| Wave 3 | 完成 | fixture E2E、性能、浏览器、文档和发布校验 |
+
+最终链路已在两个 NX、两个 PowerMill 离线实例上通过：本地自动记录、`manual + L2`
+游标分页、3/5 会话比较、学习候选、版本化配方、Codex 结构化审阅、明确目标实例
+dry-run、任务轮询/取消、`DiffReport` 和 diagnostics。没有调用真实 CAM。
+
+发布校验：
+
+- 根 117、UG/NX 31、PowerMill 6；focused Barrier/合同/API/CMD/Codex 53。
+- 前端 4；20 个 JSON、2 个 JSONL（26 行）；`compileall` 通过。
+- 5 个插件官方 validator、8 个 Skill 官方 validator 通过。
+- 100,000 事件导入 5.489 秒；查询 p95 0.404 ms。
+- 10,000 会话学习 1.021 秒，逆序输入结果确定。
+- 1,000 命令队列 0.770 秒，全部有序成功，单实例最大并发为 1。
+- 浏览器 1920x1080、1280x720、390x844 无页面级横向溢出或控件重叠，
+  控制台 warning/error 为 0。
+
+现场 PowerMill/NX transport、仿真、碰撞检查和车间批准仍是发布外验证项。当前版本
+不提供 silent upload、live execution 或 machine-ready NC 输出。

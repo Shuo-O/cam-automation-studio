@@ -798,7 +798,13 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         value = body.get("review", body)
         if not isinstance(value, dict):
             raise ValueError("Codex review must be a JSON object.")
-        review = validate_review(value)
+        request = self.server.get_state("codex_request")
+        request_id = (
+            str(request.get("request_id"))
+            if isinstance(request, Mapping) and request.get("request_id")
+            else None
+        )
+        review = validate_review(value, request_id=request_id)
         self.server.set_state("codex_review", review)
         self._json(HTTPStatus.OK, review)
 
@@ -836,7 +842,24 @@ class _WorkflowServer(ThreadingHTTPServer):
         services: ApiServices | None = None,
     ) -> None:
         super().__init__(address, handler)
-        self.services = services or ApiServices()
+        configured_app_data_dir = os.environ.get("CAM_APP_DATA_DIR")
+        self.app_data_dir = (
+            Path(configured_app_data_dir)
+            if configured_app_data_dir
+            else Path.cwd() / "build" / "app-data"
+        )
+        configured_capture_dir = os.environ.get("CAM_CAPTURE_DIR")
+        self.capture_dir = (
+            Path(configured_capture_dir)
+            if configured_capture_dir
+            else self.app_data_dir / "capture"
+        )
+        self._owns_services = services is None
+        if services is None:
+            from .fixture_runtime import build_fixture_api_services
+
+            services = build_fixture_api_services(self.capture_dir)
+        self.services = services
         if self.services.sessions is None:
             from .sessions import SessionService
 
@@ -845,23 +868,12 @@ class _WorkflowServer(ThreadingHTTPServer):
             from .recipes import RecipeService
 
             self.services.recipes = RecipeService()
-        configured_app_data_dir = os.environ.get("CAM_APP_DATA_DIR")
-        self.app_data_dir = (
-            Path(configured_app_data_dir)
-            if configured_app_data_dir
-            else Path.cwd() / "build" / "app-data"
-        )
         self.plugins = PluginManager(self.app_data_dir, _PLUGIN_ROOT)
-        configured_capture_dir = os.environ.get("CAM_CAPTURE_DIR")
-        self.capture_dir = (
-            Path(configured_capture_dir)
-            if configured_capture_dir
-            else self.app_data_dir / "capture"
-        )
         self.recorder: Any | None = None
         self.execution: Any | None = None
         self._injected_recorder = self.services.recorder
         self._owns_recorder = False
+        self._connection_authorized: bool | None = None
         self._module_lock = threading.RLock()
         self._state_lock = threading.RLock()
         self.state: dict[str, Any] = {
@@ -891,12 +903,16 @@ class _WorkflowServer(ThreadingHTTPServer):
                             details={"capability": "recorder.configure"},
                         )
                     configure(consent=True, consent_source="auto_install")
+                scan = getattr(self.recorder, "scan_now", None)
+                if self._owns_services and callable(scan):
+                    scan()
             status = self.plugin_status()
             status["changed"] = changed
             return status
 
     def uninstall_plugin(self, plugin_id: str) -> dict[str, Any]:
         with self._module_lock:
+            capture = self.recorder if plugin_id == "cam-local-capture" else None
             try:
                 result = self.plugins.uninstall(plugin_id)
             except ValueError as error:
@@ -909,6 +925,10 @@ class _WorkflowServer(ThreadingHTTPServer):
                     ) from error
                 raise
             changed = list(result.get("changed", []))
+            if "cam-local-capture" in changed and capture is not None:
+                configure = getattr(capture, "configure", None)
+                if callable(configure):
+                    configure(consent=False)
             self._sync_modules()
             status = self.plugin_status()
             status["changed"] = changed
@@ -971,10 +991,51 @@ class _WorkflowServer(ThreadingHTTPServer):
             if self.recorder is not None
             else None
         )
+        connection_service = self.services.connections
+        authorize = getattr(connection_service, "authorize_local_sources", None)
+        if callable(authorize):
+            enabled = bool(
+                capture_status
+                and capture_status.get("consent")
+                and capture_status.get("categories", {}).get("instances", True)
+            )
+            if enabled != self._connection_authorized:
+                list_instances = getattr(connection_service, "list_instances", None)
+                discovered = (
+                    list_instances(refresh=enabled)
+                    if callable(list_instances)
+                    else ()
+                )
+                targets = tuple(
+                    str(item)
+                    for item in getattr(
+                        connection_service,
+                        "default_authorized_instance_ids",
+                        (),
+                    )
+                )
+                known_instance_ids = {
+                    str(
+                        item.get("instance_id")
+                        if isinstance(item, Mapping)
+                        else getattr(item, "instance_id", "")
+                    )
+                    for item in discovered
+                }
+                known_instance_ids.update(targets)
+                known_instance_ids.discard("")
+                authorize(False)
+                if known_instance_ids:
+                    authorize(False, instance_ids=known_instance_ids)
+                if enabled:
+                    authorize(True, instance_ids=targets)
+                    if callable(list_instances):
+                        list_instances(refresh=True)
+                self._connection_authorized = enabled
         return connection_statuses(
             self.plugins.installed_ids(),
             capture_status=capture_status,
-            connection_service=self.services.connections,
+            connection_service=connection_service,
             refresh=force,
             include_uninstalled=include_uninstalled,
         )
@@ -1348,6 +1409,15 @@ class _WorkflowServer(ThreadingHTTPServer):
             return service_payload(self.state)
 
     def server_close(self) -> None:
+        if self._owns_services:
+            commands = self.services.commands
+            close_commands = getattr(commands, "close", None)
+            if callable(close_commands):
+                close_commands()
+            injected_recorder = self._injected_recorder
+            close_recorder = getattr(injected_recorder, "close", None)
+            if callable(close_recorder):
+                close_recorder()
         if self.recorder is not None and self._owns_recorder:
             self.recorder.close()
         self.recorder = None

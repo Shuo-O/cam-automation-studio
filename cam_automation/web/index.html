@@ -48,7 +48,7 @@
       </button>
 
       <div class="top-actions">
-        <span class="fixture-label">固定 API fixture</span>
+        <span class="fixture-label">本地 API · fixture transports</span>
         <button id="refreshButton" class="icon-button" type="button" aria-label="刷新状态" title="刷新状态">
           <span data-icon="refresh"></span>
         </button>
@@ -221,7 +221,7 @@
               <span id="paginationSummary">0 条结果</span>
               <div>
                 <label>每页
-                  <select id="pageSizeSelect"><option value="15">15</option><option value="25" selected>25</option><option value="50">50</option></select>
+                  <select id="pageSizeSelect"><option value="5">5</option><option value="15">15</option><option value="25" selected>25</option><option value="50">50</option></select>
                 </label>
                 <button id="previousPage" class="icon-button bordered" type="button" aria-label="上一页" title="上一页"><span data-icon="arrowLeft"></span></button>
                 <span id="pageIndicator">1 / 1</span>
@@ -279,8 +279,8 @@
               <h1 id="learningTitle">学习候选</h1>
             </div>
             <div class="header-metrics">
-              <span><strong>2</strong> 候选</span>
-              <span><strong>5</strong> 来源会话</span>
+              <span><strong id="candidateCount">0</strong> 候选</span>
+              <span><strong id="candidateSessionCount">0</strong> 来源会话</span>
             </div>
           </header>
           <div id="candidateList" class="candidate-list"></div>

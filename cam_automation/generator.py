@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-from .models import RecipeParameter as LegacyRecipeParameter, WorkflowRecipe
+from .models import LegacyRecipeParameter, WorkflowRecipe
 from .recipes import (
     DiffReport,
     PreviewAdapter,

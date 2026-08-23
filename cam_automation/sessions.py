@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Mapping, Sequence
 
+from .models import EventPage
+
 __all__ = ["EventRef", "Session", "SessionDiff", "SessionService"]
 
 
@@ -497,9 +499,10 @@ class SessionService:
         except KeyError as error:
             raise KeyError(f"Unknown session: {session_id}") from error
 
-    def build(self, events: Iterable[Any]) -> list[Session]:
+    def build(self, events: EventPage | Iterable[Any]) -> list[Session]:
+        event_items = events.events if isinstance(events, EventPage) else events
         records_by_ref: dict[tuple[str, str, str | None, EventRef], _EventRecord] = {}
-        for event in events:
+        for event in event_items:
             record = _coerce_record(event)
             identity = (
                 record.product,

@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 from .models import (
     RISK_ORDER,
     CommandEvent,
+    LegacyRecipeParameter,
+    LegacyRecipeStep,
     ParseResult,
-    RecipeParameter as LegacyRecipeParameter,
-    RecipeStep as LegacyRecipeStep,
-    Session as LegacySession,
+    ParsedSession,
     WorkflowRecipe as LegacyWorkflowRecipe,
 )
 from .recipes import (
@@ -105,7 +105,7 @@ def command_shape(command: str) -> str:
     return "".join(shaped).strip()
 
 
-def _session_signature(session: LegacySession) -> tuple[str, ...]:
+def _session_signature(session: ParsedSession) -> tuple[str, ...]:
     return tuple(command_shape(event.normalized) for event in session.events)
 
 
@@ -189,9 +189,9 @@ class _ParameterRegistry:
 
 
 def _select_session_group(
-    sessions: list[LegacySession],
-) -> tuple[list[LegacySession], list[str]]:
-    groups: dict[tuple[str, ...], list[LegacySession]] = defaultdict(list)
+    sessions: list[ParsedSession],
+) -> tuple[list[ParsedSession], list[str]]:
+    groups: dict[tuple[str, ...], list[ParsedSession]] = defaultdict(list)
     signature_order: list[tuple[str, ...]] = []
     for session in sessions:
         signature = _session_signature(session)

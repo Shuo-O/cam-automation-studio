@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from .models import ActivityEvent, CommandEvent, ParseDiagnostic, ParseResult, Session
+from .models import ActivityEvent, CommandEvent, ParseDiagnostic, ParseResult, ParsedSession
 from .profiles import PowerMillProfile
 
 
@@ -132,7 +132,7 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
     profile = profile or PowerMillProfile()
     sessions: list[Session] = []
     diagnostics: list[ParseDiagnostic] = []
-    current = Session("session-1")
+    current = ParsedSession("session-1")
     sequence = 0
     ignored = 0
     lines = text.splitlines()
@@ -147,7 +147,7 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
         marker = _SESSION_MARKER.match(stripped)
         if marker:
             finish_current()
-            current = Session(marker.group(1).strip())
+            current = ParsedSession(marker.group(1).strip())
             continue
         if not stripped or stripped.startswith("#") or stripped.startswith("//"):
             ignored += 1
@@ -177,7 +177,7 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
 
         if session_id and current.name != session_id:
             finish_current()
-            current = Session(session_id)
+            current = ParsedSession(session_id)
 
         sequence += 1
         product = activity_event.product if activity_event else "powermill"

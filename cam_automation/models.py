@@ -409,7 +409,9 @@ class CommandEvent:
 
 
 @dataclass
-class Session:
+class ParsedSession:
+    """Legacy parser container; the canonical learning DTO lives in sessions.py."""
+
     name: str
     events: list[CommandEvent] = field(default_factory=list)
 
@@ -423,7 +425,7 @@ class ParseDiagnostic:
 
 @dataclass
 class ParseResult:
-    sessions: list[Session]
+    sessions: list[ParsedSession]
     diagnostics: list[ParseDiagnostic] = field(default_factory=list)
     input_lines: int = 0
     ignored_lines: int = 0
@@ -471,7 +473,9 @@ class ParseResult:
 
 
 @dataclass
-class RecipeParameter:
+class LegacyRecipeParameter:
+    """Legacy macro-template parameter, distinct from recipes.RecipeParameter."""
+
     name: str
     value_type: str
     default: str | int | float
@@ -484,7 +488,9 @@ class RecipeParameter:
 
 
 @dataclass
-class RecipeStep:
+class LegacyRecipeStep:
+    """Legacy macro-template step, distinct from recipes.RecipeStep."""
+
     step_id: str
     operation: str
     action: str
@@ -503,8 +509,8 @@ class WorkflowRecipe:
     profile: str
     sessions_analyzed: int
     sessions_matched: list[str]
-    parameters: list[RecipeParameter]
-    steps: list[RecipeStep]
+    parameters: list[LegacyRecipeParameter]
+    steps: list[LegacyRecipeStep]
     diagnostics: list[str]
     schema_version: str = "0.1"
 
@@ -527,3 +533,9 @@ class WorkflowRecipe:
             "steps": [step.to_dict() for step in self.steps],
             "diagnostics": self.diagnostics,
         }
+
+
+# Backward-compatible imports for the pre-contract parser and generator API.
+Session = ParsedSession
+RecipeParameter = LegacyRecipeParameter
+RecipeStep = LegacyRecipeStep

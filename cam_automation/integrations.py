@@ -10,7 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from .generator import generate_macro, generate_report
 from .learning import learn_workflow
-from .models import RecipeStep, WorkflowRecipe
+from .models import LegacyRecipeStep, WorkflowRecipe
 from .sample import SAMPLE_LOG
 
 
@@ -342,7 +342,7 @@ def _nx_recipe_from_events(
         risk, reasons = _risk_for_nx_action(event.action)
         api = event.params.get("api", event.action) if isinstance(event.params, Mapping) else event.action
         steps.append(
-            RecipeStep(
+            LegacyRecipeStep(
                 step_id=f"step-{index + 1:03d}",
                 operation=event.action,
                 action=event.action,

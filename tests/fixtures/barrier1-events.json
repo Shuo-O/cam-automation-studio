@@ -1,0 +1,380 @@
+{
+  "schema_version": 1,
+  "description": "Barrier 1 multi-product recorder-to-preview integration fixture.",
+  "events": [
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-a",
+      "seq": 0,
+      "product": "nx",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L0",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T09:00:00Z",
+      "params": {
+        "session_marker": "nx-manual-a",
+        "operation_type": "mill_planar"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-a",
+      "seq": 1,
+      "product": "nx",
+      "action": "cam.parameter.set",
+      "category": "parameter",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L2",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T09:00:01Z",
+      "params": {
+        "session_marker": "nx-manual-a",
+        "tolerance": 0.02,
+        "enabled": true
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-a",
+      "seq": 2,
+      "product": "nx",
+      "action": "cam.toolpath.generate",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L4",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T09:00:02Z",
+      "params": {
+        "session_marker": "nx-manual-a"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-b",
+      "seq": 0,
+      "product": "nx",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L1",
+      "instance_id": "nx:fixture:B",
+      "project_id": "nx-project-b",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T10:00:00Z",
+      "params": {
+        "session_marker": "nx-manual-b",
+        "operation_type": "mill_planar"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-b",
+      "seq": 1,
+      "product": "nx",
+      "action": "cam.parameter.set",
+      "category": "parameter",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L2",
+      "instance_id": "nx:fixture:B",
+      "project_id": "nx-project-b",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T10:00:01Z",
+      "params": {
+        "session_marker": "nx-manual-b",
+        "tolerance": 0.03,
+        "enabled": false
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-b",
+      "seq": 2,
+      "product": "nx",
+      "action": "cam.toolpath.generate",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L3",
+      "instance_id": "nx:fixture:B",
+      "project_id": "nx-project-b",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T10:00:02Z",
+      "params": {
+        "session_marker": "nx-manual-b"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-c",
+      "seq": 0,
+      "product": "nx",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L0",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T11:00:00Z",
+      "params": {
+        "session_marker": "nx-manual-c",
+        "operation_type": "mill_planar"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-c",
+      "seq": 1,
+      "product": "nx",
+      "action": "cam.parameter.set",
+      "category": "parameter",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L2",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T11:00:01Z",
+      "params": {
+        "session_marker": "nx-manual-c",
+        "tolerance": 0.015,
+        "enabled": true
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-manual-c",
+      "seq": 2,
+      "product": "nx",
+      "action": "cam.toolpath.generate",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L4",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T11:00:02Z",
+      "params": {
+        "session_marker": "nx-manual-c"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-a",
+      "seq": 0,
+      "product": "powermill",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L1",
+      "instance_id": "powermill:fixture:A",
+      "project_id": "pm-project-a",
+      "target_version": "PowerMill 2026",
+      "timestamp": "2026-08-23T12:00:00Z",
+      "params": {
+        "session_marker": "pm-manual-a",
+        "operation_type": "area_clearance"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-a",
+      "seq": 1,
+      "product": "powermill",
+      "action": "cam.parameter.set",
+      "category": "parameter",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L2",
+      "instance_id": "powermill:fixture:A",
+      "project_id": "pm-project-a",
+      "target_version": "PowerMill 2026",
+      "timestamp": "2026-08-23T12:00:01Z",
+      "params": {
+        "session_marker": "pm-manual-a",
+        "tolerance": 0.05,
+        "enabled": true
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-a",
+      "seq": 2,
+      "product": "powermill",
+      "action": "cam.toolpath.generate",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L3",
+      "instance_id": "powermill:fixture:A",
+      "project_id": "pm-project-a",
+      "target_version": "PowerMill 2026",
+      "timestamp": "2026-08-23T12:00:02Z",
+      "params": {
+        "session_marker": "pm-manual-a"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-b",
+      "seq": 0,
+      "product": "powermill",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L1",
+      "instance_id": "powermill:fixture:B",
+      "project_id": "pm-project-b",
+      "target_version": "PowerMill 2025",
+      "timestamp": "2026-08-23T13:00:00Z",
+      "params": {
+        "session_marker": "pm-manual-b",
+        "operation_type": "area_clearance"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-b",
+      "seq": 1,
+      "product": "powermill",
+      "action": "cam.parameter.set",
+      "category": "parameter",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L2",
+      "instance_id": "powermill:fixture:B",
+      "project_id": "pm-project-b",
+      "target_version": "PowerMill 2025",
+      "timestamp": "2026-08-23T13:00:01Z",
+      "params": {
+        "session_marker": "pm-manual-b",
+        "tolerance": 0.04,
+        "enabled": false
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-manual-b",
+      "seq": 2,
+      "product": "powermill",
+      "action": "cam.toolpath.generate",
+      "category": "operation",
+      "mode": "manual",
+      "source_mode": "manual",
+      "view_level": "L4",
+      "instance_id": "powermill:fixture:B",
+      "project_id": "pm-project-b",
+      "target_version": "PowerMill 2025",
+      "timestamp": "2026-08-23T13:00:02Z",
+      "params": {
+        "session_marker": "pm-manual-b"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "nx-automation",
+      "seq": 0,
+      "product": "nx",
+      "action": "nx.journal.replay.observed",
+      "category": "system",
+      "mode": "automation",
+      "source_mode": "automation",
+      "view_level": "L1",
+      "instance_id": "nx:fixture:A",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "timestamp": "2026-08-23T14:00:00Z",
+      "params": {
+        "session_marker": "nx-automation",
+        "execution_mode": "dry_run"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-system",
+      "seq": 0,
+      "product": "powermill",
+      "action": "powermill.instance.heartbeat",
+      "category": "system",
+      "mode": "system",
+      "source_mode": "system",
+      "view_level": "L0",
+      "instance_id": "powermill:fixture:B",
+      "project_id": "pm-project-b",
+      "target_version": "PowerMill 2025",
+      "timestamp": "2026-08-23T14:01:00Z",
+      "params": {
+        "session_marker": "pm-system"
+      }
+    },
+    {
+      "schema_version": 1,
+      "session_id": "pm-execution-audit",
+      "seq": 0,
+      "product": "powermill",
+      "action": "cam.execution.preview.audit",
+      "category": "evidence",
+      "mode": "automation",
+      "source_mode": "execution_audit",
+      "view_level": "L4",
+      "instance_id": "powermill:fixture:A",
+      "project_id": "pm-project-a",
+      "target_version": "PowerMill 2026",
+      "timestamp": "2026-08-23T14:02:00Z",
+      "recipe_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "command_response": {
+        "status": "dry_run_complete"
+      },
+      "params": {
+        "session_marker": "pm-execution-audit",
+        "execution_mode": "dry_run",
+        "command": "PRINT ENTITY 'toolpath'",
+        "task_id": "task:barrier1:command-preview"
+      }
+    }
+  ],
+  "expected": {
+    "products": [
+      "nx",
+      "powermill"
+    ],
+    "instance_ids": [
+      "nx:fixture:A",
+      "nx:fixture:B",
+      "powermill:fixture:A",
+      "powermill:fixture:B"
+    ],
+    "source_modes": [
+      "manual",
+      "automation",
+      "system",
+      "execution_audit"
+    ],
+    "view_levels": [
+      "L0",
+      "L1",
+      "L2",
+      "L3",
+      "L4"
+    ],
+    "manual_session_count": 5,
+    "nx_similar_manual_sessions": 3
+  }
+}

@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from .models import CommandEvent, ParseDiagnostic, ParseResult, Session
+from .models import ActivityEvent, CommandEvent, ParseDiagnostic, ParseResult, Session
 from .profiles import PowerMillProfile
 
 
@@ -55,22 +55,34 @@ def normalize_command(command: str) -> str:
 
 def _command_from_json(
     data: dict[str, Any],
-) -> tuple[str, str | None, str, str | None, str | None, bool]:
+) -> tuple[
+    str,
+    str | None,
+    str,
+    str | None,
+    str | None,
+    bool,
+    ActivityEvent | None,
+]:
     params = data.get("params") if isinstance(data.get("params"), dict) else {}
+    required = {"session_id", "seq", "product", "action"}
+    activity_event = ActivityEvent.from_dict(data) if required.issubset(data) else None
     command = (
         data.get("command")
         or data.get("macro")
         or data.get("text")
         or params.get("command")
         or params.get("raw_command")
+        or (activity_event.action if activity_event is not None else None)
     )
     if not isinstance(command, str):
         raise ValueError("JSON event has no string command, macro, or text field")
     timestamp = data.get("timestamp")
-    source = data.get("source", "jsonl")
+    source = data.get("source") or data.get("source_file") or "jsonl"
     session_id = data.get("session_id")
     mode = (
-        data.get("mode")
+        data.get("source_mode")
+        or data.get("mode")
         or data.get("origin")
         or data.get("interaction_mode")
         or params.get("mode")
@@ -83,12 +95,21 @@ def _command_from_json(
         str(session_id) if session_id else None,
         str(mode) if mode else None,
         False,
+        activity_event,
     )
 
 
 def _extract_line(
     line: str,
-) -> tuple[str, str | None, str, str | None, str | None, bool]:
+) -> tuple[
+    str,
+    str | None,
+    str,
+    str | None,
+    str | None,
+    bool,
+    ActivityEvent | None,
+]:
     stripped = line.strip()
     if stripped.startswith("{") and stripped.endswith("}"):
         decoded = json.loads(stripped)
@@ -104,7 +125,7 @@ def _extract_line(
         stripped = match.group("command").strip()
     prompted = bool(_PROMPT.match(stripped))
     stripped = _PROMPT.sub("", stripped)
-    return stripped, timestamp, source, None, None, prompted
+    return stripped, timestamp, source, None, None, prompted, None
 
 
 def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult:
@@ -136,7 +157,15 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
             continue
 
         try:
-            command, timestamp, source, session_id, explicit_mode, prompted = _extract_line(raw)
+            (
+                command,
+                timestamp,
+                source,
+                session_id,
+                explicit_mode,
+                prompted,
+                activity_event,
+            ) = _extract_line(raw)
         except (json.JSONDecodeError, ValueError) as error:
             diagnostics.append(ParseDiagnostic(line_number, str(error), raw))
             continue
@@ -151,6 +180,19 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
             current = Session(session_id)
 
         sequence += 1
+        product = activity_event.product if activity_event else "powermill"
+        action = activity_event.action if activity_event else profile.action(normalized)
+        category = activity_event.category if activity_event else profile.category(normalized)
+        mode = (
+            activity_event.mode
+            if activity_event
+            else profile.mode(
+                normalized,
+                source=source,
+                prompted=prompted,
+                explicit=explicit_mode,
+            )
+        )
         current.events.append(
             CommandEvent(
                 sequence=sequence,
@@ -158,18 +200,14 @@ def parse_log(text: str, profile: PowerMillProfile | None = None) -> ParseResult
                 command=command.strip(),
                 normalized=normalized,
                 operation=profile.operation(normalized),
-                product="powermill",
-                action=profile.action(normalized),
-                category=profile.category(normalized),
-                mode=profile.mode(
-                    normalized,
-                    source=source,
-                    prompted=prompted,
-                    explicit=explicit_mode,
-                ),
+                product=product,
+                action=action,
+                category=category,
+                mode=mode,
                 source=source,
                 timestamp=timestamp,
                 safety=profile.assess(normalized),
+                activity_event=activity_event,
             )
         )
 

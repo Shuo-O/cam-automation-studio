@@ -25,11 +25,49 @@
       "enum": ["manual", "automation", "system"],
       "default": "manual"
     },
+    "source_mode": {
+      "enum": ["manual", "automation", "system", "execution_audit"]
+    },
+    "view_level": {
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "expertise_label": {
+      "enum": ["unlabeled", "routine", "expert"]
+    },
+    "instance_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": ["string", "null"]},
+    "target_version": {"type": "string", "minLength": 1},
+    "command_response": {"type": ["object", "null"]},
+    "review_status": {
+      "enum": [
+        "unreviewed",
+        "needs_review",
+        "needs_changes",
+        "approved_for_simulation",
+        "rejected"
+      ]
+    },
+    "recipe_hash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
     "params": {"type": "object", "default": {}},
     "source_file": {"type": "string", "default": ""},
     "source_line": {"type": "integer", "minimum": 0, "default": 0},
     "duration_ms": {"type": ["integer", "null"], "minimum": 0},
     "timestamp": {"type": ["string", "null"], "format": "date-time"}
   },
-  "additionalProperties": false
+  "allOf": [
+    {
+      "if": {
+        "properties": {"source_mode": {"const": "execution_audit"}},
+        "required": ["source_mode"]
+      },
+      "then": {
+        "properties": {"mode": {"const": "automation"}},
+        "required": ["mode"]
+      }
+    }
+  ],
+  "additionalProperties": true
 }

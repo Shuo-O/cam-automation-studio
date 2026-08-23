@@ -2,6 +2,7 @@ import json
 import time
 import unittest
 
+from cam_automation.models import ActivityEvent, EventQuery
 from cam_automation.parser import normalize_command, parse_log
 
 
@@ -63,6 +64,69 @@ DEBUG: ignored
         self.assertEqual("session-a", result.sessions[0].name)
         self.assertEqual("cam.model.bounds.query", result.sessions[0].events[0].action)
         self.assertEqual("manual", result.sessions[0].events[0].mode)
+
+    def test_activity_event_round_trips_extensions_and_unknown_fields(self) -> None:
+        event = {
+            "schema_version": 1,
+            "session_id": "session-a",
+            "seq": 7,
+            "product": "powermill",
+            "action": "part.save",
+            "category": "data",
+            "mode": "manual",
+            "params": {"command": "SAVE PROJECT", "future_param": {"enabled": True}},
+            "source_file": "fixture.jsonl",
+            "source_line": 11,
+            "duration_ms": None,
+            "timestamp": "2026-08-23T09:00:00Z",
+            "source_mode": "manual",
+            "view_level": "L2",
+            "expertise_label": "expert",
+            "instance_id": "powermill:1:A",
+            "project_id": None,
+            "target_version": "PowerMill 2026",
+            "command_response": None,
+            "review_status": "unreviewed",
+            "recipe_hash": None,
+            "future_contract_field": {"nested": [1, "two"]},
+        }
+
+        restored = ActivityEvent.from_dict(event).to_dict()
+        projected = parse_log(json.dumps(event)).to_activity_events()[0]
+
+        self.assertEqual(event, restored)
+        self.assertEqual(event, projected)
+        self.assertEqual("part.save", projected["action"])
+
+    def test_execution_audit_mirrors_legacy_automation_mode(self) -> None:
+        event = ActivityEvent.from_dict(
+            {
+                "session_id": "audit-a",
+                "seq": 0,
+                "product": "nx",
+                "action": "cam.recipe.preview",
+                "category": "execution",
+                "source_mode": "execution_audit",
+                "params": {"command": "PREVIEW"},
+            }
+        )
+
+        self.assertEqual("execution_audit", event.effective_source_mode)
+        self.assertEqual("automation", event.mode)
+        self.assertEqual("automation", event.to_dict()["mode"])
+
+    def test_event_query_rejects_invalid_contract_values(self) -> None:
+        with self.assertRaisesRegex(ValueError, "source_modes"):
+            EventQuery(source_modes=("operator",))
+        with self.assertRaisesRegex(ValueError, "view_levels"):
+            EventQuery(view_levels=("L5",))
+        with self.assertRaisesRegex(ValueError, "from_time"):
+            EventQuery(
+                from_time="2026-08-23T10:00:00Z",
+                to_time="2026-08-23T09:00:00Z",
+            )
+        with self.assertRaisesRegex(ValueError, "limit"):
+            EventQuery(limit=0)
 
     def test_classifies_manual_automation_and_system_modes(self) -> None:
         result = parse_log(

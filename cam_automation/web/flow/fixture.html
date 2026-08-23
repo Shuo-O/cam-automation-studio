@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>CAM Flow Studio · fixture</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="flow-skip-link" href="#flowCanvas">跳到流程画布</a>
+    <main id="flowStudio" aria-busy="true"></main>
+    <noscript>此离线 fixture 需要启用 JavaScript。</noscript>
+    <script src="./flow-core.js"></script>
+    <script src="./fixtures.js"></script>
+    <script src="./flow-studio.js"></script>
+    <script>
+      CAM_FLOW_STUDIO.mount(document.querySelector("#flowStudio"), {
+        api: new CAM_FLOW_FIXTURES.FixtureFlowApi()
+      });
+    </script>
+  </body>
+</html>

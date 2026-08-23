@@ -404,12 +404,11 @@ disconnect()
 - 生成的生产动作保持 dry-run，直到配方经过人工复核并完成 CAM 仿真、碰撞检查和车间确认。
 - 不从学习日志生成或发送机床可用 NC。
 
-## 19. 配套任务书
+## 19. AI 并行开发任务拆分
 
-- [AI 执行任务书](./cam-automation-studio-ai-execution-taskbook.md)
-- [程序员开发者审核任务书](./cam-automation-studio-developer-review-taskbook.md)
+- [AI 并行开发任务拆分](./cam-automation-studio-ai-parallel-development-plan.md)
 
-AI 与程序员任务使用相同的 `Txx` 编号。AI 完成一个任务后提交实现、测试和证据；程序员按照对应编号进行代码审核和验收。
+任务按接口冻结、并行波次、文件所有权和集成屏障编排。共享工作区最多同时运行 4 个 Agent；会修改同一公共文件的工作不在同一波次执行。
 
 ## 20. 公开来源
 

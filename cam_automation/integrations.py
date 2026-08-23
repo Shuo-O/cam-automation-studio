@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sys
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, Protocol, runtime_checkable
 
 from .generator import generate_macro, generate_report
 from .learning import learn_workflow
@@ -33,6 +35,101 @@ SUPPORTED_FORMATS = {
     "nx": ("nx_journal", "jsonl"),
     "powermill": ("powermill_log", "jsonl"),
 }
+_WINDOWS_PATH = re.compile(
+    r"(?<![A-Za-z0-9_])(?:[A-Za-z]:[\\/]|\\\\)[^\r\n\t\"'<>|]*"
+)
+_POSIX_HOME_PATH = re.compile(r"(?<![A-Za-z0-9_])/(?:home|Users)/[^\r\n\t\"'<>|]*")
+_PATH_KEYS = frozenset(
+    {
+        "source_file",
+        "source_path",
+        "log_file",
+        "log_path",
+        "file_path",
+        "directory",
+        "working_directory",
+        "local_path",
+        "raw_path",
+    }
+)
+
+
+@runtime_checkable
+class CommandTaskService(Protocol):
+    """Stable Wave 2 injection boundary owned by A-CMD."""
+
+    def submit(self, task: Mapping[str, Any]) -> Any:
+        ...
+
+    def get(self, task_id: str) -> Any:
+        ...
+
+    def cancel(self, task_id: str) -> Any:
+        ...
+
+
+@runtime_checkable
+class DiagnosticsService(Protocol):
+    """Stable diagnostics injection boundary owned by A-CMD."""
+
+    def snapshot(self) -> Any:
+        ...
+
+
+@dataclass
+class ApiServices:
+    """Injected service graph; the HTTP layer only coordinates these services."""
+
+    recorder: Any | None = None
+    connections: Any | None = None
+    sessions: Any | None = None
+    workflows: Any | None = None
+    recipes: Any | None = None
+    commands: CommandTaskService | None = None
+    diagnostics: DiagnosticsService | None = None
+    workflow_factory: Callable[[Any], Any] | None = None
+    lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+
+
+def api_value(value: Any) -> Any:
+    """Convert frozen service DTOs to JSON-compatible values."""
+
+    if isinstance(value, Mapping):
+        return {str(key): api_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [api_value(item) for item in value]
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        return api_value(to_dict())
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise TypeError(f"Service returned a non-serializable value: {type(value).__name__}.")
+
+
+def redact_api_value(value: Any, *, key: str = "") -> Any:
+    """Remove raw local paths before a service response reaches HTTP."""
+
+    if isinstance(value, Mapping):
+        return {
+            str(item_key): redact_api_value(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_api_value(item, key=key) for item in value]
+    if isinstance(value, tuple):
+        return [redact_api_value(item, key=key) for item in value]
+    if not isinstance(value, str):
+        return value
+    if key.casefold() in _PATH_KEYS and (
+        _WINDOWS_PATH.search(value) or _POSIX_HOME_PATH.search(value)
+    ):
+        return "<REDACTED_LOCAL_PATH>"
+    redacted = _WINDOWS_PATH.sub("<REDACTED_LOCAL_PATH>", value)
+    return _POSIX_HOME_PATH.sub("<REDACTED_LOCAL_PATH>", redacted)
+
+
+def service_payload(value: Any) -> Any:
+    return redact_api_value(api_value(value))
 
 
 @dataclass(frozen=True)
@@ -58,7 +155,11 @@ class ConnectionStatus:
             "capabilities": list(self.capabilities),
             "instance_count": len(self.instances),
             "process_count": self.process_count,
+            # active_instance_id is retained as the legacy foreground hint.
             "active_instance_id": self.active_instance_id,
+            "foreground_instance_id": self.active_instance_id,
+            "selected_instance_id": None,
+            "selection_required": bool(self.instances),
             "monitoring": self.monitoring,
             "instances": [dict(instance) for instance in self.instances],
         }
@@ -79,6 +180,8 @@ def connection_statuses(
     installed_plugins: Iterable[str] | None = None,
     *,
     capture_status: Mapping[str, Any] | None = None,
+    connection_service: Any | None = None,
+    refresh: bool = False,
     include_uninstalled: bool = False,
 ) -> list[dict[str, Any]]:
     """Report local bridges and consented CAM instances without attaching to them."""
@@ -103,6 +206,25 @@ def connection_statuses(
     )
     if not isinstance(captured_instances, Mapping):
         captured_instances = {}
+    service_instances: dict[str, list[dict[str, Any]]] = {
+        "nx": [],
+        "powermill": [],
+    }
+    if connection_service is not None:
+        list_instances = getattr(connection_service, "list_instances", None)
+        if not callable(list_instances):
+            raise TypeError("Connection service must implement list_instances().")
+        try:
+            discovered = list_instances(refresh=refresh)
+        except TypeError:
+            discovered = list_instances()
+        for descriptor in discovered:
+            item = api_value(descriptor)
+            if not isinstance(item, Mapping):
+                raise TypeError("Connection descriptors must serialize to objects.")
+            product = str(item.get("product", "")).casefold()
+            if product in service_instances:
+                service_instances[product].append(dict(item))
     monitoring = bool(capture_status and capture_status.get("state") == "recording")
 
     def product_connection(
@@ -115,7 +237,11 @@ def connection_statuses(
         capabilities: tuple[str, ...],
         root_detail: str,
     ) -> ConnectionStatus:
-        raw_instances = captured_instances.get(key, [])
+        raw_instances = (
+            service_instances.get(key, [])
+            if connection_service is not None
+            else captured_instances.get(key, [])
+        )
         instances = tuple(
             dict(item)
             for item in raw_instances
@@ -137,7 +263,18 @@ def connection_statuses(
             None,
         )
         if instances:
-            state = "connected" if monitoring else "detected"
+            states = {
+                str(instance.get("connection_status", "detected"))
+                for instance in instances
+            }
+            if "connected" in states:
+                state = "connected"
+            elif "error" in states:
+                state = "error"
+            elif states == {"disconnected"}:
+                state = "disconnected"
+            else:
+                state = "connected" if monitoring else "detected"
             verb = "正在监测" if monitoring else "已检测"
             detail = (
                 f"{verb} {len(instances)} 个窗口/进程"
@@ -295,6 +432,121 @@ def capability_manifest(
             ],
         },
     }
+
+
+def plugin_api_status(
+    status: Mapping[str, Any],
+    *,
+    recorder_status: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Add explicit catalog, update, dependency, and authorization state."""
+
+    result = api_value(status)
+    if not isinstance(result, dict):
+        raise TypeError("Plugin status must serialize to an object.")
+    plugins = result.get("plugins", [])
+    if not isinstance(plugins, list):
+        raise TypeError("Plugin status plugins must be an array.")
+    by_id = {
+        str(plugin.get("id")): plugin
+        for plugin in plugins
+        if isinstance(plugin, dict)
+    }
+    installed_count = 0
+    enabled_count = 0
+    updates_available = 0
+    capture = dict(recorder_status or {})
+    capture_categories = capture.get("categories", {})
+    if not isinstance(capture_categories, Mapping):
+        capture_categories = {}
+
+    for plugin_id, plugin in by_id.items():
+        installed = bool(plugin.get("installed", False))
+        enabled = bool(plugin.get("enabled", installed))
+        dependencies = [
+            str(item) for item in plugin.get("dependencies", []) if str(item)
+        ]
+        dependency_status = [
+            {
+                "plugin_id": dependency,
+                "available": dependency in by_id,
+                "installed": bool(by_id.get(dependency, {}).get("installed", False)),
+                "enabled": bool(by_id.get(dependency, {}).get("enabled", False)),
+            }
+            for dependency in dependencies
+        ]
+        update = {
+            "available": False,
+            "installed_version": str(plugin.get("version")) if installed else None,
+            "available_version": str(plugin.get("version", "")),
+            "source": "local_catalog",
+        }
+        plugin.update(
+            {
+                "available": True,
+                "installable": all(item["available"] for item in dependency_status),
+                "installed": installed,
+                "enabled": enabled,
+                "dependency_status": dependency_status,
+                "update": update,
+            }
+        )
+        installed_count += int(installed)
+        enabled_count += int(enabled)
+        updates_available += int(update["available"])
+
+        if plugin_id == "cam-local-capture":
+            consent_source = str(capture.get("consent_source", "not_granted"))
+            consent = bool(capture.get("consent", False))
+            category_state = []
+            for category_id, classification in (
+                ("logs", "basic"),
+                ("instances", "advanced"),
+                ("execution_audit", "advanced"),
+            ):
+                category_enabled = bool(capture_categories.get(category_id, False))
+                category_state.append(
+                    {
+                        "id": category_id,
+                        "classification": classification,
+                        "enabled": category_enabled,
+                        "revoked": bool(
+                            consent_source == "revoked"
+                            or (installed and consent and not category_enabled)
+                        ),
+                    }
+                )
+            plugin["authorization"] = {
+                "policy": "ON_INSTALL",
+                "granted": consent,
+                "granted_once": consent_source == "auto_install",
+                "revoked": consent_source == "revoked",
+                "source": consent_source,
+                "reversible": True,
+                "categories": category_state,
+            }
+            plugin["local_data"] = {
+                "visible": installed,
+                "local_only": True,
+                "uploads_enabled": False,
+                "redaction": str(capture.get("redaction", "redacted-local-v1")),
+            }
+        else:
+            plugin["authorization"] = {
+                "policy": "EXPLICIT"
+                if plugin.get("consent_required")
+                else "NONE",
+                "granted": enabled,
+                "revoked": False,
+                "reversible": bool(plugin.get("consent_reversible", False)),
+                "categories": [],
+            }
+
+    result["installed_count"] = installed_count
+    result["enabled_count"] = enabled_count
+    result["updates_available"] = updates_available
+    result["available_count"] = len(plugins)
+    return service_payload(result)
 
 
 def _risk_for_nx_action(action: str) -> tuple[str, list[str]]:

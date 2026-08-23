@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "fixture_id": "wave2-api-states",
+  "loading": {
+    "request": {
+      "method": "GET",
+      "path": "/api/recorder/events"
+    },
+    "pending": true,
+    "response": null
+  },
+  "empty": {
+    "http_status": 200,
+    "response": {
+      "schema_version": 1,
+      "events": [],
+      "returned_count": 0,
+      "returned": 0,
+      "has_more": false,
+      "next_cursor": null,
+      "total_estimate": null
+    }
+  },
+  "errors": [
+    {
+      "http_status": 409,
+      "response": {
+        "schema_version": 1,
+        "error": "Install the required plugin.",
+        "code": "plugin_not_installed"
+      }
+    },
+    {
+      "http_status": 409,
+      "response": {
+        "schema_version": 1,
+        "error": "The target CAM instance is not connected.",
+        "code": "instance_not_connected"
+      }
+    },
+    {
+      "http_status": 400,
+      "response": {
+        "schema_version": 1,
+        "error": "The request parameters are invalid.",
+        "code": "invalid_parameters"
+      }
+    },
+    {
+      "http_status": 504,
+      "response": {
+        "schema_version": 1,
+        "error": "The service operation timed out.",
+        "code": "timeout"
+      }
+    },
+    {
+      "http_status": 409,
+      "response": {
+        "schema_version": 1,
+        "error": "The command task was cancelled.",
+        "code": "task_cancelled"
+      }
+    },
+    {
+      "http_status": 503,
+      "response": {
+        "schema_version": 1,
+        "error": "Command task service is not available.",
+        "code": "unavailable_capability"
+      }
+    },
+    {
+      "http_status": 409,
+      "response": {
+        "schema_version": 1,
+        "error": "The requested state conflicts with current state.",
+        "code": "conflict"
+      }
+    }
+  ]
+}

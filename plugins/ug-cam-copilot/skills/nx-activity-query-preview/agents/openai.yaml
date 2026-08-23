@@ -1,0 +1,4 @@
+interface:
+  display_name: "NX Activity Query Preview"
+  short_description: "Query NX CAM state read-only and prepare dry-run previews"
+  default_prompt: "Use $nx-activity-query-preview to inspect this NX CAM fixture without live execution."

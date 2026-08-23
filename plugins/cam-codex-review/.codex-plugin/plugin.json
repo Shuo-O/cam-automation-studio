@@ -1,19 +1,32 @@
 {
   "name": "cam-codex-review",
-  "version": "0.1.0",
-  "description": "Structured Codex review exchange for CAM automation recipes.",
+  "version": "0.2.0+codex.20260823171708",
+  "description": "Strict structured Codex review exchange for local CAM automation evidence and recipes.",
   "author": {
     "name": "CAM Automation Studio"
   },
   "license": "MIT",
-  "keywords": ["cam", "codex", "review", "recipe", "safety"],
+  "keywords": [
+    "cam",
+    "codex",
+    "review",
+    "recipe",
+    "safety",
+    "structured-json"
+  ],
   "interface": {
     "displayName": "CAM Codex Review",
-    "shortDescription": "Exchange reviewed CAM recipe context.",
-    "longDescription": "Adds structured local export and review import for CAM recipes while keeping execution separate and human-gated.",
+    "shortDescription": "Exchange strict local CAM review JSON.",
+    "longDescription": "Adds bounded, redacted CodexReviewRequest and CodexReviewResult JSON exchange with request matching and fixed human, dry-run, simulation, collision, and shop gates. It declares no remote upload.",
     "developerName": "CAM Automation Studio",
     "category": "Productivity",
-    "capabilities": ["Context export", "Review import"],
-    "defaultPrompt": "Review this CAM automation recipe and list the required gates."
+    "capabilities": [
+      "Bounded context export",
+      "Strict review import",
+      "Request ID matching"
+    ],
+    "defaultPrompt": [
+      "Review this structured CAM recipe and keep every unresolved gate explicit."
+    ]
   }
 }

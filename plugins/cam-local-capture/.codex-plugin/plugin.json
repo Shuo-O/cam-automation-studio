@@ -1,6 +1,6 @@
 {
   "name": "cam-local-capture",
-  "version": "0.1.0+codex.20260820154742",
+  "version": "0.2.0+codex.20260823171708",
   "description": "Reversible, auto-authorized-on-install, multi-instance local capture for NX and PowerMill operator logs.",
   "author": {
     "name": "CAM Automation Studio"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "CAM Local Capture",
-    "shortDescription": "Capture multi-window CAM behavior locally with reversible authorization.",
-    "longDescription": "Adds local-only, redacted NX and PowerMill log capture with one-time authorization on installation, category-level advanced settings, per-window runtime status, source checkpoints, labels, export, revocation, and deletion controls.",
+    "shortDescription": "Capture selected CAM evidence locally.",
+    "longDescription": "Adds local-only, redacted CAM evidence capture after one install-time authorization. Advanced capture categories remain individually revocable at runtime; no external upload destination is declared.",
     "developerName": "CAM Automation Studio",
     "category": "Productivity",
     "capabilities": [
@@ -24,6 +24,8 @@
       "Multi-instance status",
       "Privacy controls"
     ],
-    "defaultPrompt": "Explain how CAM Local Capture protects operator data."
+    "defaultPrompt": [
+      "Review the local capture categories and current authorization."
+    ]
   }
 }

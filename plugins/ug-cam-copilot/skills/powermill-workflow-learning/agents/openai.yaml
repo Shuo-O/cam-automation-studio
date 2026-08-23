@@ -1,4 +1,0 @@
-interface:
-  display_name: "PowerMill Workflow Learning"
-  short_description: "Learn repeatable PowerMill workflows from macros"
-  default_prompt: "Use $powermill-workflow-learning to turn my PowerMill macro or action log into a reviewed automation recipe."

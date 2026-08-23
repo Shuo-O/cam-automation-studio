@@ -1,18 +1,19 @@
-# NX Open playbook
+# NX Open Static Review Playbook
 
-Use this reference when converting a mined sequence into actual NXOpen code.
+Use this reference while reviewing mined NX evidence.
 
-1. Record the smallest possible Journal for one intended operation.
-2. Confirm the target NX release and its bundled Python version.
-3. Inspect the local `UGOPEN/pythonStubs` files; these are the contract for that installation.
-4. Remove recorder noise such as undo marks and UI cleanup only after confirming it is not semantically required.
-5. Replace recorded `FindObject` identifiers with stable shop-controlled names, attributes, PMI, or geometry queries.
-6. Separate pure planning from mutations. Keep a preview path that reports selected objects and proposed parameters.
-7. For headless runs, use Siemens-supported execution for that release and preserve Teamcenter/licensing behavior.
+1. Preserve the selected Journal and parse it only with
+   `src/ugcam_ai/adapters/nx_journal.py`.
+2. Confirm the target release and inspect its selected
+   `UGOPEN/pythonStubs` through `src/ugcam_ai/versioning.py`.
+3. Keep Builder creation, setters, Commit, Destroy, and Undo Mark evidence until
+   their role is reviewed.
+4. Flag every recorded `FindObject` identifier. Suggest attributes, controlled
+   names, PMI, or verified geometry queries without claiming uniqueness.
+5. Report selected objects, units, frames, tools, holders, stock, and fixtures as
+   unresolved when the evidence does not establish them.
+6. Use `src/ugcam_ai/transport.py` only for read-only queries or an offline
+   fixture dry-run. Do not execute a Journal.
 
-Primary references:
-
-- [NX Open Python Reference Guide](https://docs.sw.siemens.com/en-US/doc/209349590/PL20231101866122454.custom_api.nxopen_python_ref)
-- [NX Open Programmer's Guide](https://docs.sw.siemens.com/en-US/doc/209349590/PL20220512394070742.nxopen_prog_guide/xid1124929)
-- [Siemens batch execution support article](https://support.sw.siemens.com/en-US/okba/KB000181221_EN_US/Execute-an-external-NXOpen-Python-batch-script-without-run_journalexe-utility/index.html)
+Do not create postprocessing, NC, G-code, or machine-control output.
 

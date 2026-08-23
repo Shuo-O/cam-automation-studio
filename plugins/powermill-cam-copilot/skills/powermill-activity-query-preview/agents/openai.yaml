@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerMill Activity Query Preview"
+  short_description: "Query PowerMill state read-only and prepare dry-run previews"
+  default_prompt: "Use $powermill-activity-query-preview to inspect this PowerMill fixture safely."

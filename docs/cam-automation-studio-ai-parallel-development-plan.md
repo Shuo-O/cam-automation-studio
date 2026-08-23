@@ -623,6 +623,10 @@ git status --short --branch
 
 ## 11. 可直接派发的 Agent 提示词
 
+完整的逐窗口提示词见：
+
+- [并行 Agent 对话提示词](./cam-automation-studio-parallel-agent-prompts.md)
+
 协调者向每个 Agent 发送以下模板：
 
 ```markdown

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "session_id": "nx-source-a",
+  "seq": 0,
+  "product": "nx",
+  "action": "cam.operation.create",
+  "category": "operation",
+  "mode": "manual",
+  "params": {
+    "api": "CAMSetup.CAMOperationCollection.Create",
+    "operation_type": "mill_planar"
+  },
+  "source_file": "nx:<SOURCE_7c10d09a>.py",
+  "source_line": 42,
+  "duration_ms": null,
+  "timestamp": "2026-08-23T09:00:01Z",
+  "source_mode": "manual",
+  "view_level": "L1",
+  "expertise_label": "expert",
+  "instance_id": "nx:3101:A1",
+  "project_id": "nx-project-a",
+  "target_version": "NX 2406",
+  "command_response": null,
+  "review_status": "unreviewed",
+  "recipe_hash": null
+}

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "response_id": "response-pm-preview-001",
+  "task_id": "task-pm-preview-001",
+  "product": "powermill",
+  "target_version": "PowerMill 2026",
+  "target_instance_id": "powermill:4101:C1",
+  "project_id": "pm-project-a",
+  "status": "succeeded",
+  "started_at": "2026-08-23T09:03:00.010Z",
+  "completed_at": "2026-08-23T09:03:00.155Z",
+  "duration_ms": 145,
+  "raw_response": "Fixture dry-run completed; no CAM command was sent.",
+  "structured_response": {
+    "transport": "fixture",
+    "execution_mode": "dry_run",
+    "objects_considered": 1,
+    "commands_sent": 0
+  },
+  "diff_report": {
+    "schema_version": 1,
+    "diff_id": "diff-pm-preview-001",
+    "task_id": "task-pm-preview-001",
+    "product": "powermill",
+    "target_instance_id": "powermill:4101:C1",
+    "project_id": "pm-project-a",
+    "recipe_hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+    "status": "changes_detected",
+    "before_snapshot": {
+      "snapshot_id": "snapshot-pm-a-before",
+      "captured_at": "2026-08-23T09:02:59.900Z",
+      "project_id": "pm-project-a",
+      "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "after_snapshot": {
+      "snapshot_id": "snapshot-pm-a-preview",
+      "captured_at": "2026-08-23T09:03:00.140Z",
+      "project_id": "pm-project-a",
+      "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "changes": [
+      {
+        "path": "toolpaths/ROUGH_A/parameters/tolerance",
+        "kind": "proposed_update",
+        "before": 0.06,
+        "after": 0.05,
+        "severity": "review"
+      }
+    ],
+    "gate_results": [
+      {
+        "gate": "recipe_review",
+        "status": "passed",
+        "evidence_refs": [
+          "operator:reviewer-01"
+        ]
+      },
+      {
+        "gate": "cam_simulation",
+        "status": "not_run",
+        "evidence_refs": []
+      },
+      {
+        "gate": "collision_check",
+        "status": "required",
+        "evidence_refs": []
+      },
+      {
+        "gate": "shop_approval",
+        "status": "required",
+        "evidence_refs": []
+      }
+    ],
+    "summary": "One parameter change is proposed; simulation, collision checks and shop approval remain required."
+  },
+  "error": null
+}

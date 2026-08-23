@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "instances": [
+    {
+      "schema_version": 1,
+      "instance_id": "nx:3101:A1",
+      "product": "nx",
+      "pid": 3101,
+      "process_name": "ugraf.exe",
+      "window_handle": "0xA1",
+      "window_title": "Die A - NX",
+      "is_foreground": true,
+      "window_state": "foreground",
+      "target_version": "NX 2406",
+      "project_id": "nx-project-a",
+      "project_name": "Die A",
+      "connection_status": "connected",
+      "capabilities": [
+        "journal.parse",
+        "project.snapshot"
+      ],
+      "discovered_at": "2026-08-23T08:59:50Z",
+      "last_seen_at": "2026-08-23T09:00:10Z",
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "nx:3102:B2",
+      "product": "nx",
+      "pid": 3102,
+      "process_name": "ugraf.exe",
+      "window_handle": "0xB2",
+      "window_title": "Die B - NX",
+      "is_foreground": false,
+      "window_state": "visible",
+      "target_version": "NX 2312",
+      "project_id": "nx-project-b",
+      "project_name": "Die B",
+      "connection_status": "detected",
+      "capabilities": [
+        "journal.parse"
+      ],
+      "discovered_at": "2026-08-23T08:59:52Z",
+      "last_seen_at": "2026-08-23T09:00:10Z",
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "powermill:4101:C1",
+      "product": "powermill",
+      "pid": 4101,
+      "process_name": "PowerMill.exe",
+      "window_handle": "0xC1",
+      "window_title": "Cavity A - PowerMill",
+      "is_foreground": false,
+      "window_state": "visible",
+      "target_version": "PowerMill 2026",
+      "project_id": "pm-project-a",
+      "project_name": "Cavity A",
+      "connection_status": "connected",
+      "capabilities": [
+        "macro.parse",
+        "project.snapshot"
+      ],
+      "discovered_at": "2026-08-23T08:59:54Z",
+      "last_seen_at": "2026-08-23T09:00:10Z",
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "powermill:4102:process",
+      "product": "powermill",
+      "pid": 4102,
+      "process_name": "pmill.exe",
+      "window_handle": null,
+      "window_title": "",
+      "is_foreground": false,
+      "window_state": "background",
+      "target_version": "PowerMill 2025",
+      "project_id": null,
+      "project_name": null,
+      "connection_status": "detected",
+      "capabilities": [
+        "macro.parse"
+      ],
+      "discovered_at": "2026-08-23T08:59:56Z",
+      "last_seen_at": "2026-08-23T09:00:10Z",
+      "metadata": {
+        "headless": true
+      }
+    }
+  ]
+}

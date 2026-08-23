@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "contract": "cam.capability_manifest.v1",
+  "manifest_id": "manifest:powermill:fixture:1",
+  "manifest_version": "1.0.0",
+  "manifest_hash": "sha256:a966eb43069e6bacdf786e28c9d441f463921aede5df772ccdaa3a5373ba5d85",
+  "provider": {
+    "provider_id": "cam-automation-studio",
+    "display_name": "Fixture-only PowerMill adapter",
+    "claim_level": "fixture_verified"
+  },
+  "product": "powermill",
+  "adapter_kind": "manifest_only",
+  "authorization": {
+    "status": "fixture_verified",
+    "evidence_ref": "fixture:powermill:registry",
+    "verified_by": "test-suite",
+    "valid_until": null
+  },
+  "target_version_ranges": [
+    "PowerMill >=2025,<2027"
+  ],
+  "execution_modes": [
+    "offline",
+    "read_only",
+    "fixture_dry_run"
+  ],
+  "permissions": [
+    "read:selected-files"
+  ],
+  "node_types": [
+    {
+      "node_type": "powermill.fixture.inspect",
+      "node_type_version": "1.0.0",
+      "category": "inspection",
+      "display_name": "Inspect fixture source",
+      "ports": [],
+      "configuration_schema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "static_risk_floor": "review",
+      "required_gates": [
+        "recipe_review",
+        "target_version_validation",
+        "cam_simulation",
+        "collision_check",
+        "shop_approval"
+      ],
+      "forbidden_modes": [
+        "live"
+      ],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "opaque_preserved"
+    }
+  ],
+  "prohibited_operations": [
+    "live_journal",
+    "live_macro",
+    "nc",
+    "gcode",
+    "clsf",
+    "postprocess",
+    "machine_control"
+  ],
+  "evidence": [
+    {
+      "kind": "fixture_test",
+      "ref": "fixture:powermill:registry",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    }
+  ],
+  "revocation": null,
+  "extensions": {
+    "cam_automation": {
+      "transport": "none",
+      "live_connected": false
+    }
+  }
+}

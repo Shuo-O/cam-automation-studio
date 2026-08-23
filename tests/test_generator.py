@@ -76,6 +76,19 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual("powermill", event["product"])
             self.assertTrue(event["action"].startswith(("cam.", "powermill.")))
 
+    def test_machine_ready_nc_command_is_omitted_even_as_blocked_text(self) -> None:
+        unsafe = SAMPLE_LOG.replace(
+            "PROJECT RESET",
+            "NCPROGRAM WRITE 'unsafe.tap'\nPROJECT RESET",
+        )
+        _, recipe = learn_workflow(unsafe)
+
+        macro = generate_macro(recipe)
+
+        self.assertNotIn("NCPROGRAM WRITE", macro)
+        self.assertNotIn("unsafe.tap", macro)
+        self.assertIn("machine-ready NC content omitted", macro)
+
 
 if __name__ == "__main__":
     unittest.main()

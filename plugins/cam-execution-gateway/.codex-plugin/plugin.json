@@ -1,6 +1,6 @@
 {
   "name": "cam-execution-gateway",
-  "version": "0.2.0+codex.20260823171708",
+  "version": "0.2.0+codex.20260824043001",
   "description": "Fail-closed, instance-targeted read-only query and dry-run preview review for CAM.",
   "author": {
     "name": "CAM Automation Studio"

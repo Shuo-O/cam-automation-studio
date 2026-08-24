@@ -1,6 +1,6 @@
 {
   "name": "powermill-cam-copilot",
-  "version": "0.2.0+codex.20260823171708",
+  "version": "0.2.0+codex.20260824043001",
   "description": "Review-first PowerMill workflow learning, session comparison, recipe review, and fixture dry-run queries.",
   "author": {
     "name": "CAM Automation Studio"

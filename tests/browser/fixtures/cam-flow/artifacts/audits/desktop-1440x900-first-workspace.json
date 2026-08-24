@@ -11,48 +11,13 @@
     },
     {
       "method": "GET",
-      "resource_type": "stylesheet",
-      "url": "http://127.0.0.1:57913/flow/styles.css"
-    },
-    {
-      "method": "GET",
-      "resource_type": "stylesheet",
-      "url": "http://127.0.0.1:57913/styles.css"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/components/icons.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/components/fixtures.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/flow-core.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/fixtures.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/app.js"
+      "resource_type": "document",
+      "url": "http://127.0.0.1:57913/"
     },
     {
       "method": "GET",
       "resource_type": "fetch",
-      "url": "http://127.0.0.1:57913/api/plugins"
+      "url": "http://127.0.0.1:57913/api/connections?include_uninstalled=1&refresh=0"
     },
     {
       "method": "GET",
@@ -66,48 +31,8 @@
     },
     {
       "method": "GET",
-      "resource_type": "document",
-      "url": "http://127.0.0.1:57913/"
-    },
-    {
-      "method": "GET",
-      "resource_type": "stylesheet",
-      "url": "http://127.0.0.1:57913/flow/styles.css"
-    },
-    {
-      "method": "GET",
-      "resource_type": "stylesheet",
-      "url": "http://127.0.0.1:57913/styles.css"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/components/icons.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/components/fixtures.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/flow-core.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/fixtures.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
-    },
-    {
-      "method": "GET",
-      "resource_type": "script",
-      "url": "http://127.0.0.1:57913/app.js"
+      "resource_type": "fetch",
+      "url": "http://127.0.0.1:57913/api/diagnostics"
     },
     {
       "method": "GET",
@@ -117,7 +42,7 @@
     {
       "method": "GET",
       "resource_type": "fetch",
-      "url": "http://127.0.0.1:57913/api/connections?include_uninstalled=1&refresh=0"
+      "url": "http://127.0.0.1:57913/api/plugins"
     },
     {
       "method": "GET",
@@ -136,8 +61,83 @@
     },
     {
       "method": "GET",
-      "resource_type": "fetch",
-      "url": "http://127.0.0.1:57913/api/diagnostics"
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/app.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/app.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/components/fixtures.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/components/fixtures.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/components/icons.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/components/icons.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/fixtures.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/fixtures.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/flow-core.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/flow-core.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "script",
+      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
+    },
+    {
+      "method": "GET",
+      "resource_type": "stylesheet",
+      "url": "http://127.0.0.1:57913/flow/styles.css"
+    },
+    {
+      "method": "GET",
+      "resource_type": "stylesheet",
+      "url": "http://127.0.0.1:57913/flow/styles.css"
+    },
+    {
+      "method": "GET",
+      "resource_type": "stylesheet",
+      "url": "http://127.0.0.1:57913/styles.css"
+    },
+    {
+      "method": "GET",
+      "resource_type": "stylesheet",
+      "url": "http://127.0.0.1:57913/styles.css"
     },
     {
       "method": "POST",
@@ -152,39 +152,11 @@
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/flow/styles.css"
+      "url": "http://127.0.0.1:57913/"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/styles.css"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/components/fixtures.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/components/icons.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/fixtures.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/flow-core.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/app.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/api/plugins"
+      "url": "http://127.0.0.1:57913/api/connections?include_uninstalled=1&refresh=0"
     },
     {
       "status": 200,
@@ -196,39 +168,7 @@
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/styles.css"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/styles.css"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/components/icons.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/components/fixtures.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/flow-core.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/fixtures.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
-    },
-    {
-      "status": 200,
-      "url": "http://127.0.0.1:57913/app.js"
+      "url": "http://127.0.0.1:57913/api/diagnostics"
     },
     {
       "status": 200,
@@ -236,7 +176,7 @@
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/api/connections?include_uninstalled=1&refresh=0"
+      "url": "http://127.0.0.1:57913/api/plugins"
     },
     {
       "status": 200,
@@ -244,19 +184,79 @@
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/api/sessions?limit=10000&sort=asc"
-    },
-    {
-      "status": 200,
       "url": "http://127.0.0.1:57913/api/recorder/events?limit=25&sort=asc"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:57913/api/diagnostics"
+      "url": "http://127.0.0.1:57913/api/sessions?limit=10000&sort=asc"
     },
     {
       "status": 200,
       "url": "http://127.0.0.1:57913/api/sessions/compare"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/app.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/app.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/components/fixtures.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/components/fixtures.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/components/icons.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/components/icons.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/fixtures.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/fixtures.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/flow-core.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/flow-core.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/flow-studio.js"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/styles.css"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/flow/styles.css"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/styles.css"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:57913/styles.css"
     }
   ],
   "result": "passed",

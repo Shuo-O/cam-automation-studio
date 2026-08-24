@@ -1,6 +1,6 @@
 {
   "name": "cam-codex-review",
-  "version": "0.2.0+codex.20260823171708",
+  "version": "0.2.0+codex.20260824043001",
   "description": "Strict structured Codex review exchange for local CAM automation evidence and recipes.",
   "author": {
     "name": "CAM Automation Studio"

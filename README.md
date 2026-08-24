@@ -1,6 +1,6 @@
 # CAM Automation Studio
 
-这是一个插件优先、本地运行的 CAM 自动化工作台。`0.5.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
+这是一个插件优先、本地运行的 CAM 自动化工作台。`0.6.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
 
 每个软件模块位于 `plugins/<plugin-id>`，使用 `app-plugin.json` 声明功能、依赖和本地权限；Codex 插件继续使用 `.codex-plugin/plugin.json`。UG/NX 插件仍在 `plugins/ug-cam-copilot` 独立开发，PowerMill 使用 `plugins/powermill-cam-copilot`。
 
@@ -113,14 +113,34 @@ machine-ready NC 在入口和响应扫描中始终阻断。
 
 ## Codex Skills
 
-产品插件提供 8 个结构化、review-first Skills：
+产品插件提供 10 个结构化、review-first Skills：
 
-- NX：活动查询预览、会话比较、配方审阅、工作流学习。
-- PowerMill：活动查询预览、会话比较、配方审阅、工作流学习。
+- NX：活动查询预览、会话比较、配方审阅、工作流学习、Flow Studio。
+- PowerMill：活动查询预览、会话比较、配方审阅、工作流学习、Flow Studio。
 
 NX Skills 只引用 NX adapter，PowerMill Skills 只引用 PowerMill adapter。Codex 交换
 严格使用 `CodexReviewRequest` / `CodexReviewResult` JSON，不执行自由文本，不接受
 live 指令，也不生成 machine-ready NC。
+
+## 低代码 Flow Studio
+
+`0.6.0` 增加单窗口低代码 Flow Studio，用于把已有 NX Journal、PowerMill 宏和脱敏
+ActivityEvent 日志离线投影为可理解、可拖动、可版本化的 FlowGraph。NX 与 PowerMill
+分别使用独立 parser 和 capability manifest；共享语义继续使用 `cam.*`，产品专属节点
+使用 `nx.*` 或 `powermill.*`。
+
+首版支持：
+
+- 从离线资产建立节点、typed ports、连线、参数和来源行定位。
+- 真实 PointerEvent 拖拽、Undo/Redo、响应式桌面/移动布局。
+- 版本快照、语义 diff、round-trip、目标版本兼容性和缺失 capability 诊断。
+- 把审阅通过的图投影为 NX 或 PowerMill recipe 草稿，再生成 fixture-only preview。
+- 500 节点编辑与校验性能屏障，以及 1,000 个 preview plan 的实例隔离屏障。
+
+创建 reviewed version 或 preview 前必须通过真实 RoundTrip、Compatibility 和产品
+Projection 审查。所有 preview 固定 `transport=none`，执行计数、发送计数、NC 计数和
+机床控制计数保持为零；Flow Studio 不导入 live Journal、不运行 PowerMill 宏，也不把
+学习结果直接变成机床可执行代码。
 
 ## Siemens NX / UG Demo
 
@@ -168,4 +188,4 @@ python -m unittest discover -s plugins/powermill-cam-copilot/tests -v
 node --test cam_automation/web/components/fixtures.test.cjs
 ```
 
-本次发布结果见 [release-notes-0.5.0.md](docs/release-notes-0.5.0.md)。
+本次发布结果见 [release-notes-0.6.0.md](docs/release-notes-0.6.0.md)。

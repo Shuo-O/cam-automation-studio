@@ -130,10 +130,17 @@ function auditIssues(audit) {
 
 async function writeAudit(name, audit) {
   const issues = auditIssues(audit);
+  const compareAuditItems = (left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right));
   const value = {
     ...audit,
+    page_errors: [...audit.page_errors].sort(),
+    console_errors: [...audit.console_errors].sort(),
+    request_failures: [...audit.request_failures].sort(compareAuditItems),
+    requests: [...audit.requests].sort(compareAuditItems),
+    responses: [...audit.responses].sort(compareAuditItems),
     result: issues.length ? "failed" : "passed",
-    issues
+    issues: [...issues].sort()
   };
   fs.writeFileSync(
     path.join(AUDIT_ROOT, `${name}.json`),

@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "name": "byte_exact",
+      "required_fidelity": "F0",
+      "replacement": null,
+      "expected_status": "passed",
+      "expected_fidelity": "F0"
+    },
+    {
+      "name": "token_exact_outside_edit",
+      "required_fidelity": "F1",
+      "replacement": "VALUE=2\n",
+      "expected_status": "passed",
+      "expected_fidelity": "F1"
+    },
+    {
+      "name": "semantic_round_trip",
+      "required_fidelity": "F2",
+      "replacement": "VALUE=2\n",
+      "expected_status": "passed",
+      "expected_fidelity": "F2"
+    },
+    {
+      "name": "opaque_preserved",
+      "required_fidelity": "F3",
+      "replacement": "VALUE=2\n",
+      "expected_status": "passed",
+      "expected_fidelity": "F3"
+    },
+    {
+      "name": "blocked",
+      "required_fidelity": "F3",
+      "replacement": "OPAQUE-CHANGED\n",
+      "mapping_id": "mapping:opaque",
+      "expected_status": "blocked",
+      "expected_fidelity": "FB"
+    }
+  ]
+}

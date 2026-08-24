@@ -1,0 +1,434 @@
+{
+  "source_text": "BEGIN\nVALUE=1\nOPAQUE\nEND\n",
+  "manifest": {
+    "schema_version": 1,
+    "contract": "cam.capability_manifest.v1",
+    "manifest_id": "manifest:fixture:linear",
+    "manifest_version": "1.0.0",
+    "manifest_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "provider": {
+      "provider_id": "fixture",
+      "display_name": "Fixture",
+      "claim_level": "fixture_verified"
+    },
+    "product": "nx",
+    "adapter_kind": "manifest_only",
+    "authorization": {
+      "status": "fixture_verified",
+      "evidence_ref": "fixture:linear",
+      "verified_by": "test-suite",
+      "valid_until": null
+    },
+    "target_version_ranges": [
+      "NX >=2400,<2500"
+    ],
+    "execution_modes": [
+      "offline",
+      "fixture_dry_run"
+    ],
+    "permissions": [
+      "read:selected-files"
+    ],
+    "node_types": [
+      {
+        "node_type": "cam.flow.start",
+        "node_type_version": "1.0.0",
+        "category": "control",
+        "display_name": "Start",
+        "ports": [],
+        "configuration_schema": {
+          "type": "object"
+        },
+        "static_risk_floor": "safe",
+        "required_gates": [
+          "recipe_review"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      },
+      {
+        "node_type": "cam.operation.inspect",
+        "node_type_version": "1.2.0",
+        "category": "inspection",
+        "display_name": "Inspect",
+        "ports": [],
+        "configuration_schema": {
+          "type": "object"
+        },
+        "static_risk_floor": "review",
+        "required_gates": [
+          "recipe_review",
+          "target_version_validation",
+          "cam_simulation",
+          "collision_check",
+          "shop_approval"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "token_exact_outside_edits"
+      },
+      {
+        "node_type": "cam.flow.end",
+        "node_type_version": "1.0.0",
+        "category": "control",
+        "display_name": "End",
+        "ports": [],
+        "configuration_schema": {
+          "type": "object"
+        },
+        "static_risk_floor": "safe",
+        "required_gates": [
+          "recipe_review"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      }
+    ],
+    "prohibited_operations": [
+      "live_journal",
+      "live_macro",
+      "nc",
+      "gcode",
+      "clsf",
+      "postprocess",
+      "machine_control"
+    ],
+    "evidence": [
+      {
+        "kind": "fixture_test",
+        "ref": "fixture:linear",
+        "version": "1",
+        "checked_at": "2026-08-24T00:00:00Z"
+      }
+    ],
+    "revocation": null,
+    "extensions": {}
+  },
+  "graph": {
+    "schema_version": 1,
+    "contract": "cam.flowgraph.v1",
+    "graph_id": "graph:fixture:linear",
+    "revision_id": "revision:fixture:linear:1",
+    "parent_revision_id": null,
+    "product": "nx",
+    "target_versions": [
+      "NX 2406"
+    ],
+    "entry_flow_id": "flow:main",
+    "graph_parameters": [
+      {
+        "parameter_id": "parameter:value",
+        "name": "value",
+        "type_ref": "cam.length",
+        "unit": "mm",
+        "required": true,
+        "default": 1,
+        "constraints": {
+          "minimum": 0
+        },
+        "evidence_mapping_ids": [
+          "mapping:value"
+        ],
+        "review_status": "accepted"
+      }
+    ],
+    "flows": [
+      {
+        "flow_id": "flow:main",
+        "kind": "main",
+        "name": "Main",
+        "interface_ports": [],
+        "parameter_ids": [
+          "parameter:value"
+        ],
+        "nodes": [
+          {
+            "node_id": "node:start",
+            "node_type": "cam.flow.start",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "safe",
+            "review_status": "accepted",
+            "port_contract_refs": [],
+            "bindings": [],
+            "configuration": {},
+            "source_mapping_ids": [
+              "mapping:start"
+            ],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:linear",
+              "manifest_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "node_type": "cam.flow.start",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          },
+          {
+            "node_id": "node:inspect",
+            "node_type": "cam.operation.inspect",
+            "node_type_version": "1.2.0",
+            "enabled": true,
+            "risk": "review",
+            "review_status": "accepted",
+            "port_contract_refs": [],
+            "bindings": [
+              {
+                "binding_id": "binding:value",
+                "target": {
+                  "node_id": "node:inspect",
+                  "port_id": "value"
+                },
+                "kind": "graph_parameter",
+                "literal": null,
+                "graph_parameter_id": "parameter:value",
+                "source_output": null,
+                "secret_ref": null,
+                "source_mapping_ids": [
+                  "mapping:value"
+                ],
+                "extensions": {}
+              }
+            ],
+            "configuration": {
+              "mode": "fixture"
+            },
+            "source_mapping_ids": [
+              "mapping:value",
+              "mapping:opaque"
+            ],
+            "fidelity": "F3",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:linear",
+              "manifest_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "node_type": "cam.operation.inspect",
+              "node_type_version": "1.2.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          },
+          {
+            "node_id": "node:end",
+            "node_type": "cam.flow.end",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "safe",
+            "review_status": "accepted",
+            "port_contract_refs": [],
+            "bindings": [],
+            "configuration": {},
+            "source_mapping_ids": [
+              "mapping:end"
+            ],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:fixture:linear",
+              "manifest_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "node_type": "cam.flow.end",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          }
+        ],
+        "edges": [
+          {
+            "edge_id": "edge:start-inspect",
+            "kind": "control",
+            "source": {
+              "node_id": "node:start",
+              "port_id": "next"
+            },
+            "target": {
+              "node_id": "node:inspect",
+              "port_id": "in"
+            },
+            "condition": null,
+            "priority": null,
+            "source_mapping_ids": [],
+            "extensions": {}
+          },
+          {
+            "edge_id": "edge:inspect-end",
+            "kind": "control",
+            "source": {
+              "node_id": "node:inspect",
+              "port_id": "next"
+            },
+            "target": {
+              "node_id": "node:end",
+              "port_id": "in"
+            },
+            "condition": null,
+            "priority": null,
+            "source_mapping_ids": [],
+            "extensions": {}
+          }
+        ],
+        "source_mapping_ids": [
+          "mapping:start",
+          "mapping:value",
+          "mapping:opaque",
+          "mapping:end"
+        ]
+      }
+    ],
+    "asset_refs": [
+      {
+        "asset_id": "asset:fixture:linear",
+        "asset_revision_id": "asset-revision:fixture:linear:1",
+        "content_hash": "sha256:20b6c4a391081fff27c9d40a0ba6ff5441e4f413785815ba3a2ecaa40ef7ea28",
+        "encoding": "utf-8",
+        "bom": "none",
+        "newline_profile": "lf"
+      }
+    ],
+    "source_mappings": [
+      {
+        "mapping_id": "mapping:start",
+        "asset_id": "asset:fixture:linear",
+        "asset_revision_id": "asset-revision:fixture:linear:1",
+        "source_digest": "sha256:20b6c4a391081fff27c9d40a0ba6ff5441e4f413785815ba3a2ecaa40ef7ea28",
+        "source_line": 1,
+        "source_span": {
+          "start_byte": 0,
+          "end_byte": 6,
+          "start_line": 1,
+          "end_line": 2,
+          "start_column": 0,
+          "end_column": 0,
+          "column_encoding": "unicode_scalar"
+        },
+        "target": {
+          "flow_id": "flow:main",
+          "node_id": "node:start"
+        },
+        "role": "control",
+        "mapping_quality": "exact",
+        "excerpt_hash": "sha256:238db7e20b40675e88558f47335fcee542146adf1b1409775e21edfd0477daf6",
+        "extensions": {}
+      },
+      {
+        "mapping_id": "mapping:value",
+        "asset_id": "asset:fixture:linear",
+        "asset_revision_id": "asset-revision:fixture:linear:1",
+        "source_digest": "sha256:20b6c4a391081fff27c9d40a0ba6ff5441e4f413785815ba3a2ecaa40ef7ea28",
+        "source_line": 2,
+        "source_span": {
+          "start_byte": 6,
+          "end_byte": 14,
+          "start_line": 2,
+          "end_line": 3,
+          "start_column": 0,
+          "end_column": 0,
+          "column_encoding": "unicode_scalar"
+        },
+        "target": {
+          "flow_id": "flow:main",
+          "node_id": "node:inspect",
+          "property_path": "/bindings/binding:value"
+        },
+        "role": "parameter",
+        "mapping_quality": "exact",
+        "excerpt_hash": "sha256:ddced955472eca8cf0eea19edf798c43514e97feae458369b17732a4a6453e4b",
+        "extensions": {}
+      },
+      {
+        "mapping_id": "mapping:opaque",
+        "asset_id": "asset:fixture:linear",
+        "asset_revision_id": "asset-revision:fixture:linear:1",
+        "source_digest": "sha256:20b6c4a391081fff27c9d40a0ba6ff5441e4f413785815ba3a2ecaa40ef7ea28",
+        "source_line": 3,
+        "source_span": {
+          "start_byte": 14,
+          "end_byte": 21,
+          "start_line": 3,
+          "end_line": 4,
+          "start_column": 0,
+          "end_column": 0,
+          "column_encoding": "unicode_scalar"
+        },
+        "target": {
+          "flow_id": "flow:main",
+          "node_id": "node:inspect"
+        },
+        "role": "opaque",
+        "mapping_quality": "exact",
+        "excerpt_hash": "sha256:8853520bc064f986f7595ee2f638a63a64b4f526e1e076bf0bcd5485e2973e03",
+        "extensions": {}
+      },
+      {
+        "mapping_id": "mapping:end",
+        "asset_id": "asset:fixture:linear",
+        "asset_revision_id": "asset-revision:fixture:linear:1",
+        "source_digest": "sha256:20b6c4a391081fff27c9d40a0ba6ff5441e4f413785815ba3a2ecaa40ef7ea28",
+        "source_line": 4,
+        "source_span": {
+          "start_byte": 21,
+          "end_byte": 25,
+          "start_line": 4,
+          "end_line": 5,
+          "start_column": 0,
+          "end_column": 0,
+          "column_encoding": "unicode_scalar"
+        },
+        "target": {
+          "flow_id": "flow:main",
+          "node_id": "node:end"
+        },
+        "role": "control",
+        "mapping_quality": "exact",
+        "excerpt_hash": "sha256:8d109c0c834724e126dfb29b8c45f209940a320f55491ffcdff2b9566b1686af",
+        "extensions": {}
+      }
+    ],
+    "capability_lock": [
+      {
+        "manifest_id": "manifest:fixture:linear",
+        "manifest_version": "1.0.0",
+        "manifest_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "required_gates": [
+      "recipe_review",
+      "target_version_validation",
+      "cam_simulation",
+      "collision_check",
+      "shop_approval"
+    ],
+    "semantic_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "source_snapshot_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "layout": {
+      "nodes": {
+        "node:inspect": {
+          "x": 10,
+          "y": 20
+        }
+      }
+    },
+    "extensions": {
+      "fixture": {
+        "semantic": false,
+        "unknown_optional_field": "preserve-me"
+      }
+    }
+  }
+}

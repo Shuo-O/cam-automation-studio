@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "ug-cam-copilot",
   "name": "UG / NX 工作流",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "summary": "解析 NX Open Journal，学习重复 CAM 操作并生成 dry-run 预览。",
   "category": "工作流",
   "order": 10,

@@ -59,21 +59,21 @@ REQUIRED_PROHIBITIONS = {
 FIXED_TIME = "2026-08-24T08:00:00Z"
 EXPECTED_MANIFEST_LOCKS = {
     "nx": {
-        "manifest_version": "1.0.1",
+        "manifest_version": "1.1.0",
         "manifest_hash": (
             "sha256:"
-            "5395432d7a0f26750c1c1afcab06b2c62e6ed8953eaf241e94406103da7a13a5"
+            "ae4b6309be49a649813706250823f854444433a10969c47b99ae3f9314602805"
         ),
-        "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.0.1",
+        "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.1.0",
     },
     "powermill": {
-        "manifest_version": "1.0.1",
+        "manifest_version": "1.1.0",
         "manifest_hash": (
             "sha256:"
-            "be3f88b60e5f240d6bd8378a7c1de49369dd38256fd00d280de3dbed63361aba"
+            "0fa41ffb98bd2432b5158bdd994b6f2007a2caea505e2810049d775a0b6344d6"
         ),
         "manifest_hash_input": (
-            "cam-automation-studio:powermill:offline-import:v1.0.1"
+            "cam-automation-studio:powermill:offline-import:v1.1.0"
         ),
     },
 }
@@ -158,7 +158,7 @@ class FlowCapabilityManifestTests(unittest.TestCase):
     def test_app_manifests_add_only_flow_discovery_fields(self) -> None:
         expected = {
             "ug-cam-copilot": {
-                "version": "0.2.0",
+                "version": "0.2.1",
                 "features": [
                     "analysis:nx",
                     "preview:nx",
@@ -166,7 +166,7 @@ class FlowCapabilityManifestTests(unittest.TestCase):
                 ],
             },
             "powermill-cam-copilot": {
-                "version": "0.1.0",
+                "version": "0.1.1",
                 "features": [
                     "analysis:powermill",
                     "preview:powermill",
@@ -505,6 +505,65 @@ class FlowCapabilityManifestTests(unittest.TestCase):
                 "capability_unavailable",
                 states["missing"],
             )
+
+    def test_version_policies_extend_recognition_without_broadening_verified_ranges(
+        self,
+    ) -> None:
+        expected = {
+            "nx": {
+                "verified": ["NX 2406"],
+                "aliases": {"NX", "Siemens NX", "UG NX"},
+                "review_required": {
+                    "NX >=1847,<2406",
+                    "NX >2406",
+                },
+                "opaque_only": {"NX >=8,<1847"},
+            },
+            "powermill": {
+                "verified": ["PowerMill 2025", "PowerMill 2026"],
+                "aliases": {
+                    "PowerMill",
+                    "PowerMill Ultimate",
+                    "Autodesk PowerMill",
+                    "Autodesk PowerMill Ultimate",
+                    "PowerMILL",
+                },
+                "review_required": {
+                    "PowerMill >=2017,<2025",
+                    "PowerMill >2026",
+                    "PowerMill 21.*",
+                },
+                "opaque_only": {"PowerMill >=2010,<2017"},
+            },
+        }
+        for manifest in (self.nx, self.powermill):
+            with self.subTest(product=manifest["product"]):
+                policy = manifest["extensions"]["cam_automation"][
+                    "version_compatibility"
+                ]
+                product_expected = expected[manifest["product"]]
+                self.assertEqual(1, policy["policy_version"])
+                self.assertEqual(
+                    product_expected["verified"],
+                    manifest["target_version_ranges"],
+                )
+                self.assertEqual(
+                    product_expected["aliases"],
+                    set(policy["aliases"]),
+                )
+                self.assertEqual(
+                    product_expected["review_required"],
+                    set(policy["review_required_ranges"]),
+                )
+                self.assertEqual(
+                    product_expected["opaque_only"],
+                    set(policy["opaque_only_ranges"]),
+                )
+                self.assertEqual([], policy["unsupported_ranges"])
+                self.assertEqual(
+                    "target_version_ranges",
+                    policy["verified_source"],
+                )
 
     def test_app_plugin_install_uninstall_and_permissions_regress(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

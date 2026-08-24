@@ -27,6 +27,10 @@ from .flow_validation import (
     validate_contract,
     validate_flow_graph,
 )
+from .version_compatibility import (
+    classify_target_version,
+    normalize_target_version,
+)
 
 
 SCHEMA_VERSION = 1
@@ -1437,10 +1441,16 @@ class FlowService:
         self,
         graph: Mapping[str, Any],
         target: FixtureTarget,
-    ) -> tuple[list[dict[str, Any]], set[str], set[str]]:
+    ) -> tuple[
+        list[dict[str, Any]],
+        set[str],
+        set[str],
+        list[dict[str, Any]],
+    ]:
         issues: list[dict[str, Any]] = []
         checked_hashes: set[str] = set()
         required_permissions: set[str] = set()
+        version_results: list[dict[str, Any]] = []
         registry = self.capability_registry
         for lock in graph.get("capability_lock", []):
             if not isinstance(lock, Mapping):
@@ -1482,12 +1492,93 @@ class FlowService:
             except CapabilityRegistryError:
                 continue
             required_permissions.update(str(item) for item in manifest.get("permissions", []))
-            if target.target_version not in manifest.get("target_version_ranges", []):
+            version_result = classify_target_version(
+                target.target_version,
+                manifest,
+            )
+            version_results.append(
+                {
+                    "manifest_id": str(lock.get("manifest_id", "")),
+                    **version_result.to_dict(),
+                }
+            )
+            if version_result.tier == "review_required":
+                issues.append(
+                    {
+                        "code": "COMPAT_TARGET_VERSION_REVIEW_REQUIRED",
+                        "severity": "warning",
+                        "message": (
+                            "The target version is readable but has not passed "
+                            "fixture verification for this capability."
+                        ),
+                        "object_ref": f"manifest:{lock.get('manifest_id', 'unknown')}",
+                        "source_mapping_ids": [],
+                        "remediation": (
+                            "Review version-specific symbols, selectors, units, "
+                            "round-trip evidence, and fixture results."
+                        ),
+                        "evidence": [
+                            target.target_version,
+                            version_result.normalized_version,
+                            version_result.matched_range,
+                        ],
+                    }
+                )
+            elif version_result.tier == "opaque_only":
+                issues.append(
+                    {
+                        "code": "COMPAT_TARGET_VERSION_OPAQUE_ONLY",
+                        "severity": "blocker",
+                        "message": (
+                            "The target version is limited to opaque source "
+                            "preservation and cannot be previewed."
+                        ),
+                        "object_ref": f"manifest:{lock.get('manifest_id', 'unknown')}",
+                        "source_mapping_ids": [],
+                        "remediation": (
+                            "Keep the source readable and collect version-specific "
+                            "fixtures before semantic editing."
+                        ),
+                    }
+                )
                 issues.append(
                     {
                         "code": "CAPABILITY_VERSION_MISMATCH",
                         "severity": "blocker",
-                        "message": "The target version is outside the exact capability manifest.",
+                        "message": (
+                            "The target version is outside the capability's "
+                            "verified ranges."
+                        ),
+                        "object_ref": f"manifest:{lock.get('manifest_id', 'unknown')}",
+                        "source_mapping_ids": [],
+                        "remediation": "Use an explicitly verified target version.",
+                    }
+                )
+            elif version_result.tier in {"unsupported", "unknown"}:
+                issues.append(
+                    {
+                        "code": "COMPAT_TARGET_VERSION_UNSUPPORTED",
+                        "severity": "blocker",
+                        "message": (
+                            "The target version is outside every declared "
+                            "compatibility tier."
+                        ),
+                        "object_ref": f"manifest:{lock.get('manifest_id', 'unknown')}",
+                        "source_mapping_ids": [],
+                        "remediation": (
+                            "Add reviewed version evidence or use an explicitly "
+                            "classified target version."
+                        ),
+                    }
+                )
+                issues.append(
+                    {
+                        "code": "CAPABILITY_VERSION_MISMATCH",
+                        "severity": "blocker",
+                        "message": (
+                            "The target version is outside the capability's "
+                            "verified ranges."
+                        ),
                         "object_ref": f"manifest:{lock.get('manifest_id', 'unknown')}",
                         "source_mapping_ids": [],
                         "remediation": "Use an explicitly verified target version.",
@@ -1505,7 +1596,18 @@ class FlowService:
                     "remediation": "Create a new explicit grant before another request.",
                 }
             )
-        return issues, checked_hashes, required_permissions
+        return (
+            issues,
+            checked_hashes,
+            required_permissions,
+            sorted(
+                version_results,
+                key=lambda item: (
+                    str(item.get("manifest_id", "")),
+                    str(item.get("normalized_version", "")),
+                ),
+            ),
+        )
 
     @staticmethod
     def _selector_results(graph: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -1585,7 +1687,13 @@ class FlowService:
                     "remediation": "Create a revision with an explicit target version.",
                 }
             )
-        elif fixture.target_version not in target_versions:
+        elif normalize_target_version(
+            fixture.target_version,
+            fixture.product,
+        ) not in {
+            normalize_target_version(str(item), fixture.product)
+            for item in target_versions
+        }:
             issues.append(
                 {
                     "code": "CAPABILITY_VERSION_MISMATCH",
@@ -1603,10 +1711,12 @@ class FlowService:
             limits=self.limits,
         )
         issues.extend(item.to_dict() for item in validation.diagnostics)
-        capability_issues, checked_hashes, _permissions = self._capability_state(
-            graph,
-            fixture,
-        )
+        (
+            capability_issues,
+            checked_hashes,
+            _permissions,
+            version_results,
+        ) = self._capability_state(graph, fixture)
         issues.extend(capability_issues)
         selector_results = self._selector_results(graph)
         if any(item["status"] != "supported" for item in selector_results):
@@ -1622,6 +1732,21 @@ class FlowService:
             )
 
         node_results: list[dict[str, Any]] = []
+        tier_order = {
+            "verified": 0,
+            "review_required": 1,
+            "opaque_only": 2,
+            "unsupported": 3,
+            "unknown": 4,
+        }
+        target_version_tier = max(
+            (
+                str(item.get("tier", "unknown"))
+                for item in version_results
+            ),
+            key=lambda item: tier_order.get(item, tier_order["unknown"]),
+            default="verified",
+        )
         issue_refs = {
             str(item.get("object_ref", ""))
             for item in issues
@@ -1641,12 +1766,19 @@ class FlowService:
                     in {"unsupported", "capability_unavailable"}
                     or node.get("opaque") is not None
                 )
-                node_results.append(
-                    {
-                        "node_id": node_id,
-                        "status": "unsupported" if incompatible else "supported",
-                    }
-                )
+                status = "unsupported" if incompatible else "supported"
+                if (
+                    status == "supported"
+                    and target_version_tier == "review_required"
+                ):
+                    status = "needs_review"
+                elif target_version_tier in {
+                    "opaque_only",
+                    "unsupported",
+                    "unknown",
+                }:
+                    status = "unsupported"
+                node_results.append({"node_id": node_id, "status": status})
         node_results.sort(key=lambda item: item["node_id"])
         blocker_codes = sorted(
             {
@@ -1655,7 +1787,21 @@ class FlowService:
                 if item.get("severity") in {"blocker", "error"}
             }
         )
-        report_status = "compatible" if not blocker_codes else "incompatible"
+        report_status = (
+            "incompatible"
+            if blocker_codes
+            else (
+                "needs_review"
+                if (
+                    any(item.get("severity") == "warning" for item in issues)
+                    or any(
+                        item.get("status") == "needs_review"
+                        for item in node_results
+                    )
+                )
+                else "compatible"
+            )
+        )
         stable_issues = sorted(
             {_stable_issue_key(item): _json_copy(item) for item in issues}.values(),
             key=_stable_issue_key,
@@ -1667,6 +1813,7 @@ class FlowService:
             "issues": stable_issues,
             "node_results": node_results,
             "selector_results": selector_results,
+            "version_results": version_results,
         }
         state_hash = canonical_hash(state)
         with self._lock:
@@ -1699,12 +1846,36 @@ class FlowService:
             "node_results": node_results,
             "symbol_results": [],
             "selector_results": selector_results,
-            "coverage_gaps": [],
+            "coverage_gaps": [
+                {
+                    "object_ref": f"manifest:{item.get('manifest_id', 'unknown')}",
+                    "reason": (
+                        "target_version_opaque_only"
+                        if item.get("tier") == "opaque_only"
+                        else "target_version_unclassified"
+                    ),
+                    "target_version": fixture.target_version,
+                }
+                for item in version_results
+                if item.get("tier") in {
+                    "opaque_only",
+                    "unsupported",
+                    "unknown",
+                }
+            ],
             "issues": stable_issues,
             "blocker_codes": blocker_codes,
-            "preview_eligible": not blocker_codes,
+            "preview_eligible": report_status == "compatible",
             "checked_at": self._timestamp(),
-            "extensions": {},
+            "extensions": {
+                "cam.flow_compatibility": {
+                    "semantic": False,
+                    "static_only": True,
+                    "transport": "none",
+                    "simulation_claimed": False,
+                    "version_results": version_results,
+                }
+            },
         }
         report_validation = validate_contract(
             report,
@@ -2317,10 +2488,15 @@ class FlowService:
                 context=context,
             )
             if not compatibility["preview_eligible"]:
+                first_code = (
+                    compatibility["blocker_codes"][0]
+                    if compatibility["blocker_codes"]
+                    else "FLOW_STATE_CONFLICT"
+                )
                 raise FlowServiceError(
-                    compatibility["blocker_codes"][0],
+                    first_code,
                     "Preview prerequisites changed after plan creation.",
-                    http_status=_status_for_code(compatibility["blocker_codes"][0]),
+                    http_status=_status_for_code(first_code),
                 )
             self._checkpoint(context)
             with self._lock:

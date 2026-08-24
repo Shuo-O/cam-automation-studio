@@ -2,8 +2,8 @@
   "schema_version": 1,
   "contract": "cam.capability_manifest.v1",
   "manifest_id": "manifest:nx:offline-static-mapper",
-  "manifest_version": "1.0.1",
-  "manifest_hash": "sha256:5395432d7a0f26750c1c1afcab06b2c62e6ed8953eaf241e94406103da7a13a5",
+  "manifest_version": "1.1.0",
+  "manifest_hash": "sha256:ae4b6309be49a649813706250823f854444433a10969c47b99ae3f9314602805",
   "provider": {
     "provider_id": "ug-cam-copilot",
     "display_name": "NX offline static FlowGraph mapper",
@@ -611,10 +611,24 @@
   "extensions": {
     "cam_automation": {
       "plugin_id": "ug-cam-copilot",
-      "plugin_version": "0.2.0",
+      "plugin_version": "0.2.1",
       "flow_sdk_range": ">=1.0.0 <2.0.0",
       "manifest_hash_profile": "adapter_capability_lock_v1",
-      "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.0.1",
+      "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.1.0",
+      "version_compatibility": {
+        "policy_version": 1,
+        "aliases": ["NX", "Siemens NX", "UG NX"],
+        "review_required_ranges": [
+          "NX >=1847,<2406",
+          "NX >2406"
+        ],
+        "opaque_only_ranges": [
+          "NX >=8,<1847"
+        ],
+        "unsupported_ranges": [],
+        "verified_source": "target_version_ranges",
+        "unverified_tiers_do_not_claim_api_equivalence": true
+      },
       "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
       "fixture_pack": [
         "plugins/ug-cam-copilot/examples/nx_flow/review_only_journal.py",

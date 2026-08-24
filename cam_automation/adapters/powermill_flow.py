@@ -32,11 +32,11 @@ _REQUIRED_GATES = [
 ]
 _NODE_VERSION = "1.0.0"
 _MANIFEST_ID = "manifest:powermill:offline-import:v1"
-_MANIFEST_VERSION = "1.0.1"
+_MANIFEST_VERSION = "1.1.0"
 _MANIFEST_HASH = (
     "sha256:"
     + hashlib.sha256(
-        b"cam-automation-studio:powermill:offline-import:v1.0.1"
+        b"cam-automation-studio:powermill:offline-import:v1.1.0"
     ).hexdigest()
 )
 _EMPTY_HASH = "sha256:" + hashlib.sha256(b"").hexdigest()

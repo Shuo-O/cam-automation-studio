@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+from .version_compatibility import validate_version_compatibility_policy
+
 
 CAPABILITY_CONTRACT = "cam.capability_manifest.v1"
 
@@ -480,6 +482,13 @@ def _validate_manifest_shape(document: Mapping[str, Any]) -> dict[str, Any]:
             "FLOW_SCHEMA_INVALID",
             "extensions must be an object.",
         )
+    try:
+        validate_version_compatibility_policy(manifest)
+    except ValueError as error:
+        raise CapabilityRegistryError(
+            "FLOW_SCHEMA_INVALID",
+            str(error),
+        ) from error
     # Keep these exact values normalized for indexing without changing unknown fields.
     manifest["manifest_id"] = manifest_id
     manifest["manifest_version"] = version

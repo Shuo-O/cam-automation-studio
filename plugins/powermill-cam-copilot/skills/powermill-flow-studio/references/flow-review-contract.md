@@ -23,6 +23,14 @@ subprocess, network, or source-generation authority.
 | missing node/version | Keep the node visible and report `CAPABILITY_MISSING` or `CAPABILITY_VERSION_MISMATCH`. |
 | revoked | Keep saved artifacts readable and report `CAPABILITY_REVOKED`; do not resume an old task. |
 
+Version compatibility is a separate deterministic conclusion. `verified`
+means only that the exact fixture evidence declared by the manifest was
+reviewed. `review_required` stays readable but is not preview-eligible.
+`opaque_only` preserves source evidence without semantic editing or
+projection. `unsupported` and `unknown` never inherit support from the nearest
+PowerMill release. Product aliases may normalize the name, but never the
+release number.
+
 Authorization applies only to the exact user, plugin version, manifest hash,
 permission category, scope, and purpose supplied by the host. Re-authorization
 does not resume prior work.

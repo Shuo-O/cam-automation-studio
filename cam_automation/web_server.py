@@ -106,7 +106,7 @@ def _runtime_connection_label(connection: dict[str, Any]) -> str:
 
 
 class _WorkflowHandler(BaseHTTPRequestHandler):
-    server_version = "CamAutomationStudio/0.6"
+    server_version = "CamAutomationStudio/0.6.1"
 
     def _json(
         self,
@@ -641,7 +641,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "status": "ok",
-                    "version": "0.6.0",
+                    "version": "0.6.1",
                     "module": "CAM Automation Studio Core",
                     "installed_plugins": plugins["installed_count"],
                 },

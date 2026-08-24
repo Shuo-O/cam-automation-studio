@@ -2,7 +2,7 @@
 name: powermill-flow-studio
 description: Review Autodesk PowerMill FlowGraph evidence, compatibility, round-trip and diff reports, and fixture-only PreviewPlans. Use for structured offline review, not macro execution or source generation.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # PowerMill Flow Studio Review
@@ -40,6 +40,10 @@ replacement for a structured artifact.
 5. Review CompatibilityReport and RoundTripReport status without changing
    their conclusions. Missing target evidence, unsupported syntax, hash drift,
    opaque changes, or failed F0-F3 checks remain blockers.
+   When deterministic `version_results` are present, keep `verified`,
+   `review_required`, `opaque_only`, `unsupported`, and `unknown` unchanged.
+   Only `verified` may remain preview-eligible; `review_required` needs
+   version-specific evidence, while `opaque_only` is source preservation only.
 6. Review graph/source diff without reconstructing or emitting macro or command
    source. Preserve unknown optional fields and untouched opaque spans.
 7. Review PreviewPlan only when it already declares

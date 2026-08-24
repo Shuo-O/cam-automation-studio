@@ -1,6 +1,6 @@
 # CAM Automation Studio
 
-这是一个插件优先、本地运行的 CAM 自动化工作台。`0.6.0` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
+这是一个插件优先、本地运行的 CAM 自动化工作台。`0.6.1` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
 
 每个软件模块位于 `plugins/<plugin-id>`，使用 `app-plugin.json` 声明功能、依赖和本地权限；Codex 插件继续使用 `.codex-plugin/plugin.json`。UG/NX 插件仍在 `plugins/ug-cam-copilot` 独立开发，PowerMill 使用 `plugins/powermill-cam-copilot`。
 
@@ -142,6 +142,12 @@ Projection 审查。所有 preview 固定 `transport=none`，执行计数、发�
 机床控制计数保持为零；Flow Studio 不导入 live Journal、不运行 PowerMill 宏，也不把
 学习结果直接变成机床可执行代码。
 
+NX 与 PowerMill 目标版本按 `verified`、`review_required`、`opaque_only` 和
+`unsupported/unknown` 分级。只有 capability manifest 顶层精确列出的 fixture
+审阅版本可能成为 `compatible`；较新、较老和历史内部版本号可继续离线读取，但会按
+证据降级，不能自动进入 preview。完整矩阵见
+[cam-version-compatibility-policy.md](docs/cam-version-compatibility-policy.md)。
+
 ## Siemens NX / UG Demo
 
 NX 适配器静态解析录制的 NX Open Python Journal，不会导入或执行 Journal。它使用 SQLite WAL 保存事件，并按独立会话支持度发现重复流程：
@@ -188,4 +194,4 @@ python -m unittest discover -s plugins/powermill-cam-copilot/tests -v
 node --test cam_automation/web/components/fixtures.test.cjs
 ```
 
-本次发布结果见 [release-notes-0.6.0.md](docs/release-notes-0.6.0.md)。
+本次发布结果见 [release-notes-0.6.1.md](docs/release-notes-0.6.1.md)。

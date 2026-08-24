@@ -386,7 +386,7 @@ def capability_manifest(
     codex_installed = "cam-codex-review" in installed
     return {
         "module": "CAM Automation Studio Core",
-        "version": "0.6.0",
+        "version": "0.6.1",
         "execution_mode": "dry-run" if execution_installed else "unavailable",
         "products": [
             {

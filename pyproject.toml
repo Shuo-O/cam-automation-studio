@@ -1,6 +1,6 @@
 [project]
 name = "cam-automation-lab"
-version = "0.6.0"
+version = "0.6.1"
 description = "Plugin-first CAM workflow learning and reviewed automation generation."
 requires-python = ">=3.10"
 license = { text = "MIT" }

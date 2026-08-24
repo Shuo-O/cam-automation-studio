@@ -178,6 +178,11 @@
 | `revocation` | object/null | 是 | 未撤销为 null |
 | `extensions` | object | 是 | namespaced 扩展 |
 
+`extensions.cam_automation.version_compatibility` 是可选的向后兼容扩展。顶层
+`target_version_ranges` 仍只表示已验证版本；扩展可以声明产品别名、
+`review_required_ranges`、`opaque_only_ranges` 和 `unsupported_ranges`。不了解该
+扩展的消费者必须继续按顶层范围 fail-closed，不能把扩展范围解释为已验证支持。
+
 每个 `node_types` 项必须包含：
 
 - `node_type`：`cam.*`、`nx.*` 或 `powermill.*`。

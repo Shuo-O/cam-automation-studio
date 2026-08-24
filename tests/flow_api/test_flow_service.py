@@ -244,6 +244,55 @@ class FlowServiceTests(unittest.TestCase):
             )
         self.assertEqual("PREVIEW_TARGET_AMBIGUOUS", caught.exception.code)
 
+    def test_review_required_target_is_readable_but_not_preview_eligible(self) -> None:
+        fixture = load_fixture()
+        asset = copy.deepcopy(fixture["asset_request"])
+        content = asset.pop("content").encode("utf-8")
+        asset.pop("content_encoding")
+        self.service.register_asset(content, **asset)
+
+        capability = copy.deepcopy(fixture["manifest"])
+        capability["extensions"] = {
+            "cam_automation": {
+                "version_compatibility": {
+                    "policy_version": 1,
+                    "aliases": ["NX", "Siemens NX", "UG NX"],
+                    "review_required_ranges": ["NX >=1847,<2406"],
+                    "opaque_only_ranges": ["NX >=8,<1847"],
+                    "unsupported_ranges": [],
+                }
+            }
+        }
+        self.service.register_capability(capability)
+
+        graph = copy.deepcopy(fixture["graph"])
+        graph["target_versions"] = ["NX 2312"]
+        self.service.save_graph(graph)
+        target = copy.deepcopy(fixture["target"])
+        target["target_version"] = "Siemens NX 2312"
+        target["target_instance_id"] = "fixture:nx:api:2312"
+        self.service.register_fixture_target(target)
+
+        report = self.service.check_compatibility(
+            graph["graph_id"],
+            target,
+        )
+        self.assertEqual("needs_review", report["status"])
+        self.assertFalse(report["preview_eligible"])
+        self.assertEqual([], report["blocker_codes"])
+        self.assertEqual(
+            "review_required",
+            report["extensions"]["cam.flow_compatibility"][
+                "version_results"
+            ][0]["tier"],
+        )
+        self.assertTrue(
+            all(
+                item["status"] in {"needs_review", "disabled"}
+                for item in report["node_results"]
+            )
+        )
+
         mismatched = copy.deepcopy(fixture["target"])
         mismatched["project_id"] = "another-project"
         with self.assertRaises(FlowConflictError) as caught:

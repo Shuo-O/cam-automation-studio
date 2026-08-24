@@ -1,6 +1,6 @@
 {
   "name": "ug-cam-copilot",
-  "version": "0.3.0+codex.20260824043001",
+  "version": "0.3.1+codex.20260824050455",
   "description": "Review-first Siemens NX CAM workflow learning, session comparison, recipe review, and fixture dry-run queries.",
   "author": {
     "name": "UG CAM Automation Team"

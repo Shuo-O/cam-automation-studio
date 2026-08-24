@@ -25,10 +25,13 @@ from .recipes import (
     RecipeStep,
     compute_recipe_hash,
 )
+from .version_compatibility import (
+    classify_target_version,
+    normalize_target_version,
+    target_version_matches,
+)
 
 
-_VERSION_NUMBER = re.compile(r"\d+(?:\.\d+)*")
-_VERSION_COMPARATOR = re.compile(r"(>=|<=|>|<|==|=)\s*(\d+(?:\.\d+)*)")
 _PARAMETER_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _BOUNDARY_NODE_TYPES = {
     "cam.flow.start",
@@ -53,6 +56,8 @@ _HARD_COMPATIBILITY_CODES = {
     "CAPABILITY_VERSION_MISMATCH",
     "CAPABILITY_REVOKED",
     "COMPAT_TARGET_VERSION_UNKNOWN",
+    "COMPAT_TARGET_VERSION_OPAQUE_ONLY",
+    "COMPAT_TARGET_VERSION_UNSUPPORTED",
     "COMPAT_SELECTOR_UNRESOLVED",
     "COMPAT_CONTEXT_INCOMPLETE",
 }
@@ -86,60 +91,6 @@ def _nodes(graph: Mapping[str, Any]) -> list[Mapping[str, Any]]:
             node for node in flow.get("nodes", []) if isinstance(node, Mapping)
         )
     return result
-
-
-def _version_tuple(value: str) -> tuple[int, ...] | None:
-    matches = _VERSION_NUMBER.findall(value)
-    if not matches:
-        return None
-    return tuple(int(item) for item in matches[-1].split("."))
-
-
-def _compare_versions(left: tuple[int, ...], right: tuple[int, ...]) -> int:
-    width = max(len(left), len(right))
-    normalized_left = left + (0,) * (width - len(left))
-    normalized_right = right + (0,) * (width - len(right))
-    return (normalized_left > normalized_right) - (
-        normalized_left < normalized_right
-    )
-
-
-def target_version_matches(target_version: str, declared_range: str) -> bool:
-    """Conservative product-neutral target range matching."""
-
-    target_version = target_version.strip()
-    declared_range = declared_range.strip()
-    if not target_version or not declared_range:
-        return False
-    if target_version.casefold() == declared_range.casefold():
-        return True
-    if declared_range.endswith("*"):
-        return target_version.casefold().startswith(
-            declared_range[:-1].strip().casefold()
-        )
-    comparators = _VERSION_COMPARATOR.findall(declared_range)
-    if not comparators:
-        return False
-    target_number = _version_tuple(target_version)
-    if target_number is None:
-        return False
-    for operator, raw_version in comparators:
-        required = tuple(int(item) for item in raw_version.split("."))
-        comparison = _compare_versions(target_number, required)
-        if operator == ">=" and comparison < 0:
-            return False
-        if operator == "<=" and comparison > 0:
-            return False
-        if operator == ">" and comparison <= 0:
-            return False
-        if operator == "<" and comparison >= 0:
-            return False
-        if operator in {"=", "=="} and comparison != 0:
-            return False
-    prefix = declared_range[: _VERSION_COMPARATOR.search(declared_range).start()].strip()
-    if prefix and not target_version.casefold().startswith(prefix.casefold()):
-        return False
-    return True
 
 
 def _major(value: Any) -> int | None:
@@ -295,6 +246,10 @@ def build_compatibility_report(
         source["target_version"] = versions[0] if len(versions) == 1 else ""
     target_version = str(target.get("target_version", "")).strip()
     target["target_version"] = target_version
+    normalized_target_version = normalize_target_version(
+        target_version,
+        str(document.get("product", "")),
+    )
     evidence = _adapter_evidence(
         adapter,
         document,
@@ -316,8 +271,12 @@ def build_compatibility_report(
                 "Compatibility requires an explicit target version.",
             )
         )
-    elif target_version not in {
-        str(item) for item in document.get("target_versions", [])
+    elif normalized_target_version not in {
+        normalize_target_version(
+            str(item),
+            str(document.get("product", "")),
+        )
+        for item in document.get("target_versions", [])
     }:
         issues.append(
             _issue(
@@ -340,6 +299,15 @@ def build_compatibility_report(
         for item in document.get("capability_lock", [])
         if isinstance(item, Mapping)
     ]
+    version_results: list[dict[str, Any]] = []
+    target_version_tier = "verified"
+    tier_order = {
+        "verified": 0,
+        "review_required": 1,
+        "opaque_only": 2,
+        "unsupported": 3,
+        "unknown": 4,
+    }
     for lock in locks:
         manifest_id = str(lock.get("manifest_id", ""))
         manifest = by_id.get(manifest_id)
@@ -383,17 +351,90 @@ def build_compatibility_report(
                     "The capability manifest belongs to another product.",
                 )
             )
+        version_result = classify_target_version(target_version, manifest)
+        version_results.append(
+            {
+                "manifest_id": manifest_id,
+                **version_result.to_dict(),
+            }
+        )
+        if tier_order[version_result.tier] > tier_order[target_version_tier]:
+            target_version_tier = version_result.tier
         ranges = [
             str(item) for item in manifest.get("target_version_ranges", [])
         ]
-        if target_version and not any(
-            target_version_matches(target_version, item) for item in ranges
-        ):
+        if version_result.tier == "review_required":
+            issues.append(
+                _issue(
+                    "COMPAT_TARGET_VERSION_REVIEW_REQUIRED",
+                    f"manifest:{manifest_id}",
+                    (
+                        "The target version is statically recognizable but has not "
+                        "passed this manifest's fixture verification."
+                    ),
+                    severity="warning",
+                    evidence=(
+                        target_version,
+                        version_result.normalized_version,
+                        str(version_result.matched_range or ""),
+                    ),
+                )
+            )
+        elif version_result.tier == "opaque_only":
+            coverage_gaps.append(
+                {
+                    "object_ref": f"manifest:{manifest_id}",
+                    "reason": "target_version_opaque_only",
+                    "target_version": target_version,
+                }
+            )
+            issues.append(
+                _issue(
+                    "COMPAT_TARGET_VERSION_OPAQUE_ONLY",
+                    f"manifest:{manifest_id}",
+                    (
+                        "The target version is limited to source preservation and "
+                        "cannot enter semantic editing, projection, or preview."
+                    ),
+                    evidence=(
+                        target_version,
+                        version_result.normalized_version,
+                        str(version_result.matched_range or ""),
+                    ),
+                )
+            )
             issues.append(
                 _issue(
                     "CAPABILITY_VERSION_MISMATCH",
                     f"manifest:{manifest_id}",
-                    "The target version is outside the manifest's reviewed ranges.",
+                    "The target version is outside the manifest's verified ranges.",
+                    evidence=(target_version, *ranges),
+                )
+            )
+        elif version_result.tier in {"unsupported", "unknown"} and target_version:
+            coverage_gaps.append(
+                {
+                    "object_ref": f"manifest:{manifest_id}",
+                    "reason": "target_version_unclassified",
+                    "target_version": target_version,
+                }
+            )
+            issues.append(
+                _issue(
+                    "COMPAT_TARGET_VERSION_UNSUPPORTED",
+                    f"manifest:{manifest_id}",
+                    "The target version is not covered by a declared compatibility tier.",
+                    evidence=(
+                        target_version,
+                        version_result.normalized_version,
+                    ),
+                )
+            )
+            issues.append(
+                _issue(
+                    "CAPABILITY_VERSION_MISMATCH",
+                    f"manifest:{manifest_id}",
+                    "The target version is outside the manifest's verified ranges.",
                     evidence=(target_version, *ranges),
                 )
             )
@@ -506,6 +547,10 @@ def build_compatibility_report(
                     "reason": "preview_support_not_declared",
                 }
             )
+        if target_version_tier == "review_required" and status == "supported":
+            status = "needs_review"
+        elif target_version_tier in {"opaque_only", "unsupported", "unknown"}:
+            status = "unsupported"
         node_results.append(
             {
                 "node_id": node_id,
@@ -658,6 +703,13 @@ def build_compatibility_report(
                 "static_only": True,
                 "transport": "none",
                 "simulation_claimed": False,
+                "version_results": sorted(
+                    version_results,
+                    key=lambda item: (
+                        str(item.get("manifest_id", "")),
+                        str(item.get("normalized_version", "")),
+                    ),
+                ),
             }
         },
     }

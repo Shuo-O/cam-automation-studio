@@ -2,8 +2,8 @@
   "schema_version": 1,
   "contract": "cam.capability_manifest.v1",
   "manifest_id": "manifest:powermill:offline-import:v1",
-  "manifest_version": "1.0.1",
-  "manifest_hash": "sha256:be3f88b60e5f240d6bd8378a7c1de49369dd38256fd00d280de3dbed63361aba",
+  "manifest_version": "1.1.0",
+  "manifest_hash": "sha256:0fa41ffb98bd2432b5158bdd994b6f2007a2caea505e2810049d775a0b6344d6",
   "provider": {
     "provider_id": "powermill-cam-copilot",
     "display_name": "PowerMill lossless offline FlowGraph importer",
@@ -356,10 +356,31 @@
   "extensions": {
     "cam_automation": {
       "plugin_id": "powermill-cam-copilot",
-      "plugin_version": "0.1.0",
+      "plugin_version": "0.1.1",
       "flow_sdk_range": ">=1.0.0 <2.0.0",
       "manifest_hash_profile": "adapter_capability_lock_v1",
-      "manifest_hash_input": "cam-automation-studio:powermill:offline-import:v1.0.1",
+      "manifest_hash_input": "cam-automation-studio:powermill:offline-import:v1.1.0",
+      "version_compatibility": {
+        "policy_version": 1,
+        "aliases": [
+          "PowerMill",
+          "PowerMill Ultimate",
+          "Autodesk PowerMill",
+          "Autodesk PowerMill Ultimate",
+          "PowerMILL"
+        ],
+        "review_required_ranges": [
+          "PowerMill >=2017,<2025",
+          "PowerMill >2026",
+          "PowerMill 21.*"
+        ],
+        "opaque_only_ranges": [
+          "PowerMill >=2010,<2017"
+        ],
+        "unsupported_ranges": [],
+        "verified_source": "target_version_ranges",
+        "unverified_tiers_do_not_claim_macro_equivalence": true
+      },
       "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
       "fixture_pack": [
         "plugins/powermill-cam-copilot/fixtures/flow/command-envelope.log",

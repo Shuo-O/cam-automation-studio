@@ -135,8 +135,8 @@ class CodexPluginContractTests(unittest.TestCase):
 
     def test_manifest_versions_and_cachebuster_base_are_consistent(self) -> None:
         expected = {
-            "ug-cam-copilot": "0.3.0",
-            "powermill-cam-copilot": "0.2.0",
+            "ug-cam-copilot": "0.3.1",
+            "powermill-cam-copilot": "0.2.1",
             "cam-local-capture": "0.2.0",
             "cam-execution-gateway": "0.2.0",
             "cam-codex-review": "0.2.0",

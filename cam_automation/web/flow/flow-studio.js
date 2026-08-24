@@ -533,11 +533,22 @@
       const nodeId = dragHandle.closest("[data-node-id]").dataset.nodeId;
       const startPosition = this.nodePosition(nodeId);
       const origin = { x: event.clientX, y: event.clientY };
-      const pointerId = event.pointerId;
-      dragHandle.setPointerCapture(pointerId);
+      const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+      event.preventDefault();
       this.selectNode(nodeId);
+      const activeNode = Array.from(this.elements.nodes.querySelectorAll(".flow-node"))
+        .find((item) => item.dataset.nodeId === nodeId);
+      const activeHandle = activeNode?.querySelector("[data-drag-handle]") || dragHandle;
+      if (pointerId !== null && typeof activeHandle.setPointerCapture === "function") {
+        try {
+          activeHandle.setPointerCapture(pointerId);
+        } catch (_error) {
+          // Pointer capture is optional in fixture and synthetic PointerEvent environments.
+        }
+      }
+      let finished = false;
       const move = (moveEvent) => {
-        if (moveEvent.pointerId !== pointerId) {
+        if (pointerId !== null && moveEvent.pointerId !== pointerId) {
           return;
         }
         const scale = this.state.viewport.scale;
@@ -550,21 +561,31 @@
         this.renderEdges();
       };
       const up = (upEvent) => {
-        if (upEvent.pointerId !== pointerId) {
+        if (finished || (pointerId !== null && upEvent.pointerId !== pointerId)) {
           return;
         }
-        dragHandle.removeEventListener("pointermove", move);
-        dragHandle.removeEventListener("pointerup", up);
-        dragHandle.removeEventListener("pointercancel", up);
+        finished = true;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        if (pointerId !== null && typeof activeHandle.releasePointerCapture === "function") {
+          try {
+            if (!activeHandle.hasPointerCapture || activeHandle.hasPointerCapture(pointerId)) {
+              activeHandle.releasePointerCapture(pointerId);
+            }
+          } catch (_error) {
+            // Pointer capture is optional in fixture and synthetic PointerEvent environments.
+          }
+        }
         if (this.state.dragDraft) {
           const position = { x: this.state.dragDraft.x, y: this.state.dragDraft.y };
           this.state.dragDraft = null;
           this.store.execute(core.moveNodeCommand(nodeId, position));
         }
       };
-      dragHandle.addEventListener("pointermove", move);
-      dragHandle.addEventListener("pointerup", up);
-      dragHandle.addEventListener("pointercancel", up);
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     }
 
     beginPortPointer(event, portElement) {

@@ -260,3 +260,35 @@ test("component fixture exposes accessible workbench surfaces and safe copy", ()
   assert.match(visibleSurface, /transport=none/);
   assert.match(visibleSurface, /commands_sent=0/);
 });
+
+test("responsive layout keeps canvas and evidence rows bounded", () => {
+  const css = fs.readFileSync(path.join(__dirname, "styles.css"), "utf8");
+  assert.match(
+    css,
+    /\.flow-app\s*\{[\s\S]*--flow-bottom-height:\s*250px;[\s\S]*grid-template-rows:\s*56px 66px minmax\(0,\s*1fr\) minmax\(0,\s*var\(--flow-bottom-height\)\)/
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 1180px\)[\s\S]*--flow-bottom-height:\s*245px;[\s\S]*grid-template-rows:\s*56px 112px minmax\(0,\s*1fr\) minmax\(0,\s*var\(--flow-bottom-height\)\)/
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 900px\)[\s\S]*\.flow-workspace\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*auto\) auto;[\s\S]*align-content:\s*start;/
+  );
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*\.flow-library,[\s\S]*\.flow-inspector\s*\{[\s\S]*min-height:\s*320px;/);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*\.flow-inspector\s*\{[\s\S]*min-height:\s*360px;/);
+  assert.match(css, /\.flow-canvas-panel\s*\{[\s\S]*min-height:\s*0;/);
+  assert.match(css, /\.flow-bottom\s*\{[\s\S]*min-height:\s*0;/);
+});
+
+test("real pointer drag updates transient position and commits a reversible move", () => {
+  const studioSource = fs.readFileSync(path.join(__dirname, "flow-studio.js"), "utf8");
+  assert.match(studioSource, /event\.preventDefault\(\);\s*this\.selectNode\(nodeId\);/);
+  assert.match(studioSource, /window\.addEventListener\("pointermove", move\)/);
+  assert.match(studioSource, /this\.state\.dragDraft\s*=\s*\{\s*nodeId,[\s\S]*positionRenderedNodes\(\);[\s\S]*renderEdges\(\);/);
+  assert.match(
+    studioSource,
+    /this\.state\.dragDraft\s*=\s*null;\s*this\.store\.execute\(core\.moveNodeCommand\(nodeId, position\)\)/
+  );
+  assert.match(studioSource, /window\.removeEventListener\("pointercancel", up\)/);
+});

@@ -104,8 +104,9 @@ pre {
 }
 
 .flow-app {
+  --flow-bottom-height: 250px;
   display: grid;
-  grid-template-rows: 56px 66px minmax(310px, 1fr) 250px;
+  grid-template-rows: 56px 66px minmax(0, 1fr) minmax(0, var(--flow-bottom-height));
   width: 100%;
   height: 100vh;
   overflow: hidden;
@@ -1538,7 +1539,8 @@ pre {
 
 @media (max-width: 1180px) {
   .flow-app {
-    grid-template-rows: 56px 112px minmax(310px, 1fr) 245px;
+    --flow-bottom-height: 245px;
+    grid-template-rows: 56px 112px minmax(0, 1fr) minmax(0, var(--flow-bottom-height));
   }
 
   .flow-targetbar {
@@ -1615,10 +1617,13 @@ pre {
 
   .flow-workspace {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, auto) auto;
+    align-content: start;
   }
 
   .flow-library,
   .flow-inspector {
+    min-height: 320px;
     border: 0;
     border-bottom: 1px solid var(--flow-line-strong);
   }
@@ -1645,10 +1650,12 @@ pre {
 
   .flow-canvas-panel {
     height: 570px;
+    min-height: 0;
     border-bottom: 1px solid var(--flow-line-strong);
   }
 
   .flow-inspector {
+    min-height: 360px;
     grid-template-rows: 45px auto;
   }
 
@@ -1660,6 +1667,7 @@ pre {
   }
 
   .flow-bottom {
+    align-self: start;
     min-height: 260px;
   }
 

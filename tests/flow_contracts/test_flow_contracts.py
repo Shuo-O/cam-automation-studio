@@ -4,10 +4,12 @@ import copy
 import json
 import unittest
 from pathlib import Path
+from types import MappingProxyType
 
 from cam_automation.flow_contracts import (
     CONTRACT_MODELS,
     SCHEMA_FILENAMES,
+    canonical_hash,
     canonical_json,
     compute_artifact_hash,
     compute_semantic_hash,
@@ -155,6 +157,21 @@ class FlowContractModelTests(unittest.TestCase):
         self.assertEqual(
             0.01,
             graph["flows"][0]["nodes"][1]["configuration"]["value"],
+        )
+
+    def test_semantic_hash_matches_detached_projection_for_all_mappings(self) -> None:
+        graph = copy.deepcopy(self.complete["flow_graph"])
+        frozen = contract_model(graph, "flow_graph")
+        configuration = graph["flows"][0]["nodes"][1]["configuration"]
+        graph["flows"][0]["nodes"][1]["configuration"] = MappingProxyType(
+            configuration
+        )
+        expected = canonical_hash(semantic_projection(graph))
+
+        self.assertEqual(expected, compute_semantic_hash(graph))
+        self.assertEqual(
+            canonical_hash(semantic_projection(frozen)),
+            compute_semantic_hash(frozen),
         )
 
     def test_source_snapshot_hash_sorts_assets_and_includes_text_profile(self) -> None:

@@ -6,6 +6,7 @@ import math
 import re
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -65,7 +66,14 @@ def _projection_clone(value: Any) -> Any:
     raise TypeError(f"Unsupported JSON value: {type(value).__name__}")
 
 
+@lru_cache(maxsize=512)
+def _short_utf16_sort_key(value: str) -> bytes:
+    return value.encode("utf-16-be", errors="surrogatepass")
+
+
 def _utf16_sort_key(value: str) -> bytes:
+    if len(value) <= 128:
+        return _short_utf16_sort_key(value)
     return value.encode("utf-16-be", errors="surrogatepass")
 
 
@@ -75,6 +83,17 @@ def _serialize_string(value: str) -> str:
     if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
         raise ValueError("RFC 8785 input cannot contain lone Unicode surrogates.")
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+@lru_cache(maxsize=512)
+def _serialize_short_key(value: str) -> str:
+    return _serialize_string(value)
+
+
+def _serialize_key(value: str) -> str:
+    if len(value) <= 128:
+        return _serialize_short_key(value)
+    return _serialize_string(value)
 
 
 def _serialize_number(value: int | float) -> str:
@@ -147,7 +166,7 @@ def canonical_json(value: Any) -> str:
         if any(not isinstance(key, str) for key in value):
             raise TypeError("RFC 8785 object keys must be strings.")
         parts = [
-            _serialize_string(key) + ":" + canonical_json(value[key])
+            _serialize_key(key) + ":" + canonical_json(value[key])
             for key in sorted(value, key=_utf16_sort_key)
         ]
         return "{" + ",".join(parts) + "}"
@@ -373,19 +392,31 @@ def round_trip_contract(
     return contract_model(value, schema_name).to_dict()
 
 
-def _semantic_extensions(value: Any) -> dict[str, Any]:
+def _semantic_extensions(
+    value: Any,
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
     result: dict[str, Any] = {}
     for key, item in value.items():
         if isinstance(item, Mapping) and item.get("semantic") is True:
-            result[str(key)] = _projection_clone(item)
+            result[str(key)] = _projection_clone(item) if detached else item
     return result
 
 
-def _binding_semantics(binding: Mapping[str, Any]) -> dict[str, Any]:
+def _binding_semantics(
+    binding: Mapping[str, Any],
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     return {
-        key: _projection_clone(binding.get(key))
+        key: (
+            _projection_clone(binding.get(key))
+            if detached
+            else binding.get(key)
+        )
         for key in (
             "binding_id",
             "target",
@@ -395,12 +426,21 @@ def _binding_semantics(binding: Mapping[str, Any]) -> dict[str, Any]:
             "source_output",
             "secret_ref",
         )
-    } | {"extensions": _semantic_extensions(binding.get("extensions"))}
+    } | {
+        "extensions": _semantic_extensions(
+            binding.get("extensions"),
+            detached=detached,
+        )
+    }
 
 
-def _node_semantics(node: Mapping[str, Any]) -> dict[str, Any]:
+def _node_semantics(
+    node: Mapping[str, Any],
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     bindings = [
-        _binding_semantics(item)
+        _binding_semantics(item, detached=detached)
         for item in node.get("bindings", [])
         if isinstance(item, Mapping)
     ]
@@ -412,13 +452,24 @@ def _node_semantics(node: Mapping[str, Any]) -> dict[str, Any]:
         "enabled": node.get("enabled"),
         "risk": node.get("risk"),
         "bindings": bindings,
-        "configuration": _projection_clone(node.get("configuration", {})),
-        "extensions": _semantic_extensions(node.get("extensions")),
+        "configuration": (
+            _projection_clone(node.get("configuration", {}))
+            if detached
+            else node.get("configuration", {})
+        ),
+        "extensions": _semantic_extensions(
+            node.get("extensions"),
+            detached=detached,
+        ),
     }
     opaque = node.get("opaque")
     if isinstance(opaque, Mapping):
         result["opaque"] = {
-            key: _projection_clone(opaque.get(key))
+            key: (
+                _projection_clone(opaque.get(key))
+                if detached
+                else opaque.get(key)
+            )
             for key in (
                 "reason",
                 "asset_revision_id",
@@ -430,31 +481,63 @@ def _node_semantics(node: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _edge_semantics(edge: Mapping[str, Any]) -> dict[str, Any]:
+def _edge_semantics(
+    edge: Mapping[str, Any],
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     return {
         "edge_id": edge.get("edge_id"),
         "kind": edge.get("kind"),
-        "source": _projection_clone(edge.get("source")),
-        "target": _projection_clone(edge.get("target")),
-        "condition": _projection_clone(edge.get("condition")),
+        "source": (
+            _projection_clone(edge.get("source"))
+            if detached
+            else edge.get("source")
+        ),
+        "target": (
+            _projection_clone(edge.get("target"))
+            if detached
+            else edge.get("target")
+        ),
+        "condition": (
+            _projection_clone(edge.get("condition"))
+            if detached
+            else edge.get("condition")
+        ),
         "priority": edge.get("priority"),
-        "extensions": _semantic_extensions(edge.get("extensions")),
+        "extensions": _semantic_extensions(
+            edge.get("extensions"),
+            detached=detached,
+        ),
     }
 
 
-def _parameter_semantics(parameter: Mapping[str, Any]) -> dict[str, Any]:
+def _parameter_semantics(
+    parameter: Mapping[str, Any],
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     ignored = {"evidence_mapping_ids", "review_status", "source_mapping_ids"}
     return {
-        str(key): _projection_clone(item)
+        str(key): _projection_clone(item) if detached else item
         for key, item in parameter.items()
         if key not in ignored and key != "extensions"
-    } | {"extensions": _semantic_extensions(parameter.get("extensions"))}
+    } | {
+        "extensions": _semantic_extensions(
+            parameter.get("extensions"),
+            detached=detached,
+        )
+    }
 
 
-def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
+def _semantic_projection(
+    graph: Mapping[str, Any] | FlowGraph,
+    *,
+    detached: bool,
+) -> dict[str, Any]:
     value = graph._validation_view() if isinstance(graph, FrozenContract) else graph
     parameters = [
-        _parameter_semantics(item)
+        _parameter_semantics(item, detached=detached)
         for item in value.get("graph_parameters", [])
         if isinstance(item, Mapping)
     ]
@@ -465,19 +548,19 @@ def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
         if not isinstance(flow, Mapping):
             continue
         nodes = [
-            _node_semantics(item)
+            _node_semantics(item, detached=detached)
             for item in flow.get("nodes", [])
             if isinstance(item, Mapping)
         ]
         nodes.sort(key=lambda item: str(item.get("node_id", "")))
         edges = [
-            _edge_semantics(item)
+            _edge_semantics(item, detached=detached)
             for item in flow.get("edges", [])
             if isinstance(item, Mapping)
         ]
         edges.sort(key=lambda item: str(item.get("edge_id", "")))
         interface_ports = [
-            _projection_clone(item)
+            _projection_clone(item) if detached else item
             for item in flow.get("interface_ports", [])
             if isinstance(item, Mapping)
         ]
@@ -493,13 +576,16 @@ def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
                 ),
                 "nodes": nodes,
                 "edges": edges,
-                "extensions": _semantic_extensions(flow.get("extensions")),
+                "extensions": _semantic_extensions(
+                    flow.get("extensions"),
+                    detached=detached,
+                ),
             }
         )
     flows.sort(key=lambda item: str(item.get("flow_id", "")))
 
     locks = [
-        _projection_clone(item)
+        _projection_clone(item) if detached else item
         for item in value.get("capability_lock", [])
         if isinstance(item, Mapping)
     ]
@@ -526,12 +612,19 @@ def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
             set(value.get("required_gates", [])),
             key=lambda item: str(item),
         ),
-        "extensions": _semantic_extensions(value.get("extensions")),
+        "extensions": _semantic_extensions(
+            value.get("extensions"),
+            detached=detached,
+        ),
     }
 
 
+def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
+    return _semantic_projection(graph, detached=True)
+
+
 def compute_semantic_hash(graph: Mapping[str, Any] | FlowGraph) -> str:
-    return canonical_hash(semantic_projection(graph))
+    return canonical_hash(_semantic_projection(graph, detached=False))
 
 
 def source_snapshot_projection(

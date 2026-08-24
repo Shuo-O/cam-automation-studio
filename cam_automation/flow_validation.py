@@ -850,11 +850,145 @@ def _normalized_safety_key(key: str) -> str:
     return key.lower().replace("-", "_").replace(".", "_")
 
 
+def _native_preflight_is_clean(
+    value: Mapping[str, Any],
+    schema_name: str,
+    limits: ResourceLimits,
+) -> bool:
+    """Check trusted-shape JSON without allocating diagnostic paths."""
+
+    if type(value) is not dict:
+        return False
+    if schema_name == "preview_plan":
+        target = value.get("target", {})
+        if (
+            value.get("execution_mode") != "fixture_dry_run"
+            or value.get("transport") != "none"
+            or type(target) is not dict
+            or target.get("target_kind") != "fixture"
+            or value.get("journal_executed") is not False
+            or value.get("macro_executed") is not False
+            or value.get("commands_sent") != 0
+            or value.get("machine_output_count") != 0
+        ):
+            return False
+
+    pending: list[tuple[Any, int, bool]] = [(value, 1, True)]
+    while pending:
+        item, depth, scan_safety = pending.pop()
+        if depth > limits.max_depth:
+            return False
+        item_type = type(item)
+        if item_type is str:
+            if len(item) > limits.max_string_bytes or (
+                not item.isascii()
+                and len(item.encode("utf-8")) > limits.max_string_bytes
+            ):
+                return False
+            continue
+        if item_type is dict:
+            for key, child in item.items():
+                if type(key) is not str:
+                    return False
+                child_safety = scan_safety
+                if scan_safety:
+                    if (
+                        key.isascii()
+                        and key.islower()
+                        and "-" not in key
+                        and "." not in key
+                    ):
+                        normalized_key = key
+                    else:
+                        normalized_key = _normalized_safety_key(key)
+                    if (
+                        normalized_key in _MACHINE_OUTPUT_KEYS
+                        or (
+                            normalized_key in _AI_AUTHORITY_KEYS
+                            and child is not False
+                            and child is not None
+                        )
+                    ):
+                        return False
+                    if key in _SAFETY_SCAN_EXCLUDED_FIELDS:
+                        child_safety = False
+                    else:
+                        if (
+                            key in {"action", "node_type", "operation"}
+                            and type(child) is str
+                        ):
+                            normalized = child.lower().replace("-", "_")
+                            if any(
+                                part in normalized
+                                for part in _MACHINE_ACTION_PARTS
+                            ):
+                                return False
+                        if (
+                            key in {"execution_mode", "mode", "target_kind"}
+                            and child == "live"
+                        ):
+                            return False
+                        if (
+                            key == "transport"
+                            and child is not None
+                            and child != "none"
+                        ):
+                            return False
+                        if (
+                            key in {"journal_executed", "macro_executed"}
+                            and child is True
+                        ):
+                            return False
+                        if (
+                            key == "commands_sent"
+                            and type(child) is int
+                            and child > 0
+                        ):
+                            return False
+                pending.append((child, depth + 1, child_safety))
+            continue
+        if item_type is list:
+            pending.extend(
+                (child, depth + 1, scan_safety)
+                for child in item
+            )
+            continue
+        if item is None or item_type in {bool, int, float}:
+            continue
+        return False
+
+    if schema_name == "automation_asset":
+        byte_length = value.get("byte_length")
+        if type(byte_length) is int and byte_length > limits.max_asset_bytes:
+            return False
+    elif schema_name == "flow_graph":
+        node_count = 0
+        edge_count = 0
+        flows = value.get("flows", [])
+        if type(flows) is not list:
+            return False
+        for flow in flows:
+            if type(flow) is not dict:
+                return False
+            nodes = flow.get("nodes", [])
+            edges = flow.get("edges", [])
+            if type(nodes) is not list or type(edges) is not list:
+                return False
+            node_count += len(nodes)
+            edge_count += len(edges)
+        if node_count > limits.max_nodes or edge_count > limits.max_edges:
+            return False
+    return True
+
+
 def _preflight_diagnostics(
     value: Mapping[str, Any],
     schema_name: str,
     limits: ResourceLimits,
 ) -> list[Diagnostic]:
+    if _native_preflight_is_clean(value, schema_name, limits):
+        return []
+
     safety: list[Diagnostic] = []
     resource_tree_invalid = False
     if schema_name == "preview_plan":

@@ -5,12 +5,14 @@ import json
 import time
 import unittest
 from pathlib import Path
+from types import MappingProxyType
 
 from cam_automation.flow_contracts import compute_semantic_hash
 from cam_automation.flow_validation import (
     DEFAULT_RESOURCE_LIMITS,
     ERROR_CODES,
     ResourceLimits,
+    _native_preflight_is_clean,
     _preflight_diagnostics,
     _resource_diagnostics,
     _safety_diagnostics,
@@ -231,6 +233,13 @@ class FlowValidationTests(unittest.TestCase):
         unsafe_preview["transport"] = "native"
         unsafe_preview["steps"] = [{"machine_output": "redacted"}]
         cases.append(("preview_plan", unsafe_preview, DEFAULT_RESOURCE_LIMITS))
+        cases.append(
+            (
+                "preview_plan",
+                MappingProxyType(unsafe_preview),
+                DEFAULT_RESOURCE_LIMITS,
+            )
+        )
 
         for schema_name, value, limits in cases:
             with self.subTest(schema_name=schema_name, limits=limits):
@@ -243,6 +252,59 @@ class FlowValidationTests(unittest.TestCase):
                         for item in _preflight_diagnostics(value, schema_name, limits)
                     ],
                 )
+
+    def test_native_preflight_falls_back_for_every_anomalous_shape(self) -> None:
+        graph = copy.deepcopy(self.complete["flow_graph"])
+        self.assertTrue(
+            _native_preflight_is_clean(
+                graph,
+                "flow_graph",
+                DEFAULT_RESOURCE_LIMITS,
+            )
+        )
+
+        custom_mapping = MappingProxyType(graph)
+        self.assertFalse(
+            _native_preflight_is_clean(
+                custom_mapping,
+                "flow_graph",
+                DEFAULT_RESOURCE_LIMITS,
+            )
+        )
+
+        unsafe = copy.deepcopy(graph)
+        unsafe["extensions"]["machine.output"] = {"value": "redacted"}
+        self.assertFalse(
+            _native_preflight_is_clean(
+                unsafe,
+                "flow_graph",
+                DEFAULT_RESOURCE_LIMITS,
+            )
+        )
+        self.assertIn(
+            "SAFETY_MACHINE_OUTPUT_FORBIDDEN",
+            codes(validate_flow_graph(unsafe)),
+        )
+
+        constrained = ResourceLimits(max_depth=2)
+        self.assertFalse(
+            _native_preflight_is_clean(
+                graph,
+                "flow_graph",
+                constrained,
+            )
+        )
+        self.assertIn(
+            "RESOURCE_LIMIT_EXCEEDED",
+            codes(validate_flow_graph(graph, limits=constrained)),
+        )
+
+        invalid_schema = copy.deepcopy(self.minimal["flow_node"])
+        del invalid_schema["node_id"]
+        self.assertIn(
+            "FLOW_SCHEMA_INVALID",
+            codes(validate_contract(invalid_schema, "flow_node")),
+        )
 
     def test_parameter_edit_validation_meets_frozen_scale_budget(self) -> None:
         graph, manifest = performance_fixture(self.complete)

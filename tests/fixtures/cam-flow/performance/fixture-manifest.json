@@ -1,0 +1,26 @@
+{
+  "contract": "cam.flow.performance_fixture_set.v1",
+  "fixtures": {
+    "flow-500-source.txt": {
+      "byte_length": 9390,
+      "line_count": 500,
+      "sha256": "sha256:111ed0d1e410f3151515ca1e30594252eea6d5e6e5a0d700efa0d201164f6bc9"
+    },
+    "flow-500.json": {
+      "byte_length": 1686141,
+      "line_count": null,
+      "sha256": "sha256:d4184996b1070d5a1fcfaff94c72496591cd901d740c54efd437c203d535e71c"
+    },
+    "nx-10000.py": {
+      "byte_length": 140118,
+      "line_count": 10000,
+      "sha256": "sha256:7becbbb033c55147bdb3b41d9f61caf0c473e9d361ef92749bf88f65832e1643"
+    },
+    "powermill-10000.mac": {
+      "byte_length": 260000,
+      "line_count": 10000,
+      "sha256": "sha256:c329a660f305c2dad0ee51c386bf9be7dbfc57c9cd813ceb63db7bb8c09a6c70"
+    }
+  },
+  "schema_version": 1
+}

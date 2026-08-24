@@ -86,6 +86,30 @@ def _parent_at(value: Any, path: str) -> tuple[Any, str]:
 
 
 def _same(left: Any, right: Any) -> bool:
+    if isinstance(left, str) and isinstance(right, str):
+        if any(
+            0xD800 <= ord(character) <= 0xDFFF
+            for character in left + right
+        ):
+            canonical_json(left)
+            canonical_json(right)
+        return left == right
+    if left is None or right is None:
+        return left is right
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        canonical_json(left)
+        canonical_json(right)
+        return left == right
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        if set(left) != set(right):
+            return False
+        return all(_same(left[key], right[key]) for key in left)
+    if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+        return len(left) == len(right) and all(
+            _same(before, after) for before, after in zip(left, right)
+        )
     return canonical_json(left) == canonical_json(right)
 
 
@@ -283,17 +307,24 @@ class GraphCommand:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _HistoryEntry:
+    command: GraphCommand
+    before: FlowGraph
+    after: FlowGraph
+
+
 class CommandHistory:
     """In-memory undo/redo history. It never invokes a parser or source generator."""
 
     def __init__(self, graph: Mapping[str, Any] | FlowGraph) -> None:
         self._graph = FlowGraph(_raw(graph))
-        self._undo: list[GraphCommand] = []
-        self._redo: list[GraphCommand] = []
+        self._undo: list[_HistoryEntry] = []
+        self._redo: list[_HistoryEntry] = []
 
     @property
     def graph(self) -> FlowGraph:
-        return FlowGraph(self._graph.to_dict())
+        return self._graph
 
     @property
     def can_undo(self) -> bool:
@@ -304,25 +335,27 @@ class CommandHistory:
         return bool(self._redo)
 
     def execute(self, command: GraphCommand) -> FlowGraph:
-        self._graph = command.apply(self._graph)
-        self._undo.append(command)
+        before = self._graph
+        after = command.apply(before)
+        self._graph = after
+        self._undo.append(_HistoryEntry(command, before, after))
         self._redo.clear()
         return self.graph
 
     def undo(self) -> FlowGraph:
         if not self._undo:
             raise IndexError("No GraphCommand is available to undo.")
-        command = self._undo.pop()
-        self._graph = command.undo(self._graph)
-        self._redo.append(command)
+        entry = self._undo.pop()
+        self._graph = entry.before
+        self._redo.append(entry)
         return self.graph
 
     def redo(self) -> FlowGraph:
         if not self._redo:
             raise IndexError("No GraphCommand is available to redo.")
-        command = self._redo.pop()
-        self._graph = command.apply(self._graph)
-        self._undo.append(command)
+        entry = self._redo.pop()
+        self._graph = entry.after
+        self._undo.append(entry)
         return self.graph
 
 
@@ -614,8 +647,18 @@ def _json_changes(
     after: Any,
     path: str = "",
 ) -> tuple[JsonChange, ...]:
+    changes: list[JsonChange] = []
+    _append_json_changes(changes, before, after, path)
+    return tuple(changes)
+
+
+def _append_json_changes(
+    changes: list[JsonChange],
+    before: Any,
+    after: Any,
+    path: str,
+) -> None:
     if isinstance(before, Mapping) and isinstance(after, Mapping):
-        changes: list[JsonChange] = []
         for key in sorted(set(before) | set(after)):
             child = f"{path}/{_pointer_part(str(key))}"
             if key not in before:
@@ -623,27 +666,34 @@ def _json_changes(
             elif key not in after:
                 changes.append(JsonChange("remove", child, before=before[key]))
             else:
-                changes.extend(_json_changes(before[key], after[key], child))
-        return tuple(changes)
+                _append_json_changes(
+                    changes,
+                    before[key],
+                    after[key],
+                    child,
+                )
+        return
     if isinstance(before, list) and isinstance(after, list):
-        if _same(before, after):
-            return ()
-        changes = []
         common = min(len(before), len(after))
         for index in range(common):
-            changes.extend(_json_changes(before[index], after[index], f"{path}/{index}"))
+            _append_json_changes(
+                changes,
+                before[index],
+                after[index],
+                f"{path}/{index}",
+            )
         for index in range(len(before) - 1, common - 1, -1):
             changes.append(JsonChange("remove", f"{path}/{index}", before=before[index]))
         for index in range(common, len(after)):
             changes.append(JsonChange("add", f"{path}/{index}", after=after[index]))
-        return tuple(changes)
+        return
     if _same(before, after):
-        return ()
-    return (JsonChange("replace", path or "/", before=before, after=after),)
+        return
+    changes.append(JsonChange("replace", path or "/", before=before, after=after))
 
 
 def _source_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
-    value = _raw(graph)
+    value = graph.to_dict() if isinstance(graph, FrozenContract) else graph
     mappings = []
     for mapping in value.get("source_mappings", []):
         if not isinstance(mapping, Mapping):
@@ -672,7 +722,7 @@ def _source_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
 
 
 def _opaque_evidence(graph: Mapping[str, Any] | FlowGraph) -> list[dict[str, Any]]:
-    value = _raw(graph)
+    value = graph.to_dict() if isinstance(graph, FrozenContract) else graph
     result: list[dict[str, Any]] = []
     for flow in value.get("flows", []):
         if not isinstance(flow, Mapping):
@@ -762,11 +812,9 @@ def four_layer_diff(
         _optional_projection(before_preview),
         _optional_projection(after_preview),
     )
-    retained = tuple(
-        item
-        for item in _opaque_evidence(after)
-        if item in _opaque_evidence(before)
-    )
+    before_opaque = _opaque_evidence(before)
+    after_opaque = _opaque_evidence(after)
+    retained = tuple(item for item in after_opaque if item in before_opaque)
     identity = {
         "graph_id": before["graph_id"],
         "before_revision_id": before.get("revision_id"),

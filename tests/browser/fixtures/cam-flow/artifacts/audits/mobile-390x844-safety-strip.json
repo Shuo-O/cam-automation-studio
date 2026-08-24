@@ -1,0 +1,85 @@
+{
+  "strip": {
+    "rect": {
+      "left": 0,
+      "top": 808.15625,
+      "right": 390,
+      "bottom": 843.15625,
+      "width": 390,
+      "height": 35
+    },
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "fully_in_viewport": true,
+    "hit_target": true
+  },
+  "fields": [
+    {
+      "label": "transport=none",
+      "rect": {
+        "left": 76.484375,
+        "top": 820.359375,
+        "right": 151.109375,
+        "bottom": 831.953125,
+        "width": 74.625,
+        "height": 11.59375
+      },
+      "fully_in_viewport": true,
+      "hit_target": true
+    },
+    {
+      "label": "commands_sent=0",
+      "rect": {
+        "left": 159.109375,
+        "top": 820.359375,
+        "right": 238.421875,
+        "bottom": 831.953125,
+        "width": 79.3125,
+        "height": 11.59375
+      },
+      "fully_in_viewport": true,
+      "hit_target": true
+    },
+    {
+      "label": "journal_executed=false",
+      "rect": {
+        "left": 246.421875,
+        "top": 820.359375,
+        "right": 358.546875,
+        "bottom": 831.953125,
+        "width": 112.125,
+        "height": 11.59375
+      },
+      "fully_in_viewport": true,
+      "hit_target": true
+    },
+    {
+      "label": "macro_executed=false",
+      "rect": {
+        "left": 287.546875,
+        "top": 820.359375,
+        "right": 390.296875,
+        "bottom": 831.953125,
+        "width": 102.75,
+        "height": 11.59375
+      },
+      "fully_in_viewport": true,
+      "hit_target": true
+    },
+    {
+      "label": "machine_output_count=0",
+      "rect": {
+        "left": 139.296875,
+        "top": 820.359375,
+        "right": 251.421875,
+        "bottom": 831.953125,
+        "width": 112.125,
+        "height": 11.59375
+      },
+      "fully_in_viewport": true,
+      "hit_target": true
+    }
+  ]
+}

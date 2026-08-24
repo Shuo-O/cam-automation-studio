@@ -1,0 +1,93 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "document": {
+    "scrollWidth": 390,
+    "scrollHeight": 844
+  },
+  "rects": {
+    "host": {
+      "x": 0,
+      "y": 104,
+      "right": 390,
+      "bottom": 2833.15625,
+      "width": 390,
+      "height": 2729.15625
+    },
+    "app": {
+      "x": 0,
+      "y": 104,
+      "right": 390,
+      "bottom": 2832.15625,
+      "width": 390,
+      "height": 2728.15625
+    },
+    "topbar": {
+      "x": 0,
+      "y": 104,
+      "right": 390,
+      "bottom": 245.59375,
+      "width": 390,
+      "height": 141.59375
+    },
+    "targetbar": {
+      "x": 0,
+      "y": 245.59375,
+      "right": 390,
+      "bottom": 469.578125,
+      "width": 390,
+      "height": 223.984375
+    },
+    "workspace": {
+      "x": 0,
+      "y": 469.578125,
+      "right": 390,
+      "bottom": 2532.15625,
+      "width": 390,
+      "height": 2062.578125
+    },
+    "library": {
+      "x": 0,
+      "y": 469.578125,
+      "right": 390,
+      "bottom": 1124.609375,
+      "width": 390,
+      "height": 655.03125
+    },
+    "canvas": {
+      "x": 0,
+      "y": 1124.609375,
+      "right": 390,
+      "bottom": 1644.609375,
+      "width": 390,
+      "height": 520
+    },
+    "inspector": {
+      "x": 0,
+      "y": 1644.609375,
+      "right": 390,
+      "bottom": 2531.15625,
+      "width": 390,
+      "height": 886.546875
+    },
+    "bottom": {
+      "x": 0,
+      "y": 2532.15625,
+      "right": 390,
+      "bottom": 2832.15625,
+      "width": 390,
+      "height": 300
+    },
+    "safety": {
+      "x": 0,
+      "y": 2797.15625,
+      "right": 390,
+      "bottom": 2832.15625,
+      "width": 390,
+      "height": 35
+    }
+  },
+  "issues": []
+}

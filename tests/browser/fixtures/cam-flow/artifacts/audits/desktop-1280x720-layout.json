@@ -1,0 +1,93 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "document": {
+    "scrollWidth": 1280,
+    "scrollHeight": 720
+  },
+  "rects": {
+    "host": {
+      "x": 212,
+      "y": 58,
+      "right": 1280,
+      "bottom": 740,
+      "width": 1068,
+      "height": 682
+    },
+    "app": {
+      "x": 212,
+      "y": 58,
+      "right": 1280,
+      "bottom": 740,
+      "width": 1068,
+      "height": 682
+    },
+    "topbar": {
+      "x": 212,
+      "y": 58,
+      "right": 1280,
+      "bottom": 114,
+      "width": 1068,
+      "height": 56
+    },
+    "targetbar": {
+      "x": 212,
+      "y": 114,
+      "right": 1280,
+      "bottom": 180,
+      "width": 1068,
+      "height": 66
+    },
+    "workspace": {
+      "x": 212,
+      "y": 180,
+      "right": 1280,
+      "bottom": 490,
+      "width": 1068,
+      "height": 310
+    },
+    "library": {
+      "x": 212,
+      "y": 180,
+      "right": 464,
+      "bottom": 489,
+      "width": 252,
+      "height": 309
+    },
+    "canvas": {
+      "x": 464,
+      "y": 180,
+      "right": 976,
+      "bottom": 489,
+      "width": 512,
+      "height": 309
+    },
+    "inspector": {
+      "x": 976,
+      "y": 180,
+      "right": 1280,
+      "bottom": 489,
+      "width": 304,
+      "height": 309
+    },
+    "bottom": {
+      "x": 212,
+      "y": 490,
+      "right": 1280,
+      "bottom": 740,
+      "width": 1068,
+      "height": 250
+    },
+    "safety": {
+      "x": 212,
+      "y": 705,
+      "right": 1280,
+      "bottom": 740,
+      "width": 1068,
+      "height": 35
+    }
+  },
+  "issues": []
+}

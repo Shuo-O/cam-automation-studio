@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "contract": "cam.flow.browser_acceptance.v1",
+  "viewports": [
+    {
+      "name": "desktop-1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "name": "mobile-390x844",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "allowed_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "::1"
+  ],
+  "required_zero_execution_fields": [
+    "transport=none",
+    "commands_sent=0",
+    "journal_executed=false",
+    "macro_executed=false",
+    "machine_output_count=0"
+  ],
+  "fixture_target": {
+    "product": "powermill",
+    "target_version": "PowerMill 2026",
+    "target_instance_id": "fixture:powermill:4101:C1",
+    "project_id": "fixture-project:pm:cavity-a"
+  },
+  "long_chinese_probe": "不会根据前台窗口、标题、进程编号或列表顺序自动选择目标实例，必须明确核对产品、版本、fixture 实例和测试项目。",
+  "forbidden_text": [
+    "生成 NC",
+    "生成 G-code",
+    "生成 CLSF",
+    "postprocess",
+    "machine control"
+  ]
+}

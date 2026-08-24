@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -376,8 +376,229 @@ def _matches_type(value: Any, expected: str) -> bool:
     if expected == "array":
         return isinstance(value, list)
     if expected == "object":
-        return isinstance(value, Mapping)
+        return isinstance(value, dict) or isinstance(value, Mapping)
     return False
+
+
+@lru_cache(maxsize=None)
+def _compiled_pattern(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern)
+
+
+def _schema_is_valid(
+    value: Any,
+    schema: Mapping[str, Any] | bool,
+) -> bool:
+    if schema is True:
+        return True
+    if schema is False:
+        return False
+    reference = schema.get("$ref")
+    if reference is not None:
+        return _schema_is_valid(value, _resolve_ref(str(reference)))
+
+    alternatives = schema.get("anyOf")
+    if alternatives is not None:
+        return any(_schema_is_valid(value, item) for item in alternatives)
+    alternatives = schema.get("oneOf")
+    if alternatives is not None:
+        return sum(_schema_is_valid(value, item) for item in alternatives) == 1
+
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        types = (expected_type,) if isinstance(expected_type, str) else expected_type
+        if not any(_matches_type(value, item) for item in types):
+            return False
+    if "const" in schema and value != schema["const"]:
+        return False
+    if "enum" in schema and value not in schema["enum"]:
+        return False
+
+    if isinstance(value, str):
+        if len(value) < int(schema.get("minLength", 0)):
+            return False
+        pattern = schema.get("pattern")
+        if pattern is not None and _compiled_pattern(str(pattern)).search(value) is None:
+            return False
+    if type(value) in {int, float} and "minimum" in schema:
+        if value < schema["minimum"]:
+            return False
+    if isinstance(value, list):
+        if len(value) < int(schema.get("minItems", 0)):
+            return False
+        if "maxItems" in schema and len(value) > int(schema["maxItems"]):
+            return False
+        if schema.get("uniqueItems"):
+            rendered = [
+                json.dumps(item, sort_keys=True, ensure_ascii=False) for item in value
+            ]
+            if len(rendered) != len(set(rendered)):
+                return False
+        item_schema = schema.get("items")
+        if item_schema is not None:
+            for item in value:
+                if not _schema_is_valid(item, item_schema):
+                    return False
+    if isinstance(value, dict) or isinstance(value, Mapping):
+        for required in schema.get("required", ()):
+            if required not in value:
+                return False
+        properties = schema.get("properties", {})
+        additional_allowed = schema.get("additionalProperties") is not False
+        for key, item in value.items():
+            child_schema = properties.get(key)
+            if child_schema is not None:
+                if not _schema_is_valid(item, child_schema):
+                    return False
+            elif not additional_allowed:
+                return False
+    return True
+
+
+def _compile_schema_validator(
+    schema: Mapping[str, Any] | bool,
+    memo: dict[int, Callable[[Any], bool]],
+) -> Callable[[Any], bool]:
+    if schema is True:
+        return lambda _value: True
+    if schema is False:
+        return lambda _value: False
+
+    schema_id = id(schema)
+    cached = memo.get(schema_id)
+    if cached is not None:
+        return cached
+
+    target: list[Callable[[Any], bool]] = []
+
+    def indirect(value: Any) -> bool:
+        return target[0](value)
+
+    memo[schema_id] = indirect
+    reference = schema.get("$ref")
+    if reference is not None:
+        validator = _compile_schema_validator(
+            _resolve_ref(str(reference)),
+            memo,
+        )
+    elif "anyOf" in schema:
+        alternatives = tuple(
+            _compile_schema_validator(item, memo) for item in schema["anyOf"]
+        )
+
+        def validator(value: Any) -> bool:
+            return any(check(value) for check in alternatives)
+
+    elif "oneOf" in schema:
+        alternatives = tuple(
+            _compile_schema_validator(item, memo) for item in schema["oneOf"]
+        )
+
+        def validator(value: Any) -> bool:
+            return sum(check(value) for check in alternatives) == 1
+
+    else:
+        expected_type = schema.get("type")
+        type_names = (
+            frozenset((expected_type,))
+            if isinstance(expected_type, str)
+            else frozenset(expected_type or ())
+        )
+        has_const = "const" in schema
+        const_value = schema.get("const")
+        enum_values = schema.get("enum")
+        min_length = int(schema.get("minLength", 0))
+        pattern_text = schema.get("pattern")
+        pattern = (
+            _compiled_pattern(str(pattern_text)) if pattern_text is not None else None
+        )
+        minimum = schema.get("minimum")
+        has_minimum = "minimum" in schema
+        min_items = int(schema.get("minItems", 0))
+        max_items = int(schema["maxItems"]) if "maxItems" in schema else None
+        unique_items = bool(schema.get("uniqueItems"))
+        item_schema = schema.get("items")
+        item_validator = (
+            _compile_schema_validator(item_schema, memo)
+            if item_schema is not None
+            else None
+        )
+        required = tuple(schema.get("required", ()))
+        properties = {
+            key: _compile_schema_validator(item, memo)
+            for key, item in schema.get("properties", {}).items()
+        }
+        additional_allowed = schema.get("additionalProperties") is not False
+
+        def validator(value: Any) -> bool:
+            if type_names:
+                value_type = type(value)
+                if value is None:
+                    matches = "null" in type_names
+                elif value_type is bool:
+                    matches = "boolean" in type_names
+                elif value_type is int:
+                    matches = "integer" in type_names or "number" in type_names
+                elif value_type is float:
+                    matches = "number" in type_names
+                elif isinstance(value, str):
+                    matches = "string" in type_names
+                elif isinstance(value, list):
+                    matches = "array" in type_names
+                elif isinstance(value, dict) or isinstance(value, Mapping):
+                    matches = "object" in type_names
+                else:
+                    matches = False
+                if not matches:
+                    return False
+            if has_const and value != const_value:
+                return False
+            if enum_values is not None and value not in enum_values:
+                return False
+            if isinstance(value, str):
+                if len(value) < min_length:
+                    return False
+                if pattern is not None and pattern.search(value) is None:
+                    return False
+            if type(value) in {int, float} and has_minimum and value < minimum:
+                return False
+            if isinstance(value, list):
+                if len(value) < min_items:
+                    return False
+                if max_items is not None and len(value) > max_items:
+                    return False
+                if unique_items:
+                    rendered = [
+                        json.dumps(item, sort_keys=True, ensure_ascii=False)
+                        for item in value
+                    ]
+                    if len(rendered) != len(set(rendered)):
+                        return False
+                if item_validator is not None:
+                    for item in value:
+                        if not item_validator(item):
+                            return False
+            if isinstance(value, dict) or isinstance(value, Mapping):
+                for key in required:
+                    if key not in value:
+                        return False
+                for key, item in value.items():
+                    child_validator = properties.get(key)
+                    if child_validator is not None:
+                        if not child_validator(item):
+                            return False
+                    elif not additional_allowed:
+                        return False
+            return True
+
+    target.append(validator)
+    memo[schema_id] = validator
+    return validator
+
+
+@lru_cache(maxsize=None)
+def _schema_validator(schema_name: str) -> Callable[[Any], bool]:
+    return _compile_schema_validator(_schema_definition(schema_name), {})
 
 
 def _schema_errors(
@@ -394,11 +615,11 @@ def _schema_errors(
 
     errors: list[str] = []
     if "anyOf" in schema:
-        if not any(not _schema_errors(value, item, path) for item in schema["anyOf"]):
+        if not any(_schema_is_valid(value, item) for item in schema["anyOf"]):
             errors.append(path)
         return errors
     if "oneOf" in schema:
-        matches = sum(not _schema_errors(value, item, path) for item in schema["oneOf"])
+        matches = sum(_schema_is_valid(value, item) for item in schema["oneOf"])
         if matches != 1:
             errors.append(path)
         return errors
@@ -417,7 +638,7 @@ def _schema_errors(
         if len(value) < int(schema.get("minLength", 0)):
             errors.append(path)
         pattern = schema.get("pattern")
-        if pattern is not None and re.search(str(pattern), value) is None:
+        if pattern is not None and _compiled_pattern(str(pattern)).search(value) is None:
             errors.append(path)
     if type(value) in {int, float} and "minimum" in schema:
         if value < schema["minimum"]:
@@ -464,7 +685,7 @@ def validate_schema(
     *,
     limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
 ) -> ValidationResult:
-    raw = value.to_dict() if isinstance(value, FrozenContract) else value
+    raw = value._validation_view() if isinstance(value, FrozenContract) else value
     if not isinstance(raw, Mapping):
         normalized = normalize_schema_name(schema_name or "flow_graph")
         return ValidationResult(
@@ -472,9 +693,15 @@ def validate_schema(
             (_diagnostic("FLOW_SCHEMA_INVALID", "$"),),
         )
     normalized = _detect_schema_name(raw, schema_name)
+    definition = _schema_definition(normalized)
+    errors = (
+        []
+        if _schema_validator(normalized)(raw)
+        else _schema_errors(raw, definition)
+    )
     diagnostics = [
         _diagnostic("FLOW_SCHEMA_INVALID", path)
-        for path in _schema_errors(raw, _schema_definition(normalized))
+        for path in errors
     ]
     return ValidationResult(
         normalized,
@@ -616,6 +843,157 @@ def _safety_diagnostics(value: Mapping[str, Any], schema_name: str) -> list[Diag
 
     scan(value, "$")
     return diagnostics
+
+
+@lru_cache(maxsize=256)
+def _normalized_safety_key(key: str) -> str:
+    return key.lower().replace("-", "_").replace(".", "_")
+
+
+def _preflight_diagnostics(
+    value: Mapping[str, Any],
+    schema_name: str,
+    limits: ResourceLimits,
+) -> list[Diagnostic]:
+    safety: list[Diagnostic] = []
+    resource_tree_invalid = False
+    if schema_name == "preview_plan":
+        target = value.get("target", {})
+        if (
+            value.get("execution_mode") != "fixture_dry_run"
+            or value.get("transport") != "none"
+            or not isinstance(target, Mapping)
+            or target.get("target_kind") != "fixture"
+            or value.get("journal_executed") is not False
+            or value.get("macro_executed") is not False
+            or value.get("commands_sent") != 0
+        ):
+            safety.append(
+                _diagnostic("SAFETY_LIVE_EXECUTION_FORBIDDEN", "preview:safety")
+            )
+        if value.get("machine_output_count") != 0:
+            safety.append(
+                _diagnostic("SAFETY_MACHINE_OUTPUT_FORBIDDEN", "preview:output")
+            )
+
+    def scan(item: Any, depth: int, scan_safety: bool, scan_resource: bool) -> None:
+        nonlocal resource_tree_invalid
+        if scan_resource:
+            if depth > limits.max_depth:
+                resource_tree_invalid = True
+                scan_resource = False
+            elif isinstance(item, str):
+                if len(item) > limits.max_string_bytes or (
+                    not item.isascii()
+                    and len(item.encode("utf-8")) > limits.max_string_bytes
+                ):
+                    resource_tree_invalid = True
+
+        if isinstance(item, Mapping):
+            for key, child in item.items():
+                child_safety = scan_safety
+                if scan_safety:
+                    text_key = str(key)
+                    normalized_key = _normalized_safety_key(text_key)
+                    if normalized_key in _MACHINE_OUTPUT_KEYS:
+                        safety.append(
+                            _diagnostic(
+                                "SAFETY_MACHINE_OUTPUT_FORBIDDEN",
+                                "payload:rejected",
+                            )
+                        )
+                        child_safety = False
+                    elif (
+                        normalized_key in _AI_AUTHORITY_KEYS
+                        and child is not False
+                        and child is not None
+                    ):
+                        safety.append(
+                            _diagnostic(
+                                "SAFETY_AI_AUTHORITY_EXCEEDED",
+                                "payload:rejected",
+                            )
+                        )
+                        child_safety = False
+                    elif key in _SAFETY_SCAN_EXCLUDED_FIELDS:
+                        child_safety = False
+                    else:
+                        if key in {"action", "node_type", "operation"} and isinstance(
+                            child, str
+                        ):
+                            normalized = child.lower().replace("-", "_")
+                            if any(part in normalized for part in _MACHINE_ACTION_PARTS):
+                                safety.append(
+                                    _diagnostic(
+                                        "SAFETY_MACHINE_OUTPUT_FORBIDDEN",
+                                        "payload:rejected",
+                                    )
+                                )
+                        if (
+                            key in {"execution_mode", "mode", "target_kind"}
+                            and child == "live"
+                        ):
+                            safety.append(
+                                _diagnostic(
+                                    "SAFETY_LIVE_EXECUTION_FORBIDDEN",
+                                    "payload:rejected",
+                                )
+                            )
+                        if key == "transport" and child is not None and child != "none":
+                            safety.append(
+                                _diagnostic(
+                                    "SAFETY_LIVE_EXECUTION_FORBIDDEN",
+                                    "payload:rejected",
+                                )
+                            )
+                        if key in {"journal_executed", "macro_executed"} and child is True:
+                            safety.append(
+                                _diagnostic(
+                                    "SAFETY_LIVE_EXECUTION_FORBIDDEN",
+                                    "payload:rejected",
+                                )
+                            )
+                        if key == "commands_sent" and type(child) is int and child > 0:
+                            safety.append(
+                                _diagnostic(
+                                    "SAFETY_LIVE_EXECUTION_FORBIDDEN",
+                                    "payload:rejected",
+                                )
+                            )
+                scan(child, depth + 1, child_safety, scan_resource)
+        elif isinstance(item, list):
+            for child in item:
+                scan(child, depth + 1, scan_safety, scan_resource)
+
+    scan(value, 1, True, True)
+    if resource_tree_invalid:
+        resource = _resource_diagnostics(value, schema_name, limits)
+    else:
+        resource = []
+        if schema_name == "automation_asset":
+            byte_length = value.get("byte_length")
+            if type(byte_length) is int and byte_length > limits.max_asset_bytes:
+                resource.append(
+                    _diagnostic("RESOURCE_LIMIT_EXCEEDED", "asset:byte_length")
+                )
+        elif schema_name == "flow_graph":
+            node_count = 0
+            edge_count = 0
+            for flow in value.get("flows", []):
+                if isinstance(flow, Mapping):
+                    nodes = flow.get("nodes", [])
+                    edges = flow.get("edges", [])
+                    node_count += len(nodes) if isinstance(nodes, list) else 0
+                    edge_count += len(edges) if isinstance(edges, list) else 0
+            if node_count > limits.max_nodes:
+                resource.append(
+                    _diagnostic("RESOURCE_LIMIT_EXCEEDED", "graph:nodes")
+                )
+            if edge_count > limits.max_edges:
+                resource.append(
+                    _diagnostic("RESOURCE_LIMIT_EXCEEDED", "graph:edges")
+                )
+    return resource + safety
 
 
 def _asset_diagnostics(value: Mapping[str, Any]) -> list[Diagnostic]:
@@ -1369,15 +1747,14 @@ def validate_contract(
     require_known_semantics: bool = False,
     limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
 ) -> ValidationResult:
-    raw = value.to_dict() if isinstance(value, FrozenContract) else value
+    raw = value._validation_view() if isinstance(value, FrozenContract) else value
     if not isinstance(raw, Mapping):
         return validate_schema(raw, schema_name, limits=limits)
     normalized = _detect_schema_name(raw, schema_name)
     diagnostics = list(
         validate_schema(raw, normalized, limits=limits).diagnostics
     )
-    diagnostics.extend(_resource_diagnostics(raw, normalized, limits))
-    diagnostics.extend(_safety_diagnostics(raw, normalized))
+    diagnostics.extend(_preflight_diagnostics(raw, normalized, limits))
 
     try:
         if normalized == "automation_asset":

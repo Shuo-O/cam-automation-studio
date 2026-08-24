@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,7 @@ SCHEMA_VERSION = 1
 CONTRACT_FAMILY = "cam.flow.contracts.v1"
 HASH_PREFIX = "sha256:"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+_STRING_ESCAPE = re.compile(r'["\\\x00-\x1f]')
 
 CONTRACT_NAMES = {
     "automation_asset": "cam.automation_asset.v1",
@@ -49,11 +51,27 @@ def _json_clone(value: Any) -> Any:
     )
 
 
+def _projection_clone(value: Any) -> Any:
+    if value is None or type(value) in {bool, int, str}:
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("JSON projections do not allow NaN or infinity.")
+        return value
+    if isinstance(value, Mapping):
+        return {key: _projection_clone(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_projection_clone(item) for item in value]
+    raise TypeError(f"Unsupported JSON value: {type(value).__name__}")
+
+
 def _utf16_sort_key(value: str) -> bytes:
     return value.encode("utf-16-be", errors="surrogatepass")
 
 
 def _serialize_string(value: str) -> str:
+    if value.isascii() and _STRING_ESCAPE.search(value) is None:
+        return '"' + value + '"'
     if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
         raise ValueError("RFC 8785 input cannot contain lone Unicode surrogates.")
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
@@ -151,11 +169,18 @@ class FrozenContract(Mapping[str, Any]):
     schema_name: ClassVar[str] = ""
     contract_name: ClassVar[str | None] = None
     _serialized: str
+    _validation_payload: dict[str, Any]
 
     def __init__(self, value: Mapping[str, Any]) -> None:
         if not isinstance(value, Mapping):
             raise TypeError(f"{type(self).__name__} requires a JSON object.")
-        payload = _json_clone(dict(value))
+        serialized = json.dumps(
+            dict(value),
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        )
+        payload = json.loads(serialized)
         if self.contract_name is not None:
             actual = payload.get("contract")
             if actual != self.contract_name:
@@ -166,16 +191,8 @@ class FrozenContract(Mapping[str, Any]):
                 raise ValueError(
                     f"{type(self).__name__} schema_version must be {SCHEMA_VERSION}."
                 )
-        object.__setattr__(
-            self,
-            "_serialized",
-            json.dumps(
-                payload,
-                ensure_ascii=False,
-                allow_nan=False,
-                separators=(",", ":"),
-            ),
-        )
+        object.__setattr__(self, "_serialized", serialized)
+        object.__setattr__(self, "_validation_payload", payload)
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> FrozenContract:
@@ -183,6 +200,9 @@ class FrozenContract(Mapping[str, Any]):
 
     def to_dict(self) -> dict[str, Any]:
         return json.loads(self._serialized)
+
+    def _validation_view(self) -> Mapping[str, Any]:
+        return self._validation_payload
 
     def with_updates(self, **updates: Any) -> FrozenContract:
         value = self.to_dict()
@@ -359,13 +379,13 @@ def _semantic_extensions(value: Any) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, item in value.items():
         if isinstance(item, Mapping) and item.get("semantic") is True:
-            result[str(key)] = _json_clone(item)
+            result[str(key)] = _projection_clone(item)
     return result
 
 
 def _binding_semantics(binding: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        key: _json_clone(binding.get(key))
+        key: _projection_clone(binding.get(key))
         for key in (
             "binding_id",
             "target",
@@ -392,13 +412,13 @@ def _node_semantics(node: Mapping[str, Any]) -> dict[str, Any]:
         "enabled": node.get("enabled"),
         "risk": node.get("risk"),
         "bindings": bindings,
-        "configuration": _json_clone(node.get("configuration", {})),
+        "configuration": _projection_clone(node.get("configuration", {})),
         "extensions": _semantic_extensions(node.get("extensions")),
     }
     opaque = node.get("opaque")
     if isinstance(opaque, Mapping):
         result["opaque"] = {
-            key: _json_clone(opaque.get(key))
+            key: _projection_clone(opaque.get(key))
             for key in (
                 "reason",
                 "asset_revision_id",
@@ -414,9 +434,9 @@ def _edge_semantics(edge: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "edge_id": edge.get("edge_id"),
         "kind": edge.get("kind"),
-        "source": _json_clone(edge.get("source")),
-        "target": _json_clone(edge.get("target")),
-        "condition": _json_clone(edge.get("condition")),
+        "source": _projection_clone(edge.get("source")),
+        "target": _projection_clone(edge.get("target")),
+        "condition": _projection_clone(edge.get("condition")),
         "priority": edge.get("priority"),
         "extensions": _semantic_extensions(edge.get("extensions")),
     }
@@ -425,14 +445,14 @@ def _edge_semantics(edge: Mapping[str, Any]) -> dict[str, Any]:
 def _parameter_semantics(parameter: Mapping[str, Any]) -> dict[str, Any]:
     ignored = {"evidence_mapping_ids", "review_status", "source_mapping_ids"}
     return {
-        str(key): _json_clone(item)
+        str(key): _projection_clone(item)
         for key, item in parameter.items()
         if key not in ignored and key != "extensions"
     } | {"extensions": _semantic_extensions(parameter.get("extensions"))}
 
 
 def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
-    value = graph.to_dict() if isinstance(graph, FrozenContract) else _json_clone(graph)
+    value = graph._validation_view() if isinstance(graph, FrozenContract) else graph
     parameters = [
         _parameter_semantics(item)
         for item in value.get("graph_parameters", [])
@@ -457,7 +477,7 @@ def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
         ]
         edges.sort(key=lambda item: str(item.get("edge_id", "")))
         interface_ports = [
-            _json_clone(item)
+            _projection_clone(item)
             for item in flow.get("interface_ports", [])
             if isinstance(item, Mapping)
         ]
@@ -479,7 +499,7 @@ def semantic_projection(graph: Mapping[str, Any] | FlowGraph) -> dict[str, Any]:
     flows.sort(key=lambda item: str(item.get("flow_id", "")))
 
     locks = [
-        _json_clone(item)
+        _projection_clone(item)
         for item in value.get("capability_lock", [])
         if isinstance(item, Mapping)
     ]

@@ -2,15 +2,25 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 import unittest
 from pathlib import Path
 
+from cam_automation.flow_contracts import compute_semantic_hash
 from cam_automation.flow_validation import (
+    DEFAULT_RESOURCE_LIMITS,
     ERROR_CODES,
     ResourceLimits,
+    _preflight_diagnostics,
+    _resource_diagnostics,
+    _safety_diagnostics,
+    _schema_definition,
+    _schema_errors,
+    _schema_validator,
     validate_contract,
     validate_flow_graph,
 )
+from cam_automation.flow_versions import GraphCommand
 
 
 FIXTURE_DIR = (
@@ -24,6 +34,138 @@ def fixture(name: str) -> dict:
 
 def codes(result) -> set[str]:
     return {item.code for item in result.diagnostics}
+
+
+def performance_fixture(
+    bundle: dict,
+) -> tuple[dict, dict]:
+    graph = copy.deepcopy(bundle["flow_graph"])
+    manifest = copy.deepcopy(bundle["capability_manifest"])
+    node_template = next(
+        item
+        for item in graph["flows"][0]["nodes"]
+        if item["node_type"] == "cam.operation.inspect"
+    )
+    definition = next(
+        item
+        for item in manifest["node_types"]
+        if item["node_type"] == "cam.operation.inspect"
+    )
+    for port in definition["ports"]:
+        port["cardinality"] = "many"
+
+    asset_id = "asset:nx:validation-performance"
+    revision_id = "asset-revision:nx:validation-performance:1"
+    digest = "sha256:" + ("a" * 64)
+    nodes = []
+    mappings = []
+    for index in range(500):
+        node_id = f"node:{index:04d}"
+        mapping_id = f"mapping:{index:04d}"
+        node = copy.deepcopy(node_template)
+        node["node_id"] = node_id
+        node["configuration"] = {"fixture_index": index}
+        node["source_mapping_ids"] = [mapping_id]
+        node["bindings"] = [
+            {
+                "binding_id": f"binding:{index:04d}",
+                "target": {"node_id": node_id, "port_id": "tolerance"},
+                "kind": "graph_parameter",
+                "literal": None,
+                "graph_parameter_id": "parameter:tolerance",
+                "source_output": None,
+                "secret_ref": None,
+                "source_mapping_ids": [mapping_id],
+                "extensions": {},
+            }
+        ]
+        nodes.append(node)
+        mappings.append(
+            {
+                "mapping_id": mapping_id,
+                "asset_id": asset_id,
+                "asset_revision_id": revision_id,
+                "source_digest": digest,
+                "source_line": index + 1,
+                "source_span": {
+                    "start_byte": index * 16,
+                    "end_byte": index * 16 + 15,
+                    "start_line": index + 1,
+                    "end_line": index + 1,
+                    "start_column": 0,
+                    "end_column": 15,
+                    "column_encoding": "unicode_scalar",
+                },
+                "target": {
+                    "flow_id": "flow:main",
+                    "node_id": node_id,
+                    "property_path": "/configuration/fixture_index",
+                },
+                "role": "primary",
+                "mapping_quality": "exact",
+                "excerpt_hash": "sha256:" + (f"{index:064x}"[-64:]),
+                "extensions": {},
+            }
+        )
+
+    edges = []
+    for index in range(499):
+        edges.append(
+            {
+                "edge_id": f"edge:chain:{index:04d}",
+                "kind": "control",
+                "source": {"node_id": f"node:{index:04d}", "port_id": "next"},
+                "target": {
+                    "node_id": f"node:{index + 1:04d}",
+                    "port_id": "previous",
+                },
+                "condition": None,
+                "priority": None,
+                "source_mapping_ids": [],
+                "extensions": {},
+            }
+        )
+    for index in range(301):
+        edges.append(
+            {
+                "edge_id": f"edge:skip:{index:04d}",
+                "kind": "control",
+                "source": {"node_id": f"node:{index:04d}", "port_id": "next"},
+                "target": {
+                    "node_id": f"node:{index + 2:04d}",
+                    "port_id": "previous",
+                },
+                "condition": None,
+                "priority": None,
+                "source_mapping_ids": [],
+                "extensions": {},
+            }
+        )
+
+    flow = graph["flows"][0]
+    flow["nodes"] = nodes
+    flow["edges"] = edges
+    flow["parameter_ids"] = ["parameter:tolerance"]
+    flow["source_mapping_ids"] = [item["mapping_id"] for item in mappings]
+    graph["asset_refs"] = [
+        {
+            "asset_id": asset_id,
+            "asset_revision_id": revision_id,
+            "content_hash": digest,
+            "encoding": "utf-8",
+            "bom": "none",
+            "newline_profile": "lf",
+        }
+    ]
+    graph["source_mappings"] = mappings
+    graph["layout"] = {
+        "nodes": {
+            node["node_id"]: {"x": index % 25, "y": index // 25}
+            for index, node in enumerate(nodes)
+        }
+    }
+    graph["semantic_hash"] = compute_semantic_hash(graph)
+    return graph, manifest
 
 
 class FlowValidationTests(unittest.TestCase):
@@ -52,6 +194,97 @@ class FlowValidationTests(unittest.TestCase):
                 result = validate_contract(value, schema_name)
                 self.assertFalse(result.valid)
                 self.assertIn("FLOW_SCHEMA_INVALID", codes(result))
+
+    def test_compiled_schema_fast_path_matches_complete_diagnostics(self) -> None:
+        for fixture_name, values in (
+            ("minimal", self.minimal),
+            ("invalid", self.invalid),
+        ):
+            for schema_name, value in values.items():
+                with self.subTest(
+                    fixture=fixture_name,
+                    schema_name=schema_name,
+                ):
+                    definition = _schema_definition(schema_name)
+                    self.assertEqual(
+                        not _schema_errors(value, definition),
+                        _schema_validator(schema_name)(value),
+                    )
+
+    def test_combined_preflight_matches_independent_full_scans(self) -> None:
+        cases = [
+            (schema_name, value, DEFAULT_RESOURCE_LIMITS)
+            for values in (self.minimal, self.invalid)
+            for schema_name, value in values.items()
+        ]
+        constrained = ResourceLimits(
+            max_asset_bytes=1,
+            max_nodes=1,
+            max_edges=1,
+            max_depth=2,
+            max_string_bytes=1,
+            max_diagnostics=5_000,
+        )
+        cases.append(("flow_graph", self.complete["flow_graph"], constrained))
+        unsafe_preview = copy.deepcopy(self.minimal["preview_plan"])
+        unsafe_preview["execution_mode"] = "live"
+        unsafe_preview["transport"] = "native"
+        unsafe_preview["steps"] = [{"machine_output": "redacted"}]
+        cases.append(("preview_plan", unsafe_preview, DEFAULT_RESOURCE_LIMITS))
+
+        for schema_name, value, limits in cases:
+            with self.subTest(schema_name=schema_name, limits=limits):
+                expected = _resource_diagnostics(value, schema_name, limits)
+                expected.extend(_safety_diagnostics(value, schema_name))
+                self.assertEqual(
+                    [item.to_dict() for item in expected],
+                    [
+                        item.to_dict()
+                        for item in _preflight_diagnostics(value, schema_name, limits)
+                    ],
+                )
+
+    def test_parameter_edit_validation_meets_frozen_scale_budget(self) -> None:
+        graph, manifest = performance_fixture(self.complete)
+        self.assertEqual(500, len(graph["flows"][0]["nodes"]))
+        self.assertEqual(800, len(graph["flows"][0]["edges"]))
+        self.assertEqual(500, len(graph["source_mappings"]))
+        self.assertTrue(
+            validate_flow_graph(
+                graph,
+                capability_manifests=[manifest],
+            ).valid
+        )
+        command = GraphCommand.replace(
+            "command:test:parameter-performance",
+            "semantic",
+            "/graph_parameters/0/default",
+            0.01,
+            0.02,
+        )
+
+        def operation() -> None:
+            changed = command.apply(graph)
+            result = validate_flow_graph(
+                changed,
+                capability_manifests=[manifest],
+            )
+            self.assertTrue(result.valid, result.to_dict())
+
+        operation()
+        samples = []
+        for _ in range(20):
+            start = time.perf_counter_ns()
+            operation()
+            samples.append((time.perf_counter_ns() - start) / 1_000_000)
+        ordered = sorted(samples)
+        p50 = ordered[9]
+        p95 = ordered[18]
+        self.assertLessEqual(
+            p95,
+            100.0,
+            f"p50={p50:.3f}ms p95={p95:.3f}ms max={max(samples):.3f}ms",
+        )
 
     def test_namespace_and_single_product_fail_closed(self) -> None:
         graph = copy.deepcopy(self.minimal["flow_graph"])

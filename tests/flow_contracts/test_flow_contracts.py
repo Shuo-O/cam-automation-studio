@@ -16,6 +16,7 @@ from cam_automation.flow_contracts import (
     load_schema,
     parse_contract_json,
     round_trip_contract,
+    semantic_projection,
 )
 from cam_automation.flow_validation import schema_files, validate_contract
 
@@ -104,6 +105,10 @@ class FlowContractModelTests(unittest.TestCase):
         self.assertNotEqual(canonical_json({"é": 1}), canonical_json({"e\u0301": 1}))
         with self.assertRaisesRegex(ValueError, "IEEE-754"):
             canonical_json(9_007_199_254_740_992)
+        self.assertEqual(
+            '"quote\\"slash\\\\control\\n"',
+            canonical_json('quote"slash\\control\n'),
+        )
 
     def test_semantic_hash_excludes_layout_source_and_review_metadata(self) -> None:
         first = copy.deepcopy(self.complete["flow_graph"])
@@ -142,6 +147,15 @@ class FlowContractModelTests(unittest.TestCase):
         self.assertNotEqual(base_hash, compute_semantic_hash(configuration_change))
         self.assertNotEqual(base_hash, compute_semantic_hash(extension_change))
         self.assertEqual(base_hash, compute_semantic_hash(nonsemantic_change))
+
+    def test_semantic_projection_is_detached_from_input(self) -> None:
+        graph = copy.deepcopy(self.complete["flow_graph"])
+        projection = semantic_projection(graph)
+        projection["flows"][0]["nodes"][1]["configuration"]["value"] = 99
+        self.assertEqual(
+            0.01,
+            graph["flows"][0]["nodes"][1]["configuration"]["value"],
+        )
 
     def test_source_snapshot_hash_sorts_assets_and_includes_text_profile(self) -> None:
         first = copy.deepcopy(self.minimal["flow_graph"]["asset_refs"][0])

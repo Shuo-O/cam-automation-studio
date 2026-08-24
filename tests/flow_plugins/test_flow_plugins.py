@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -10,7 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from cam_automation.adapters.powermill_flow import PowerMillFlowImporter
+from cam_automation.flow_compatibility import (
+    build_compatibility_report,
+    project_flow_to_recipe,
+)
 from cam_automation.flow_validation import validate_contract
+from cam_automation.flow_versions import prepare_graph_snapshot
 from cam_automation.plugin_manager import PluginManager
 
 
@@ -50,6 +56,39 @@ REQUIRED_PROHIBITIONS = {
     "postprocess",
     "machine_control",
 }
+FIXED_TIME = "2026-08-24T08:00:00Z"
+EXPECTED_MANIFEST_LOCKS = {
+    "nx": {
+        "manifest_version": "1.0.1",
+        "manifest_hash": (
+            "sha256:"
+            "5395432d7a0f26750c1c1afcab06b2c62e6ed8953eaf241e94406103da7a13a5"
+        ),
+        "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.0.1",
+    },
+    "powermill": {
+        "manifest_version": "1.0.1",
+        "manifest_hash": (
+            "sha256:"
+            "be3f88b60e5f240d6bd8378a7c1de49369dd38256fd00d280de3dbed63361aba"
+        ),
+        "manifest_hash_input": (
+            "cam-automation-studio:powermill:offline-import:v1.0.1"
+        ),
+    },
+}
+EXPECTED_RECIPE_PROJECTION_TYPES = {
+    "nx": {
+        "nx.import",
+        "nx.session.access",
+    },
+    "powermill": {
+        "cam.flow.end",
+        "cam.flow.start",
+        "cam.toolpath.bounds.query",
+        "powermill.expression.query",
+    },
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -77,6 +116,37 @@ def graph_nodes(graph: dict[str, Any]) -> list[dict[str, Any]]:
         for flow in graph["flows"]
         for node in flow["nodes"]
     ]
+
+
+def recipe_projection_types(manifest: dict[str, Any]) -> set[str]:
+    return {
+        str(node["node_type"])
+        for node in manifest["node_types"]
+        if node["recipe_projection_support"] is True
+    }
+
+
+def project_offline_graph(
+    graph: dict[str, Any],
+    manifest: dict[str, Any],
+):
+    validation = validate_contract(graph, "flow_graph")
+    if not validation.valid:
+        raise AssertionError(
+            [item.to_dict() for item in validation.diagnostics]
+        )
+    compatibility = build_compatibility_report(
+        graph,
+        [manifest],
+        target_profile={"target_version": graph["target_versions"][0]},
+        checked_at=FIXED_TIME,
+    )
+    return project_flow_to_recipe(
+        graph,
+        compatibility_report=compatibility,
+        manifests=[manifest],
+        checked_at=FIXED_TIME,
+    )
 
 
 class FlowCapabilityManifestTests(unittest.TestCase):
@@ -154,11 +224,24 @@ class FlowCapabilityManifestTests(unittest.TestCase):
     def test_manifest_and_node_versions_and_hashes_are_locked(self) -> None:
         for manifest in (self.nx, self.powermill):
             with self.subTest(product=manifest["product"]):
+                expected = EXPECTED_MANIFEST_LOCKS[manifest["product"]]
+                self.assertEqual(
+                    expected["manifest_version"],
+                    manifest["manifest_version"],
+                )
+                self.assertEqual(
+                    expected["manifest_hash"],
+                    manifest["manifest_hash"],
+                )
                 self.assertRegex(manifest["manifest_version"], SEMVER)
                 self.assertRegex(manifest["manifest_hash"], HASH)
                 source = manifest["extensions"]["cam_automation"][
                     "manifest_hash_input"
                 ].encode("utf-8")
+                self.assertEqual(
+                    expected["manifest_hash_input"],
+                    source.decode("utf-8"),
+                )
                 expected_hash = "sha256:" + hashlib.sha256(source).hexdigest()
                 self.assertEqual(expected_hash, manifest["manifest_hash"])
                 identities: set[tuple[str, str]] = set()
@@ -280,12 +363,129 @@ class FlowCapabilityManifestTests(unittest.TestCase):
     def test_product_capabilities_are_strictly_isolated(self) -> None:
         nx_types = set(nodes_by_type(self.nx))
         powermill_types = set(nodes_by_type(self.powermill))
+        nx_projection = recipe_projection_types(self.nx)
+        powermill_projection = recipe_projection_types(self.powermill)
 
         self.assertFalse(
             any(value.startswith("powermill.") for value in nx_types)
         )
         self.assertFalse(any(value.startswith("nx.") for value in powermill_types))
         self.assertFalse(nx_types & powermill_types)
+        self.assertFalse(
+            any(value.startswith("powermill.") for value in nx_projection)
+        )
+        self.assertFalse(
+            any(value.startswith("nx.") for value in powermill_projection)
+        )
+
+    def test_recipe_projection_support_is_conservative_and_exact(self) -> None:
+        for manifest in (self.nx, self.powermill):
+            with self.subTest(product=manifest["product"]):
+                self.assertEqual(
+                    EXPECTED_RECIPE_PROJECTION_TYPES[manifest["product"]],
+                    recipe_projection_types(manifest),
+                )
+                for node in manifest["node_types"]:
+                    if (
+                        node["preview_support"] is not True
+                        or node["static_risk_floor"] == "blocked"
+                        or node["fidelity"] in {"blocked", "opaque_preserved"}
+                    ):
+                        self.assertFalse(
+                            node["recipe_projection_support"],
+                            node["node_type"],
+                        )
+
+    def test_nx_has_reviewed_offline_recipe_projection_path(self) -> None:
+        graph = NxFlowMapper().map_path(
+            NX_PLUGIN / "examples" / "nx_flow" / "review_only_journal.py",
+            target_version="NX 2406",
+        )
+        source_flow = next(
+            flow
+            for flow in graph["flows"]
+            if any(
+                node["node_type"] == "nx.import"
+                for node in flow["nodes"]
+            )
+        )
+        import_node = copy.deepcopy(
+            next(
+                node
+                for node in source_flow["nodes"]
+                if node["node_type"] == "nx.import"
+            )
+        )
+        import_node["compatibility_status"] = "supported"
+        import_node["source_mapping_ids"] = []
+        graph["entry_flow_id"] = "flow:nx:recipe-projection"
+        graph["flows"] = [
+            {
+                "flow_id": graph["entry_flow_id"],
+                "kind": "main",
+                "name": "Reviewed offline projection",
+                "interface_ports": [],
+                "parameter_ids": [],
+                "nodes": [import_node],
+                "edges": [],
+                "source_mapping_ids": [],
+            }
+        ]
+        graph["source_mappings"] = []
+        graph["layout"] = {"nodes": {}}
+        graph = prepare_graph_snapshot(graph).to_dict()
+
+        result = project_offline_graph(graph, self.nx)
+
+        self.assertIsNotNone(result.recipe)
+        assert result.recipe is not None
+        self.assertEqual(
+            ["nx.import"],
+            [step.action for step in result.recipe.steps],
+        )
+        self.assertEqual("projected", result.report.to_dict()["status"])
+        safety = result.report.to_dict()["extensions"][
+            "cam.flow_projection"
+        ]
+        self.assertEqual("none", safety["transport"])
+        self.assertEqual(0, safety["commands_sent"])
+        self.assertEqual(0, safety["machine_output_count"])
+
+    def test_powermill_has_fixture_backed_recipe_projection_path(self) -> None:
+        fixture = (
+            POWERMILL_PLUGIN
+            / "fixtures"
+            / "flow"
+            / "command-envelope.log"
+        )
+        graph = PowerMillFlowImporter(
+            source_name=fixture.name,
+            target_versions=["PowerMill 2025"],
+        ).import_source(fixture.read_bytes())
+
+        result = project_offline_graph(graph, self.powermill)
+
+        self.assertIsNotNone(result.recipe)
+        assert result.recipe is not None
+        self.assertEqual(
+            [
+                "cam.toolpath.bounds.query",
+                "powermill.expression.query",
+            ],
+            [step.action for step in result.recipe.steps],
+        )
+        report = result.report.to_dict()
+        self.assertEqual("projected", report["status"])
+        self.assertTrue(
+            all(
+                item["status"] == "projected"
+                for item in report["node_results"]
+            )
+        )
+        safety = report["extensions"]["cam.flow_projection"]
+        self.assertEqual("none", safety["transport"])
+        self.assertEqual(0, safety["commands_sent"])
+        self.assertEqual(0, safety["machine_output_count"])
 
     def test_capability_unavailable_states_are_explicit(self) -> None:
         for manifest in (self.nx, self.powermill):

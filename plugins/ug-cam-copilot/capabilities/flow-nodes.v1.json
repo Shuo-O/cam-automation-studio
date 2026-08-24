@@ -2,8 +2,8 @@
   "schema_version": 1,
   "contract": "cam.capability_manifest.v1",
   "manifest_id": "manifest:nx:offline-static-mapper",
-  "manifest_version": "1.0.0",
-  "manifest_hash": "sha256:e5de4bf7d359762c69903b0306c43ce14934ed2523dea4b6322e297943aae312",
+  "manifest_version": "1.0.1",
+  "manifest_hash": "sha256:5395432d7a0f26750c1c1afcab06b2c62e6ed8953eaf241e94406103da7a13a5",
   "provider": {
     "provider_id": "ug-cam-copilot",
     "display_name": "NX offline static FlowGraph mapper",
@@ -409,7 +409,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "semantic_round_trip"
     },
     {
@@ -427,7 +427,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "semantic_round_trip"
     },
     {
@@ -614,7 +614,7 @@
       "plugin_version": "0.2.0",
       "flow_sdk_range": ">=1.0.0 <2.0.0",
       "manifest_hash_profile": "adapter_capability_lock_v1",
-      "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1",
+      "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1.0.1",
       "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
       "fixture_pack": [
         "plugins/ug-cam-copilot/examples/nx_flow/review_only_journal.py",

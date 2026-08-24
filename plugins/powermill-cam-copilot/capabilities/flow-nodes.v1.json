@@ -2,8 +2,8 @@
   "schema_version": 1,
   "contract": "cam.capability_manifest.v1",
   "manifest_id": "manifest:powermill:offline-import:v1",
-  "manifest_version": "1.0.0",
-  "manifest_hash": "sha256:2f893dd51712386c6792fe01c9cf369cb36d02457dd5d24d4c441801c07989d1",
+  "manifest_version": "1.0.1",
+  "manifest_hash": "sha256:be3f88b60e5f240d6bd8378a7c1de49369dd38256fd00d280de3dbed63361aba",
   "provider": {
     "provider_id": "powermill-cam-copilot",
     "display_name": "PowerMill lossless offline FlowGraph importer",
@@ -44,7 +44,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "semantic_round_trip"
     },
     {
@@ -61,7 +61,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "semantic_round_trip"
     },
     {
@@ -79,7 +79,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "token_exact_outside_edits"
     },
     {
@@ -227,7 +227,7 @@
       "forbidden_modes": ["live", "native", "production", "machine_output"],
       "parse_support": true,
       "preview_support": true,
-      "recipe_projection_support": false,
+      "recipe_projection_support": true,
       "fidelity": "token_exact_outside_edits"
     },
     {
@@ -359,7 +359,7 @@
       "plugin_version": "0.1.0",
       "flow_sdk_range": ">=1.0.0 <2.0.0",
       "manifest_hash_profile": "adapter_capability_lock_v1",
-      "manifest_hash_input": "cam-automation-studio:powermill:offline-import:v1",
+      "manifest_hash_input": "cam-automation-studio:powermill:offline-import:v1.0.1",
       "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
       "fixture_pack": [
         "plugins/powermill-cam-copilot/fixtures/flow/command-envelope.log",

@@ -16,9 +16,9 @@ from .nx_journal import (
 
 _NODE_TYPE_VERSION = "1.0.0"
 _MAPPER_MANIFEST_ID = "manifest:nx:offline-static-mapper"
-_MAPPER_MANIFEST_VERSION = "1.0.0"
+_MAPPER_MANIFEST_VERSION = "1.0.1"
 _MAPPER_MANIFEST_HASH = "sha256:" + hashlib.sha256(
-    b"cam.flow.nx.offline-static-mapper.v1"
+    b"cam.flow.nx.offline-static-mapper.v1.0.1"
 ).hexdigest()
 _REQUIRED_GATES = [
     "recipe_review",

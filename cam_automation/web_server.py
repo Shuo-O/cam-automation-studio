@@ -12,7 +12,15 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .integrations import ApiServices, plugin_api_status, service_payload
+from .flow_api import FlowApiRequest, FlowApiResponse, register_flow_routes
+from .flow_service import CancellationToken
+from .integrations import (
+    ApiServices,
+    OfflineFlowIntegration,
+    plugin_api_status,
+    register_product_flow_capability,
+    service_payload,
+)
 from .models import EventQuery
 from .plugin_manager import PRODUCT_PLUGINS, PluginManager, PluginNotInstalled
 
@@ -98,7 +106,13 @@ def _runtime_connection_label(connection: dict[str, Any]) -> str:
 class _WorkflowHandler(BaseHTTPRequestHandler):
     server_version = "CamAutomationStudio/0.6"
 
-    def _json(self, status: HTTPStatus, value: Any) -> None:
+    def _json(
+        self,
+        status: HTTPStatus | int,
+        value: Any,
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         payload = json.dumps(
             service_payload(value),
             ensure_ascii=False,
@@ -109,6 +123,14 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        for name, header_value in (headers or {}).items():
+            if name.casefold() not in {
+                "content-length",
+                "content-type",
+                "cache-control",
+                "x-content-type-options",
+            }:
+                self.send_header(name, str(header_value))
         self.end_headers()
         self.wfile.write(payload)
 
@@ -159,6 +181,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 "/api/recipes",
                 "/api/execution",
                 "/api/diagnostics",
+                "/api/flow",
             )
         ):
             return True
@@ -325,6 +348,135 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             )
         return decoded
 
+    def _read_flow_body(self) -> bytes | None:
+        if self.headers.get("Transfer-Encoding"):
+            raise _ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_parameters",
+                "Transfer-Encoding is not supported.",
+            )
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as error:
+            raise _ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_parameters",
+                "Content-Length must be an integer.",
+            ) from error
+        if length < 0:
+            raise _ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_parameters",
+                "Content-Length must not be negative.",
+            )
+        if length == 0:
+            return None
+        content_type = self.headers.get("Content-Type", "application/json")
+        if content_type.split(";", 1)[0].strip().casefold() != "application/json":
+            raise _ApiError(
+                HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+                "invalid_parameters",
+                "Content-Type must be application/json.",
+            )
+        if length > _MAX_BODY:
+            raise _ApiError(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                "invalid_parameters",
+                "Request body exceeds the 2 MiB limit.",
+                details={"max_bytes": _MAX_BODY},
+            )
+        return self.rfile.read(length)
+
+    def _send_flow_response(self, response: FlowApiResponse) -> None:
+        if response.body is not None:
+            self._json(response.status, response.body, headers=response.headers)
+            return
+        self.send_response(response.status)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for name, header_value in response.headers.items():
+            if name.casefold() not in {
+                "content-length",
+                "cache-control",
+                "x-content-type-options",
+            }:
+                self.send_header(name, str(header_value))
+        self.end_headers()
+
+    def _dispatch_flow(self, method: str, parsed: Any) -> None:
+        raw_body = self._read_flow_body() if method == "POST" else None
+        body: dict[str, Any] | None = None
+        if raw_body:
+            try:
+                decoded = json.loads(raw_body.decode("utf-8"))
+                body = decoded if isinstance(decoded, dict) else None
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                body = None
+
+        if parsed.path == "/api/flow/import" and method == "POST":
+            if body is None:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Offline Flow import requires a JSON object.",
+                )
+            product = str(body.get("product", "")).casefold()
+            if not self._require_product(product):
+                return
+            source = body.get("source")
+            if not isinstance(source, str) or not source:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Offline Flow import requires a non-empty source string.",
+                )
+            target_versions = body.get("target_versions", [])
+            if not isinstance(target_versions, list) or any(
+                not isinstance(item, str) for item in target_versions
+            ):
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "target_versions must be an array of strings.",
+                )
+            rights = body.get("rights")
+            if rights is not None and not isinstance(rights, dict):
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "rights must be a JSON object.",
+                )
+            result = self.server.services.flow_imports.import_source(
+                product=product,
+                source=source,
+                source_name=str(body.get("source_name") or "selected-source"),
+                target_versions=target_versions,
+                rights=rights,
+                source_origin=str(body.get("source_origin", "user_authored")),
+            )
+            self._json(HTTPStatus.CREATED, result)
+            return
+
+        product = self.server.flow_request_product(method, parsed.path, body)
+        if product is not None and not self._require_product(product):
+            return
+        token = self.server.begin_flow_request()
+        try:
+            response = self.server.flow_api.handle(
+                FlowApiRequest(
+                    method=method,
+                    path=self.path,
+                    body=raw_body,
+                    headers=dict(self.headers.items()),
+                    cancellation=token,
+                    body_size=len(raw_body) if raw_body is not None else 0,
+                )
+            )
+        finally:
+            self.server.end_flow_request(token)
+        self._send_flow_response(response)
+
     def _require_plugin(self, plugin_id: str) -> bool:
         try:
             self.server.plugins.require(plugin_id)
@@ -359,6 +511,9 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         parsed = self._parsed_request()
         path = parsed.path
         if not self._local_api_allowed(path):
+            return
+        if path.startswith("/api/flow"):
+            self._dispatch_flow("GET", parsed)
             return
         if path == "/api/health":
             plugins = self.server.plugin_status()
@@ -488,6 +643,9 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         parsed = self._parsed_request()
         path = parsed.path
         if not self._local_api_allowed(path):
+            return
+        if path.startswith("/api/flow"):
+            self._dispatch_flow("POST", parsed)
             return
         exact_routes = {
             "/api/learn",
@@ -727,6 +885,14 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 **error.details,
             )
             return
+        if hasattr(error, "http_status") and getattr(error, "code", None):
+            self._problem(
+                HTTPStatus(int(getattr(error, "http_status"))),
+                str(getattr(error, "code")),
+                str(error),
+                **dict(getattr(error, "details", {}) or {}),
+            )
+            return
         service_code = str(getattr(error, "code", ""))
         if service_code in {
             "plugin_not_installed",
@@ -860,6 +1026,15 @@ class _WorkflowServer(ThreadingHTTPServer):
 
             services = build_fixture_api_services(self.capture_dir)
         self.services = services
+        if self.services.flow is None:
+            from .fixture_runtime import build_fixture_flow_service
+
+            self.services.flow = build_fixture_flow_service(self.app_data_dir / "flow")
+        if self.services.flow_imports is None:
+            self.services.flow_imports = OfflineFlowIntegration(self.services.flow)
+        self.flow_api = register_flow_routes(self.services.flow)
+        self._flow_request_lock = threading.RLock()
+        self._flow_requests: set[CancellationToken] = set()
         if self.services.sessions is None:
             from .sessions import SessionService
 
@@ -882,6 +1057,79 @@ class _WorkflowServer(ThreadingHTTPServer):
             "codex_review": None,
         }
         self._sync_modules()
+
+    def begin_flow_request(self) -> CancellationToken:
+        token = CancellationToken()
+        with self._flow_request_lock:
+            self._flow_requests.add(token)
+        return token
+
+    def end_flow_request(self, token: CancellationToken) -> None:
+        with self._flow_request_lock:
+            self._flow_requests.discard(token)
+
+    def cancel_flow_requests(self) -> None:
+        with self._flow_request_lock:
+            tokens = tuple(self._flow_requests)
+        for token in tokens:
+            token.cancel("server_shutdown")
+
+    def flow_request_product(
+        self,
+        method: str,
+        path: str,
+        body: Mapping[str, Any] | None,
+    ) -> str | None:
+        value = body or {}
+        direct = value.get("product")
+        for container_name in ("asset", "manifest", "graph"):
+            container = value.get(container_name)
+            if isinstance(container, Mapping) and container.get("product"):
+                direct = container.get("product")
+                break
+        if isinstance(direct, str) and direct:
+            return direct.casefold()
+
+        service = self.services.flow
+        graph_id = value.get("graph_id")
+        version = value.get("version")
+        if isinstance(version, Mapping):
+            graph_id = version.get("graph_id", graph_id)
+        try:
+            if isinstance(graph_id, str) and graph_id:
+                return str(service.get_graph(graph_id).get("product", "")).casefold()
+            match = re.fullmatch(r"/api/flow/assets/([^/]+)", path)
+            if match and method == "GET":
+                return str(service.get_asset(match.group(1)).get("product", "")).casefold()
+            match = re.fullmatch(r"/api/flow/capabilities/([^/]+)", path)
+            if match and method == "GET":
+                return str(service.get_capability(match.group(1)).get("product", "")).casefold()
+            match = re.fullmatch(r"/api/flow/graphs/([^/]+)(?:/revisions)?", path)
+            if match and method == "GET":
+                return str(service.get_graph(match.group(1)).get("product", "")).casefold()
+            match = re.fullmatch(r"/api/flow/versions/([^/]+)", path)
+            if match and method == "GET":
+                current = service.get_version(match.group(1))
+                return str(
+                    service.get_graph(current["graph_id"], current["revision_id"]).get(
+                        "product", ""
+                    )
+                ).casefold()
+            match = re.fullmatch(r"/api/flow/compatibility/([^/]+)", path)
+            if match and method == "GET":
+                return str(
+                    service.get_compatibility_report(match.group(1)).get("product", "")
+                ).casefold()
+            match = re.fullmatch(
+                r"/api/flow/preview-plans/([^/]+)(?:/(?:run|cancel))?",
+                path,
+            )
+            if match:
+                plan = service.get_preview_plan(match.group(1))
+                return str(plan.get("target", {}).get("product", "")).casefold()
+        except Exception:
+            return None
+        return None
 
     def install_plugin(self, plugin_id: str) -> dict[str, Any]:
         with self._module_lock:
@@ -977,6 +1225,10 @@ class _WorkflowServer(ThreadingHTTPServer):
                 self.execution = ExecutionGateway()
             elif not execution_installed:
                 self.execution = None
+
+            for product, plugin_id in PRODUCT_PLUGINS.items():
+                if self.plugins.is_installed(plugin_id):
+                    register_product_flow_capability(self.services.flow, product)
 
     def connection_statuses(
         self,
@@ -1409,6 +1661,7 @@ class _WorkflowServer(ThreadingHTTPServer):
             return service_payload(self.state)
 
     def server_close(self) -> None:
+        self.cancel_flow_requests()
         if self._owns_services:
             commands = self.services.commands
             close_commands = getattr(commands, "close", None)

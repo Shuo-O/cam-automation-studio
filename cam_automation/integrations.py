@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -87,6 +88,8 @@ class ApiServices:
     recipes: Any | None = None
     commands: CommandTaskService | None = None
     diagnostics: DiagnosticsService | None = None
+    flow: Any | None = None
+    flow_imports: Any | None = None
     workflow_factory: Callable[[Any], Any] | None = None
     lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
@@ -767,6 +770,279 @@ def build_codex_context(
         "recipe": dict(recipe),
         "activity_events": list(activity_events),
     }
+
+
+_FLOW_MANIFESTS = {
+    "nx": _PLUGIN_SRC.parent / "capabilities" / "flow-nodes.v1.json",
+    "powermill": (
+        Path(__file__).resolve().parents[1]
+        / "plugins"
+        / "powermill-cam-copilot"
+        / "capabilities"
+        / "flow-nodes.v1.json"
+    ),
+}
+_FLOW_SAFETY_CODES = frozenset(
+    {
+        "SAFETY_LIVE_EXECUTION_FORBIDDEN",
+        "SAFETY_MACHINE_OUTPUT_FORBIDDEN",
+    }
+)
+
+
+class FlowIntegrationError(ValueError):
+    """Sanitized failure raised by the public offline import boundary."""
+
+    def __init__(self, code: str, message: str, *, http_status: int = 409) -> None:
+        self.code = code
+        self.http_status = http_status
+        self.details: dict[str, Any] = {}
+        super().__init__(message)
+
+
+def _canonical_flow_namespace(value: Any, *, key: str = "") -> Any:
+    if isinstance(value, dict):
+        return {
+            item_key: _canonical_flow_namespace(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_canonical_flow_namespace(item, key=key) for item in value]
+    if (
+        isinstance(value, str)
+        and value.startswith("flow.")
+        and key in {"node_type", "port_contract_refs"}
+    ):
+        return f"cam.{value}"
+    return value
+
+
+def load_product_flow_manifest(product: str) -> dict[str, Any]:
+    product_name = str(product).casefold()
+    path = _FLOW_MANIFESTS.get(product_name)
+    if path is None:
+        raise FlowIntegrationError(
+            "FLOW_PRODUCT_MIXED",
+            "Offline Flow import requires product=nx or product=powermill.",
+            http_status=400,
+        )
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("product") != product_name:
+        raise FlowIntegrationError(
+            "CAPABILITY_MISSING",
+            "The installed product capability manifest is invalid.",
+        )
+    return _canonical_flow_namespace(value)
+
+
+def register_product_flow_capability(flow_service: Any, product: str) -> dict[str, Any]:
+    return flow_service.register_capability(load_product_flow_manifest(product))
+
+
+def _decode_offline_source(source: bytes) -> str:
+    if source.startswith(b"\xef\xbb\xbf"):
+        return source.decode("utf-8-sig")
+    if source.startswith(b"\xff\xfe"):
+        return source[2:].decode("utf-16-le")
+    if source.startswith(b"\xfe\xff"):
+        return source[2:].decode("utf-16-be")
+    return source.decode("utf-8")
+
+
+def _flow_diagnostics(graph: Mapping[str, Any]) -> list[dict[str, Any]]:
+    extensions = graph.get("extensions", {})
+    if not isinstance(extensions, Mapping):
+        return []
+    namespace = (
+        extensions.get("nx", {})
+        if graph.get("product") == "nx"
+        else extensions.get("powermill.offline_import", {})
+    )
+    diagnostics = (
+        namespace.get("diagnostics", [])
+        if isinstance(namespace, Mapping)
+        else []
+    )
+    return [dict(item) for item in diagnostics if isinstance(item, Mapping)]
+
+
+def _replace_contract_value(value: Any, old: str, new: str) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _replace_contract_value(item, old, new)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_replace_contract_value(item, old, new) for item in value]
+    return new if value == old else value
+
+
+def _bind_opaque_capability_blockers(graph: dict[str, Any]) -> None:
+    from .flow_contracts import canonical_hash
+
+    locks = graph.setdefault("capability_lock", [])
+    identities = {
+        (
+            str(item.get("manifest_id", "")),
+            str(item.get("manifest_hash", "")),
+        )
+        for item in locks
+        if isinstance(item, Mapping)
+    }
+    for flow in graph.get("flows", []):
+        if not isinstance(flow, Mapping):
+            continue
+        for node in flow.get("nodes", []):
+            if not isinstance(node, Mapping) or not isinstance(
+                node.get("opaque"),
+                Mapping,
+            ):
+                continue
+            fingerprint = canonical_hash(
+                {
+                    "product": graph.get("product"),
+                    "node_type": node.get("node_type"),
+                    "content_hash": node["opaque"].get("content_hash"),
+                    "diagnostic_codes": node["opaque"].get("diagnostic_codes", []),
+                }
+            )
+            manifest_id = (
+                f"manifest:{graph.get('product', 'cam')}:opaque:{fingerprint[7:23]}"
+            )
+            identity = (manifest_id, fingerprint)
+            if identity in identities:
+                continue
+            locks.append(
+                {
+                    "manifest_id": manifest_id,
+                    "manifest_version": "0.0.0",
+                    "manifest_hash": fingerprint,
+                }
+            )
+            identities.add(identity)
+    locks.sort(
+        key=lambda item: (
+            str(item.get("manifest_id", "")),
+            str(item.get("manifest_version", "")),
+            str(item.get("manifest_hash", "")),
+        )
+    )
+
+
+class OfflineFlowIntegration:
+    """Join product-isolated static adapters to the canonical Flow service."""
+
+    def __init__(self, flow_service: Any) -> None:
+        self.flow_service = flow_service
+
+    def import_source(
+        self,
+        *,
+        product: str,
+        source: bytes | bytearray | memoryview | str,
+        source_name: str,
+        target_versions: Iterable[str] = (),
+        rights: Mapping[str, Any] | None = None,
+        source_origin: str = "user_authored",
+    ) -> dict[str, Any]:
+        product_name = str(product).casefold()
+        if product_name not in SUPPORTED_PRODUCTS:
+            raise FlowIntegrationError(
+                "FLOW_PRODUCT_MIXED",
+                "Offline Flow import requires product=nx or product=powermill.",
+                http_status=400,
+            )
+        raw = source.encode("utf-8") if isinstance(source, str) else bytes(source)
+        if not raw:
+            raise FlowIntegrationError(
+                "FLOW_REQUEST_INVALID",
+                "Offline Flow import requires non-empty source bytes.",
+                http_status=400,
+            )
+        display_name = Path(str(source_name)).name or (
+            "journal.py" if product_name == "nx" else "workflow.mac"
+        )
+        versions = tuple(
+            sorted({str(item).strip() for item in target_versions if str(item).strip()})
+        )
+
+        if product_name == "nx":
+            from ugcam_ai.adapters.nx_flow import NxFlowMapper
+
+            graph = NxFlowMapper().map_source(
+                _decode_offline_source(raw),
+                source_file=display_name,
+                target_version=versions[0] if len(versions) == 1 else None,
+            )
+        else:
+            from .adapters.powermill_flow import PowerMillFlowImporter
+
+            importer = PowerMillFlowImporter(
+                source_name=display_name,
+                target_versions=versions,
+            )
+            graph = importer.import_source(raw)
+
+        graph = _canonical_flow_namespace(graph)
+        diagnostics = _flow_diagnostics(graph)
+        blocked = next(
+            (
+                item
+                for item in diagnostics
+                if str(item.get("code", "")) in _FLOW_SAFETY_CODES
+            ),
+            None,
+        )
+        if blocked is not None:
+            raise FlowIntegrationError(
+                str(blocked["code"]),
+                "The offline source was rejected by the permanent CAM safety boundary.",
+            )
+        _bind_opaque_capability_blockers(graph)
+
+        asset_ref = graph["asset_refs"][0]
+        old_revision_id = str(asset_ref["asset_revision_id"])
+        asset = self.flow_service.register_asset(
+            raw,
+            asset_id=str(asset_ref["asset_id"]),
+            product=product_name,
+            asset_type="nx_journal" if product_name == "nx" else "powermill_macro",
+            display_name=display_name,
+            source_locator="selected-file",
+            source_origin=source_origin,
+            rights=rights,
+            target_versions=versions,
+            runtime_modes=("offline", "fixture_dry_run"),
+            dependencies=(),
+            extensions={"cam.flow.integration": {"semantic": False}},
+        )
+        graph = _replace_contract_value(
+            copy.deepcopy(graph),
+            old_revision_id,
+            str(asset["asset_revision_id"]),
+        )
+        graph["asset_refs"][0] = {
+            "asset_id": asset["asset_id"],
+            "asset_revision_id": asset["asset_revision_id"],
+            "content_hash": asset["content_hash"],
+        }
+        from .flow_contracts import compute_semantic_hash, compute_source_snapshot_hash
+
+        graph["source_snapshot_hash"] = compute_source_snapshot_hash(graph, [asset])
+        graph["semantic_hash"] = compute_semantic_hash(graph)
+        saved = self.flow_service.save_graph(graph)
+        return {
+            "schema_version": 1,
+            "mode": "offline",
+            "asset": asset,
+            "graph": saved,
+            "diagnostics": diagnostics,
+            "transport": "none",
+            "commands_sent": 0,
+            "journal_executed": False,
+            "macro_executed": False,
+            "machine_output_count": 0,
+        }
 
 
 def sample_for(product: str) -> str:

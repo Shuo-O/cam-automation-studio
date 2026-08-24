@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light">
     <title>CAM Automation Studio</title>
     <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/flow/styles.css">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -63,7 +64,7 @@
         <nav>
           <div class="nav-group">
             <span class="nav-label">基础软件</span>
-            <button class="nav-item active" type="button" data-view="plugins">
+            <button class="nav-item" type="button" data-view="plugins">
               <span data-icon="boxes"></span><span>插件中心</span>
               <span id="navPluginCount" class="nav-count">0</span>
             </button>
@@ -74,6 +75,9 @@
 
           <div class="nav-group">
             <span class="nav-label">工作台</span>
+            <button class="nav-item active" type="button" data-view="flow">
+              <span data-icon="workflow"></span><span>流程</span>
+            </button>
             <button class="nav-item locked" type="button" data-view="logs" data-module="cam-local-capture">
               <span data-icon="fileText"></span><span>日志</span><span data-icon="lock"></span>
             </button>
@@ -101,7 +105,21 @@
       <div id="navScrim" class="nav-scrim" hidden></div>
 
       <main id="mainContent" class="main-content">
-        <section id="pluginsView" class="view active" data-view-panel="plugins" aria-labelledby="pluginsTitle">
+        <section id="flowView" class="view flow-host-view active" data-view-panel="flow" aria-label="CAM Flow Studio">
+          <div id="flowInstallGate" class="flow-install-gate" aria-live="polite">
+            <span data-icon="lock"></span>
+            <div>
+              <strong>流程工作台需要显式安装产品插件</strong>
+              <p>安装 PowerMill 离线工作流插件后加载 review-first fixture 工作台。</p>
+            </div>
+            <button id="flowOpenPluginsButton" class="button primary" type="button">
+              <span data-icon="boxes"></span>打开插件中心
+            </button>
+          </div>
+          <div id="flowStudio" class="flow-studio-host" aria-busy="true" hidden></div>
+        </section>
+
+        <section id="pluginsView" class="view" data-view-panel="plugins" aria-labelledby="pluginsTitle" hidden>
           <header class="view-header">
             <div>
               <p class="breadcrumb">基础软件 / 插件中心</p>
@@ -488,6 +506,9 @@
 
     <script src="/components/icons.js"></script>
     <script src="/components/fixtures.js"></script>
+    <script src="/flow/flow-core.js"></script>
+    <script src="/flow/fixtures.js"></script>
+    <script src="/flow/flow-studio.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

@@ -9,10 +9,14 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .adapters.powermill_macro import FixturePowerMillTransport
+from .asset_registry import AssetRegistry
+from .capability_registry import CapabilityRegistry
 from .command_tasks import CommandTaskService
 from .connection_monitor import ConnectionMonitor
 from .diagnostics import DiagnosticsService
-from .integrations import ApiServices
+from .flow_contracts import canonical_hash
+from .flow_service import FlowService
+from .integrations import ApiServices, OfflineFlowIntegration
 from .recipes import PreviewRequest, RecipeService
 from .recorder import RecorderService
 from .sessions import SessionService
@@ -32,6 +36,24 @@ _NX_TRANSPORT = (
 _PM_TRANSPORT = _FIXTURE_ROOT / "powermill-runtime.json"
 _EVENT_SOURCE = _FIXTURE_ROOT / "studio-demo-events.jsonl"
 _AUTHORIZED_TARGETS = ("nx:3101:A1", "powermill:4101:C1")
+_FLOW_TARGETS = (
+    ("nx", "NX 2406", "nx:3101:A1", "nx-project-a", "fixture-nx-project-a"),
+    ("nx", "NX 2312", "nx:3102:B2", "nx-project-b", "fixture-nx-project-b"),
+    (
+        "powermill",
+        "PowerMill 2026",
+        "powermill:4101:C1",
+        "pm-project-a",
+        "fixture-powermill-project-a",
+    ),
+    (
+        "powermill",
+        "PowerMill 2025",
+        "powermill:4102:process",
+        "pm-project-b",
+        "fixture-powermill-project-b",
+    ),
+)
 
 if str(_UG_SRC) not in sys.path:
     sys.path.insert(0, str(_UG_SRC))
@@ -218,6 +240,44 @@ def _fixture_windows() -> tuple[list[dict[str, Any]], int]:
     )
 
 
+def build_fixture_flow_service(data_dir: str | Path) -> FlowService:
+    """Build the transport-free canonical Flow service and its four exact targets."""
+
+    root = Path(data_dir)
+    targets = [
+        {
+            "product": product,
+            "target_version": target_version,
+            "target_instance_id": instance_id,
+            "project_id": project_id,
+            "project_snapshot_hash": canonical_hash(
+                {
+                    "fixture": snapshot_id,
+                    "product": product,
+                    "target_version": target_version,
+                    "project_id": project_id,
+                }
+            ),
+            "target_kind": "fixture",
+            "permissions": ["read:selected-files"],
+            "extensions": {
+                "cam.flow.fixture": {
+                    "semantic": False,
+                    "offline": True,
+                    "transport": "none",
+                }
+            },
+        }
+        for product, target_version, instance_id, project_id, snapshot_id in _FLOW_TARGETS
+    ]
+    return FlowService(
+        asset_registry=AssetRegistry(root / "assets"),
+        capability_registry=CapabilityRegistry(root / "capabilities"),
+        fixture_targets=targets,
+        cursor_secret=b"cam-flow-fixture-runtime-v1",
+    )
+
+
 def build_fixture_api_services(capture_dir: str | Path) -> ApiServices:
     """Build the default local-only service graph used by the packaged studio."""
 
@@ -255,6 +315,7 @@ def build_fixture_api_services(capture_dir: str | Path) -> ApiServices:
         commands,
         instance_provider=monitor,
     )
+    flow = build_fixture_flow_service(Path(capture_dir).parent / "flow")
     return ApiServices(
         recorder=recorder,
         connections=monitor,
@@ -262,4 +323,6 @@ def build_fixture_api_services(capture_dir: str | Path) -> ApiServices:
         recipes=recipes,
         commands=commands,
         diagnostics=diagnostics,
+        flow=flow,
+        flow_imports=OfflineFlowIntegration(flow),
     )

@@ -1,7 +1,15 @@
-"""Reusable CAM workflow learning core."""
+"""Reusable offline CAM workflow and Flow Studio core."""
 
+from .flow_api import create_flow_api, register_flow_routes
+from .flow_service import FlowService
 from .learning import learn_workflow
 from .parser import parse_log
 
-__all__ = ["learn_workflow", "parse_log"]
-__version__ = "0.5.0"
+__all__ = [
+    "FlowService",
+    "create_flow_api",
+    "learn_workflow",
+    "parse_log",
+    "register_flow_routes",
+]
+__version__ = "0.6.0"

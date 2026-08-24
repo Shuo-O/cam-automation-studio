@@ -110,7 +110,10 @@
     healthList: $("#healthList"),
     taskHistory: $("#taskHistory"),
     stateMatrix: $("#stateMatrix"),
-    exportDiagnosticsButton: $("#exportDiagnosticsButton")
+    exportDiagnosticsButton: $("#exportDiagnosticsButton"),
+    flowStudio: $("#flowStudio"),
+    flowInstallGate: $("#flowInstallGate"),
+    flowOpenPluginsButton: $("#flowOpenPluginsButton")
   };
 
   const recorderLabels = {
@@ -171,7 +174,8 @@
     commandTaskId: null,
     recipeHash: fixture.recipe.recipe_hash,
     sessionDiff: null,
-    codexReviewStatus: null
+    codexReviewStatus: null,
+    flowStudioInstance: null
   };
 
   async function requestJson(path, options = {}) {
@@ -554,6 +558,36 @@
       }
     });
     elements.navPluginCount.textContent = state.installed.size;
+  }
+
+  function renderFlowWorkspace() {
+    const available = state.installed.has("powermill-cam-copilot");
+    elements.flowInstallGate.hidden = available;
+    elements.flowStudio.hidden = !available;
+    elements.flowStudio.setAttribute("aria-busy", available ? "false" : "true");
+
+    if (!available) {
+      if (state.flowStudioInstance) {
+        state.flowStudioInstance.destroy();
+        state.flowStudioInstance = null;
+      }
+      return;
+    }
+    if (state.flowStudioInstance) {
+      return;
+    }
+    const flowFixtures = globalThis.CAM_FLOW_FIXTURES;
+    const flowStudio = globalThis.CAM_FLOW_STUDIO;
+    if (!flowFixtures?.FixtureFlowApi || !flowStudio?.mount) {
+      elements.flowStudio.hidden = true;
+      elements.flowInstallGate.hidden = false;
+      $("strong", elements.flowInstallGate).textContent = "流程工作台加载失败";
+      $("p", elements.flowInstallGate).textContent = "Flow fixture 组件不可用，请刷新本地页面。";
+      return;
+    }
+    state.flowStudioInstance = flowStudio.mount(elements.flowStudio, {
+      api: new flowFixtures.FixtureFlowApi()
+    });
   }
 
   function dependenciesFor(pluginIds) {
@@ -1613,6 +1647,7 @@
   }
 
   function renderAll() {
+    renderFlowWorkspace();
     renderPluginSummary();
     renderBundles();
     renderPlugins();
@@ -1631,6 +1666,7 @@
     $$(".nav-item").forEach((button) => {
       button.addEventListener("click", () => showView(button.dataset.view));
     });
+    elements.flowOpenPluginsButton.addEventListener("click", () => showView("plugins"));
     elements.openPluginsButton.addEventListener("click", () => showView("plugins"));
     elements.navToggle.addEventListener("click", () => {
       const open = elements.appNav.classList.toggle("open");

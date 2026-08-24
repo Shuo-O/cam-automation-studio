@@ -16,12 +16,14 @@ PRODUCT_SKILLS = {
         "nx-session-comparison",
         "nx-recipe-review",
         "nx-activity-query-preview",
+        "nx-flow-studio",
     },
     "powermill-cam-copilot": {
         "powermill-cam-workflow-learning",
         "powermill-session-comparison",
         "powermill-recipe-review",
         "powermill-activity-query-preview",
+        "powermill-flow-studio",
     },
 }
 
@@ -125,7 +127,11 @@ class CodexPluginContractTests(unittest.TestCase):
                     self.assertIn("shop approval", text)
                     self.assertIn("nc", text)
                     self.assertIn("g-code", text)
-                    self.assertTrue("dry-run" in text or "dry run" in text)
+                    self.assertTrue(
+                        "dry-run" in text
+                        or "dry run" in text
+                        or "fixture_dry_run" in text
+                    )
 
     def test_manifest_versions_and_cachebuster_base_are_consistent(self) -> None:
         expected = {

@@ -1,0 +1,5 @@
+INCLUDE "missing.mac"
+VENDOR.Gizmo APPLY "part"
+DOCOMMAND $dynamic_command
+DOCOMMAND "PRINT 1"
+DOCOMMAND "G1 X1"

@@ -1,0 +1,34 @@
+{
+  "top_level_future": {
+    "future_contract_note": {
+      "value": "preserve-exactly",
+      "revision": 2
+    }
+  },
+  "node_future": {
+    "future_node_option": {
+      "enabled": true,
+      "values": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "nonsemantic_extension": {
+    "vendor.example/view_state": {
+      "semantic": false,
+      "value": {
+        "collapsed": true
+      }
+    }
+  },
+  "semantic_extension": {
+    "vendor.example/process_rule": {
+      "semantic": true,
+      "value": {
+        "rule": "fixture-only"
+      }
+    }
+  }
+}

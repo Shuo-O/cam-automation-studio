@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "fixture_id": "wave2-api-execution",
+  "service_injection": {
+    "commands": {
+      "submit": "submit(task) -> task",
+      "get": "get(task_id) -> task",
+      "cancel": "cancel(task_id) -> task"
+    },
+    "diagnostics": {
+      "snapshot": "snapshot() -> diagnostics"
+    }
+  },
+  "run_response": {
+    "http_status": 202,
+    "response": {
+      "schema_version": 1,
+      "task": {
+        "schema_version": 1,
+        "task_id": "task:wave2:fixture",
+        "task_type": "recipe_preview",
+        "execution_mode": "dry_run",
+        "product": "nx",
+        "target_version": "NX 2406",
+        "target_instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "recipe_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "operation": "nx.recipe.preview",
+        "arguments": {},
+        "status": "queued",
+        "submitted_at": "2026-08-24T00:00:00Z",
+        "timeout_ms": 5000,
+        "requested_by": "operator:fixture",
+        "review": {
+          "reviewer": "operator:fixture"
+        }
+      }
+    }
+  },
+  "task_response": {
+    "http_status": 200,
+    "response": {
+      "schema_version": 1,
+      "task": {
+        "schema_version": 1,
+        "task_id": "task:wave2:fixture",
+        "status": "running",
+        "execution_mode": "dry_run",
+        "target_instance_id": "nx:fixture:A"
+      }
+    }
+  },
+  "diagnostics_response": {
+    "http_status": 200,
+    "response": {
+      "schema_version": 1,
+      "diagnostics": {
+        "schema_version": 1,
+        "captured_at": "2026-08-24T00:00:01Z",
+        "instance_heartbeats": [
+          {
+            "instance_id": "nx:fixture:A",
+            "status": "connected"
+          }
+        ],
+        "queue_depth": 1,
+        "log_latency_ms": 12,
+        "task_metrics": {
+          "queued": 0,
+          "running": 1,
+          "succeeded": 0,
+          "failed": 0
+        }
+      }
+    }
+  }
+}

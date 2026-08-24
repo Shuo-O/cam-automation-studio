@@ -3,22 +3,23 @@
 ## Context
 
 - NX version:
-- Journal language:
-- Work part / manufacturing setup:
-- Input journal:
+- Target instance:
+- Project snapshot:
+- Input evidence:
 
 ## Learned recipe
 
-| Step | Action | Target | Value | Variable? | Review |
+| Step | Action | Evidence | Parameter | Risk | Review |
 | --- | --- | --- | --- | --- | --- |
 | 1 |  |  |  |  |  |
 
-## Preconditions
+## Required gates
 
-- 
+- [ ] Identified human review
+- [ ] Target version and local stubs
+- [ ] Stable selectors and project snapshot
+- [ ] CAM simulation
+- [ ] Collision/gouge checks
+- [ ] Shop approval
 
-## NXOpen draft notes
-
-- Replace recorded selection handles with stable object queries.
-- Keep units and tolerances explicit.
-- Test on a copy of the part before production use.
+Execution mode: `dry-run`. Machine-ready output: prohibited.

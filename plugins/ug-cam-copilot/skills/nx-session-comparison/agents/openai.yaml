@@ -1,0 +1,4 @@
+interface:
+  display_name: "NX Session Comparison"
+  short_description: "Compare reviewed NX CAM sessions and explain differences"
+  default_prompt: "Use $nx-session-comparison to compare these NX CAM sessions before recipe mining."

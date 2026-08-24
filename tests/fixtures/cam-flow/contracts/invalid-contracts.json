@@ -1,0 +1,35 @@
+{
+  "automation_asset": {
+    "schema_version": 1,
+    "contract": "cam.automation_asset.v1"
+  },
+  "capability_manifest": {
+    "schema_version": 1,
+    "contract": "cam.capability_manifest.v1"
+  },
+  "flow_graph": {
+    "schema_version": 1,
+    "contract": "cam.flowgraph.v1"
+  },
+  "flow_node": {},
+  "flow_edge": {},
+  "port_contract": {},
+  "parameter_binding": {},
+  "source_mapping": {},
+  "round_trip_report": {
+    "schema_version": 1,
+    "contract": "cam.round_trip_report.v1"
+  },
+  "compatibility_report": {
+    "schema_version": 1,
+    "contract": "cam.compatibility_report.v1"
+  },
+  "preview_plan": {
+    "schema_version": 1,
+    "contract": "cam.preview_plan.v1"
+  },
+  "flow_version": {
+    "schema_version": 1,
+    "contract": "cam.flow_version.v1"
+  }
+}

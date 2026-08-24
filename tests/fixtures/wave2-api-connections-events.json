@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "fixture_id": "wave2-api-connections-events",
+  "connections_response": {
+    "schema_version": 1,
+    "instance_count": 4,
+    "selected_instance_id": null,
+    "selection_required": true,
+    "instances": [
+      {
+        "schema_version": 1,
+        "instance_id": "nx:fixture:A",
+        "product": "nx",
+        "pid": 101,
+        "process_name": "ugraf.exe",
+        "window_handle": "0x101",
+        "window_title": "NX Fixture A",
+        "is_foreground": true,
+        "window_state": "foreground",
+        "target_version": "NX 2406",
+        "project_id": "nx-project-a",
+        "connection_status": "connected"
+      },
+      {
+        "schema_version": 1,
+        "instance_id": "nx:fixture:B",
+        "product": "nx",
+        "pid": 102,
+        "process_name": "ugraf.exe",
+        "window_handle": "0x102",
+        "window_title": "NX Fixture B",
+        "is_foreground": false,
+        "window_state": "visible",
+        "target_version": "NX 2406",
+        "project_id": "nx-project-b",
+        "connection_status": "disconnected"
+      },
+      {
+        "schema_version": 1,
+        "instance_id": "powermill:fixture:A",
+        "product": "powermill",
+        "pid": 201,
+        "process_name": "PowerMill.exe",
+        "window_handle": "0x201",
+        "window_title": "PowerMill Fixture A",
+        "is_foreground": true,
+        "window_state": "foreground",
+        "target_version": "PowerMill 2026",
+        "project_id": "pm-project-a",
+        "connection_status": "connected"
+      },
+      {
+        "schema_version": 1,
+        "instance_id": "powermill:fixture:B",
+        "product": "powermill",
+        "pid": 202,
+        "process_name": "PowerMill.exe",
+        "window_handle": "0x202",
+        "window_title": "PowerMill Fixture B",
+        "is_foreground": false,
+        "window_state": "visible",
+        "target_version": "PowerMill 2025",
+        "project_id": "pm-project-b",
+        "connection_status": "detected"
+      }
+    ]
+  },
+  "event_page_response": {
+    "schema_version": 1,
+    "events": [
+      {
+        "schema_version": 1,
+        "session_id": "manual-levels",
+        "seq": 0,
+        "product": "nx",
+        "action": "cam.operation.create",
+        "category": "operation",
+        "mode": "manual",
+        "source_mode": "manual",
+        "view_level": "L0",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "timestamp": "2026-08-24T00:00:00Z",
+        "params": {}
+      },
+      {
+        "schema_version": 1,
+        "session_id": "manual-levels",
+        "seq": 1,
+        "product": "nx",
+        "action": "cam.operation.create",
+        "category": "operation",
+        "mode": "manual",
+        "source_mode": "manual",
+        "view_level": "L1",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "timestamp": "2026-08-24T00:00:01Z",
+        "params": {}
+      },
+      {
+        "schema_version": 1,
+        "session_id": "manual-levels",
+        "seq": 2,
+        "product": "nx",
+        "action": "cam.parameter.set",
+        "category": "parameter",
+        "mode": "manual",
+        "source_mode": "manual",
+        "view_level": "L2",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "timestamp": "2026-08-24T00:00:02Z",
+        "params": {}
+      },
+      {
+        "schema_version": 1,
+        "session_id": "manual-levels",
+        "seq": 3,
+        "product": "nx",
+        "action": "cam.toolpath.generate",
+        "category": "operation",
+        "mode": "manual",
+        "source_mode": "manual",
+        "view_level": "L3",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "timestamp": "2026-08-24T00:00:03Z",
+        "params": {}
+      },
+      {
+        "schema_version": 1,
+        "session_id": "manual-levels",
+        "seq": 4,
+        "product": "nx",
+        "action": "cam.toolpath.generate",
+        "category": "operation",
+        "mode": "manual",
+        "source_mode": "manual",
+        "view_level": "L4",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "timestamp": "2026-08-24T00:00:04Z",
+        "params": {}
+      }
+    ],
+    "returned_count": 5,
+    "returned": 5,
+    "has_more": false,
+    "next_cursor": null,
+    "total_estimate": null
+  }
+}

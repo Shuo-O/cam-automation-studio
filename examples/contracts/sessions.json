@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "sessions": [
+    {
+      "schema_version": 1,
+      "session_id": "session:nx:a",
+      "product": "nx",
+      "instance_id": "nx:3101:A1",
+      "project_id": "nx-project-a",
+      "view_level": "L2",
+      "source_modes": [
+        "manual"
+      ],
+      "started_at": "2026-08-23T09:00:01Z",
+      "ended_at": "2026-08-23T09:00:03Z",
+      "event_count": 2,
+      "event_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 0
+        },
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 1
+        }
+      ],
+      "explicit_marker": true,
+      "labels": [
+        "expert"
+      ],
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "session_id": "session:nx:b",
+      "product": "nx",
+      "instance_id": "nx:3102:B2",
+      "project_id": "nx-project-b",
+      "view_level": "L2",
+      "source_modes": [
+        "automation"
+      ],
+      "started_at": "2026-08-23T09:00:02Z",
+      "ended_at": "2026-08-23T09:00:04Z",
+      "event_count": 2,
+      "event_refs": [
+        {
+          "event_session_id": "nx-source-b",
+          "seq": 0
+        },
+        {
+          "event_session_id": "nx-source-b",
+          "seq": 1
+        }
+      ],
+      "explicit_marker": true,
+      "labels": [
+        "routine"
+      ],
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "session_id": "session:powermill:a",
+      "product": "powermill",
+      "instance_id": "powermill:4101:C1",
+      "project_id": "pm-project-a",
+      "view_level": "L2",
+      "source_modes": [
+        "manual",
+        "execution_audit"
+      ],
+      "started_at": "2026-08-23T09:00:06Z",
+      "ended_at": "2026-08-23T09:00:08Z",
+      "event_count": 2,
+      "event_refs": [
+        {
+          "event_session_id": "pm-source-a",
+          "seq": 0
+        },
+        {
+          "event_session_id": "pm-source-a",
+          "seq": 1
+        }
+      ],
+      "explicit_marker": true,
+      "labels": [
+        "expert"
+      ],
+      "metadata": {}
+    },
+    {
+      "schema_version": 1,
+      "session_id": "session:powermill:b",
+      "product": "powermill",
+      "instance_id": "powermill:4102:process",
+      "project_id": null,
+      "view_level": "L2",
+      "source_modes": [
+        "system",
+        "automation"
+      ],
+      "started_at": "2026-08-23T09:00:05Z",
+      "ended_at": "2026-08-23T09:00:07Z",
+      "event_count": 2,
+      "event_refs": [
+        {
+          "event_session_id": "pm-source-b",
+          "seq": 0
+        },
+        {
+          "event_session_id": "pm-source-b",
+          "seq": 1
+        }
+      ],
+      "explicit_marker": false,
+      "labels": [
+        "routine"
+      ],
+      "metadata": {
+        "project_mapping": "unmapped"
+      }
+    }
+  ]
+}

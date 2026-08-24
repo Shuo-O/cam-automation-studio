@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "diff_id": "session-diff:nx:a-b",
+  "session_ids": [
+    "session:nx:a",
+    "session:nx:b"
+  ],
+  "baseline_session_id": "session:nx:a",
+  "common_steps": [
+    {
+      "step_key": "step:operation-create",
+      "order": 1,
+      "action": "cam.operation.create"
+    },
+    {
+      "step_key": "step:toolpath-generate",
+      "order": 2,
+      "action": "cam.toolpath.generate"
+    }
+  ],
+  "session_deltas": [
+    {
+      "session_id": "session:nx:a",
+      "missing_step_keys": [],
+      "extra_steps": []
+    },
+    {
+      "session_id": "session:nx:b",
+      "missing_step_keys": [],
+      "extra_steps": [
+        {
+          "order": 2,
+          "action": "cam.parameter.set.tolerance"
+        }
+      ]
+    }
+  ],
+  "parameter_differences": [
+    {
+      "step_key": "step:operation-create",
+      "parameter": "tolerance",
+      "values_by_session": {
+        "session:nx:a": 0.02,
+        "session:nx:b": 0.03
+      }
+    }
+  ],
+  "duration_ms_by_session": {
+    "session:nx:a": 8421,
+    "session:nx:b": 9010
+  },
+  "created_at": "2026-08-23T09:01:00Z"
+}

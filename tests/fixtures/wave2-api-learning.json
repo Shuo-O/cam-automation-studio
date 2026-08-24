@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "fixture_id": "wave2-api-learning",
+  "sessions_response": {
+    "schema_version": 1,
+    "returned_count": 2,
+    "sessions": [
+      {
+        "schema_version": 1,
+        "session_id": "session:nx:fixture-a",
+        "product": "nx",
+        "instance_id": "nx:fixture:A",
+        "project_id": "nx-project-a",
+        "view_level": "L2",
+        "source_modes": [
+          "manual"
+        ],
+        "started_at": "2026-08-24T00:00:00Z",
+        "ended_at": "2026-08-24T00:00:02Z",
+        "event_count": 2,
+        "event_refs": [
+          {
+            "event_session_id": "manual-a",
+            "seq": 0
+          },
+          {
+            "event_session_id": "manual-a",
+            "seq": 1
+          }
+        ],
+        "explicit_marker": true
+      },
+      {
+        "schema_version": 1,
+        "session_id": "session:nx:fixture-b",
+        "product": "nx",
+        "instance_id": "nx:fixture:B",
+        "project_id": "nx-project-b",
+        "view_level": "L2",
+        "source_modes": [
+          "manual"
+        ],
+        "started_at": "2026-08-24T01:00:00Z",
+        "ended_at": "2026-08-24T01:00:02Z",
+        "event_count": 2,
+        "event_refs": [
+          {
+            "event_session_id": "manual-b",
+            "seq": 0
+          },
+          {
+            "event_session_id": "manual-b",
+            "seq": 1
+          }
+        ],
+        "explicit_marker": true
+      }
+    ]
+  },
+  "recipe_response": {
+    "schema_version": 1,
+    "recipe": {
+      "schema_version": 1,
+      "recipe_id": "recipe:nx:fixture",
+      "recipe_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "name": "NX fixture recipe",
+      "product": "nx",
+      "status": "review_required",
+      "target_versions": [
+        "NX 2406"
+      ],
+      "source_session_ids": [
+        "session:nx:fixture-a",
+        "session:nx:fixture-b"
+      ],
+      "support": {
+        "matched_sessions": 2,
+        "total_sessions": 2,
+        "ratio": 1.0
+      },
+      "parameters": [],
+      "steps": [
+        {
+          "step_id": "step-001",
+          "order": 1,
+          "action": "cam.operation.create",
+          "enabled": true,
+          "risk": "review",
+          "review_status": "needs_review",
+          "arguments": {},
+          "condition": null,
+          "source_event_refs": [
+            {
+              "event_session_id": "manual-a",
+              "seq": 0
+            }
+          ]
+        }
+      ],
+      "required_gates": [
+        "recipe_review",
+        "cam_simulation",
+        "collision_check",
+        "shop_approval"
+      ],
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z"
+    }
+  }
+}

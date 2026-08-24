@@ -1,0 +1,4 @@
+# session: cavity-a
+FUNCTION Main(STRING $project = "C:\Jobs\Cavity A", REAL $tolerance)
+PowerMill> EDIT TOOLPATH "Rough   A" TOLERANCE 0.05 STEPDOWN 2
+[2026-08-23T10:00:00Z] PMILL> PRINT $entity('toolpath';'Rough   A').Name

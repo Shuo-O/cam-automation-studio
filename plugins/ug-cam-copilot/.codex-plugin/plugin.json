@@ -1,24 +1,35 @@
 {
   "name": "ug-cam-copilot",
-  "version": "0.2.0",
-  "description": "AI-assisted workflow learning for PowerMill and Siemens NX CAM.",
+  "version": "0.3.1+codex.20260824050455",
+  "description": "Review-first Siemens NX CAM workflow learning, session comparison, recipe review, and fixture dry-run queries.",
   "author": {
     "name": "UG CAM Automation Team"
   },
   "license": "MIT",
-  "keywords": ["powermill", "siemens-nx", "nxopen", "cam", "automation"],
+  "keywords": [
+    "siemens-nx",
+    "nxopen",
+    "cam",
+    "automation",
+    "dry-run"
+  ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "UG CAM Copilot",
-    "shortDescription": "Learn repeatable PowerMill and NX CAM workflows.",
-    "longDescription": "UG CAM Copilot turns recorded PowerMill macros or NX journals into reviewed automation recipes. The local MVP mines repeated actions, suggests the next step, and exports safe PowerMill macro or NXOpen journal drafts.",
+    "displayName": "NX CAM Copilot",
+    "shortDescription": "Review NX workflows from local evidence.",
+    "longDescription": "Adds static NX Journal learning, session comparison, structured recipe review, and instance-bound read-only or fixture dry-run previews. It does not execute Journals, upload project data, or produce machine-ready output.",
     "developerName": "UG CAM Automation Team",
     "category": "Productivity",
-    "capabilities": ["Analysis", "Write"],
+    "capabilities": [
+      "Static journal analysis",
+      "Session comparison",
+      "Structured recipe review",
+      "Fixture dry-run"
+    ],
     "defaultPrompt": [
-      "Learn a repeated PowerMill workflow from my macro logs.",
-      "Analyze my NX journals and create a reviewed automation recipe.",
-      "Audit this CAM automation candidate before testing."
+      "Analyze these NX journals as local static evidence.",
+      "Compare these NX CAM sessions before recipe mining.",
+      "Review this NX recipe without live execution."
     ],
     "brandColor": "#006487"
   }

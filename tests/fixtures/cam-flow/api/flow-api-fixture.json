@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "asset_request": {
+    "content": "# fixture only\n",
+    "content_encoding": "utf-8",
+    "asset_id": "asset:nx:api",
+    "product": "nx",
+    "asset_type": "nx_journal",
+    "display_name": "api-fixture.py",
+    "source_locator": "selected-file",
+    "source_origin": "user_authored",
+    "rights": {
+      "status": "legal_reviewed",
+      "evidence_ref": "rights:api-fixture",
+      "sharing_scope": "private",
+      "redistribution_allowed": false,
+      "network_egress_allowed": false,
+      "binary_inspection": false
+    },
+    "target_versions": [
+      "NX 2406"
+    ],
+    "runtime_modes": [
+      "offline",
+      "fixture_dry_run"
+    ],
+    "dependencies": [],
+    "extensions": {}
+  },
+  "manifest": {
+    "schema_version": 1,
+    "contract": "cam.capability_manifest.v1",
+    "manifest_id": "manifest:nx:api:1",
+    "manifest_version": "1.0.0",
+    "manifest_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "provider": {
+      "provider_id": "cam-automation-studio",
+      "display_name": "Fixture-only NX API adapter",
+      "claim_level": "fixture_verified"
+    },
+    "product": "nx",
+    "adapter_kind": "manifest_only",
+    "authorization": {
+      "status": "fixture_verified",
+      "evidence_ref": "fixture:nx:api",
+      "verified_by": "test-suite",
+      "valid_until": null
+    },
+    "target_version_ranges": [
+      "NX 2406"
+    ],
+    "execution_modes": [
+      "offline",
+      "read_only",
+      "fixture_dry_run"
+    ],
+    "permissions": [
+      "read:selected-files"
+    ],
+    "node_types": [
+      {
+        "node_type": "nx.fixture.inspect",
+        "node_type_version": "1.0.0",
+        "category": "inspection",
+        "display_name": "Inspect NX fixture",
+        "ports": [],
+        "configuration_schema": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "static_risk_floor": "review",
+        "required_gates": [
+          "recipe_review",
+          "target_version_validation",
+          "cam_simulation",
+          "collision_check",
+          "shop_approval"
+        ],
+        "forbidden_modes": [
+          "live"
+        ],
+        "parse_support": true,
+        "preview_support": true,
+        "recipe_projection_support": true,
+        "fidelity": "semantic_round_trip"
+      }
+    ],
+    "prohibited_operations": [
+      "live_journal",
+      "live_macro",
+      "nc",
+      "gcode",
+      "clsf",
+      "postprocess",
+      "machine_control"
+    ],
+    "evidence": [
+      {
+        "kind": "fixture_test",
+        "ref": "fixture:nx:api",
+        "version": "1",
+        "checked_at": "2026-08-24T00:00:00Z"
+      }
+    ],
+    "revocation": null,
+    "extensions": {
+      "cam.flow.api/fixture": {
+        "semantic": false,
+        "transport": "none"
+      }
+    }
+  },
+  "graph": {
+    "schema_version": 1,
+    "contract": "cam.flowgraph.v1",
+    "graph_id": "graph:nx:api",
+    "revision_id": "revision:nx:api:1",
+    "parent_revision_id": null,
+    "product": "nx",
+    "target_versions": [
+      "NX 2406"
+    ],
+    "entry_flow_id": "flow:main",
+    "graph_parameters": [],
+    "flows": [
+      {
+        "flow_id": "flow:main",
+        "kind": "main",
+        "name": "Main",
+        "interface_ports": [],
+        "parameter_ids": [],
+        "nodes": [
+          {
+            "node_id": "node:inspect",
+            "node_type": "nx.fixture.inspect",
+            "node_type_version": "1.0.0",
+            "enabled": true,
+            "risk": "review",
+            "review_status": "accepted",
+            "port_contract_refs": [],
+            "bindings": [],
+            "configuration": {},
+            "source_mapping_ids": [],
+            "fidelity": "F2",
+            "capability_ref": {
+              "manifest_id": "manifest:nx:api:1",
+              "manifest_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "node_type": "nx.fixture.inspect",
+              "node_type_version": "1.0.0"
+            },
+            "compatibility_status": "supported",
+            "opaque": null,
+            "extensions": {}
+          }
+        ],
+        "edges": [],
+        "source_mapping_ids": []
+      }
+    ],
+    "asset_refs": [
+      {
+        "asset_id": "asset:nx:api",
+        "asset_revision_id": "asset-rev:28328791575b5c0d00a6274b2279c2dbb2e3d582c6ea2d3174b7c3d27a5b9374",
+        "content_hash": "sha256:56ee930f495bbf54c4845af9aa530c09f58ba147afcaa97d9fc844ebab3983d2"
+      }
+    ],
+    "source_mappings": [],
+    "capability_lock": [
+      {
+        "manifest_id": "manifest:nx:api:1",
+        "manifest_version": "1.0.0",
+        "manifest_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "required_gates": [
+      "recipe_review",
+      "target_version_validation",
+      "cam_simulation",
+      "collision_check",
+      "shop_approval"
+    ],
+    "semantic_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "source_snapshot_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "layout": {
+      "nodes": {}
+    },
+    "extensions": {}
+  },
+  "target": {
+    "product": "nx",
+    "target_version": "NX 2406",
+    "target_instance_id": "fixture:nx:api:1",
+    "project_id": "fixture-project:nx:api",
+    "project_snapshot_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "target_kind": "fixture",
+    "permissions": [
+      "read:selected-files"
+    ],
+    "extensions": {}
+  },
+  "version_request": {
+    "graph_id": "graph:nx:api",
+    "revision_id": "revision:nx:api:1",
+    "version_id": "flow-version:nx:api:1",
+    "status": "reviewed_for_fixture",
+    "author_ref": "operator:fixture",
+    "message": "Reviewed for fixture-only API tests",
+    "round_trip_report_id": "roundtrip:nx:api:1",
+    "compatibility_report_id": "compatibility:nx:api:1",
+    "reviewed_recipe_hash": null
+  },
+  "preview_request": {
+    "plan_id": "preview:nx:api:1",
+    "graph_id": "graph:nx:api",
+    "revision_id": "revision:nx:api:1",
+    "flow_version_id": "flow-version:nx:api:1",
+    "execution_mode": "fixture_dry_run",
+    "transport": "none",
+    "target": {
+      "product": "nx",
+      "target_version": "NX 2406",
+      "target_instance_id": "fixture:nx:api:1",
+      "project_id": "fixture-project:nx:api",
+      "project_snapshot_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "target_kind": "fixture"
+    },
+    "hashes": {
+      "source_snapshot_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "semantic_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "capability_lock_hash": "sha256:f00ddfcb86170e18aff668d75ac1331ac68468cbabda42f0bbf115ce5843f7da",
+      "reviewed_recipe_hash": null
+    }
+  }
+}

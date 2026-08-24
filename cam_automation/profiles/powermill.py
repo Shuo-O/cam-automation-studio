@@ -19,13 +19,24 @@ class PowerMillProfile:
         ),
         (re.compile(r"^(SYSTEM|SHELL|PROCESS)\b", re.IGNORECASE), "external process execution"),
         (re.compile(r"^MACRO\s+(RUN|EXECUTE?)\b", re.IGNORECASE), "nested macro execution"),
+        (
+            re.compile(
+                r"(?:\bPOSTPROCESS\b|\bNCPROGRAM\s+(?:WRITE|POSTPROCESS)\b"
+                r"|\bG[-_ ]?CODE\b|\bMACHINE[_ ]?CODE\b)",
+                re.IGNORECASE,
+            ),
+            "machine-ready NC or postprocessing output",
+        ),
+        (
+            re.compile(
+                r"^(?:DNC|MDI|MACHINE\s+(?:RUN|START|JOG|HOME|MOVE|CONTROL))\b",
+                re.IGNORECASE,
+            ),
+            "machine control",
+        ),
     )
     _review_rules = (
-        (re.compile(r"^(EXPORT|WRITE|POSTPROCESS)\b", re.IGNORECASE), "writes external output"),
-        (
-            re.compile(r"^NCPROGRAM\s+(WRITE|POSTPROCESS)\b", re.IGNORECASE),
-            "creates machine output",
-        ),
+        (re.compile(r"^(EXPORT|WRITE)\b", re.IGNORECASE), "writes external output"),
         (
             re.compile(r"^PROJECT\s+(SAVE|ARCHIVE)\b", re.IGNORECASE),
             "writes project data",
@@ -100,6 +111,28 @@ class PowerMillProfile:
         "ui": "manual",
         "user": "manual",
     }
+    _read_only_query_rules = (
+        re.compile(r"^PRINT(?:\s|$)", re.IGNORECASE),
+        re.compile(r"^SIZE\s+(?:MODEL|TOOLPATH)(?:\s|$)", re.IGNORECASE),
+    )
+    _read_only_operations = frozenset(
+        {
+            "cam.model.bounds.query",
+            "cam.toolpath.bounds.query",
+            "powermill.entity.inspect",
+            "powermill.project.info",
+            "powermill.project.list_entities",
+            "powermill.version.query",
+        }
+    )
+    _unsafe_query = re.compile(
+        r"(?:\b(?:DELETE|REMOVE|ERASE|CREATE|EDIT|CALCULATE|ACTIVATE|IMPORT|EXPORT"
+        r"|SAVE|WRITE|POSTPROCESS|RUN|EXECUTE|SYSTEM|SHELL|PROCESS|DNC|MDI)\b"
+        r"|\bNC\s*PROGRAM\b|\bNCPROGRAM\b|\bG[-_ ]?CODE\b|\bMACHINE[_ ]?CODE\b"
+        r"|\bMACHINE\s+(?:RUN|START|JOG|HOME|MOVE|CONTROL)\b)",
+        re.IGNORECASE,
+    )
+    _version = re.compile(r"\bPowerMill(?:\s+Ultimate)?\s+(20\d{2}(?:\.\d+)?)\b", re.IGNORECASE)
 
     def assess(self, command: str) -> SafetyAssessment:
         for pattern, reason in self._blocked_rules:
@@ -152,3 +185,50 @@ class PowerMillProfile:
             if token in normalized_source:
                 return mode
         return "automation"
+
+    def assess_query(self, command: str) -> SafetyAssessment:
+        """Allow only explicitly known read-only PowerMill query forms."""
+
+        normalized = command.strip()
+        if not normalized:
+            return SafetyAssessment("blocked", ("empty query",))
+        if self._unsafe_query.search(normalized):
+            return SafetyAssessment(
+                "blocked",
+                ("query contains a state-changing or unsafe operation",),
+            )
+        if normalized.casefold() in {
+            operation.casefold() for operation in self._read_only_operations
+        }:
+            return SafetyAssessment("safe")
+        if any(pattern.match(normalized) for pattern in self._read_only_query_rules):
+            return SafetyAssessment("safe")
+        return SafetyAssessment(
+            "blocked",
+            ("operation is not on the read-only query allowlist",),
+        )
+
+    def is_read_only_operation(self, operation: str) -> bool:
+        return operation.strip().casefold() in {
+            item.casefold() for item in self._read_only_operations
+        }
+
+    def window_metadata(self, title: str) -> dict[str, str | None]:
+        """Extract display-only PowerMill metadata without using it as identity."""
+
+        clean = title.strip()
+        version_match = self._version.search(clean)
+        project_name: str | None = None
+        marker = re.search(
+            r"\s+-\s+PowerMill(?:\s+Ultimate)?(?:\s+20\d{2}(?:\.\d+)?)?\s*$",
+            clean,
+            re.IGNORECASE,
+        )
+        if marker and marker.start() > 0:
+            project_name = clean[: marker.start()].strip() or None
+        return {
+            "target_version": (
+                f"PowerMill {version_match.group(1)}" if version_match else None
+            ),
+            "project_name": project_name,
+        }

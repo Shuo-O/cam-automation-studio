@@ -1,31 +1,35 @@
 {
   "name": "powermill-cam-copilot",
-  "version": "0.1.0",
-  "description": "Learn reviewed PowerMill automation recipes from operator command logs.",
+  "version": "0.2.1+codex.20260824050455",
+  "description": "Review-first PowerMill workflow learning, session comparison, recipe review, and fixture dry-run queries.",
   "author": {
-    "name": "Local developer"
+    "name": "CAM Automation Studio"
   },
   "license": "MIT",
   "keywords": [
     "powermill",
     "cam",
     "automation",
-    "manufacturing"
+    "manufacturing",
+    "dry-run"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "PowerMill CAM Copilot",
-    "shortDescription": "Learn reviewed automation from PowerMill operator logs.",
-    "longDescription": "Turns PowerMill command logs into parameterized workflow recipes, safety reports, and review-first macro artifacts using the local CAM automation core.",
-    "developerName": "Local developer",
+    "shortDescription": "Review PowerMill workflows from local evidence.",
+    "longDescription": "Adds offline PowerMill log learning, session comparison, structured recipe review, and instance-bound read-only or fixture dry-run previews. It does not send live commands, upload project data, or produce machine-ready output.",
+    "developerName": "CAM Automation Studio",
     "category": "Productivity",
     "capabilities": [
-      "Local workflow analysis",
-      "Reviewed macro generation"
+      "Offline log analysis",
+      "Session comparison",
+      "Structured recipe review",
+      "Fixture dry-run"
     ],
     "defaultPrompt": [
-      "Learn a reviewed PowerMill recipe from my command log.",
-      "Audit this PowerMill macro before I reuse it."
+      "Learn a reviewed PowerMill recipe from local logs.",
+      "Compare these PowerMill CAM sessions.",
+      "Review this PowerMill recipe without live commands."
     ]
   }
 }

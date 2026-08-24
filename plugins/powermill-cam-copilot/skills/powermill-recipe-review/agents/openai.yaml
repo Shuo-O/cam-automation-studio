@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerMill Recipe Review"
+  short_description: "Review PowerMill recipes against evidence and safety gates"
+  default_prompt: "Use $powermill-recipe-review to review this PowerMill recipe and unresolved gates."

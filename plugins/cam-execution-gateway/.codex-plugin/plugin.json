@@ -1,0 +1,31 @@
+{
+  "name": "cam-execution-gateway",
+  "version": "0.2.0+codex.20260824043001",
+  "description": "Fail-closed, instance-targeted read-only query and dry-run preview review for CAM.",
+  "author": {
+    "name": "CAM Automation Studio"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cam",
+    "execution",
+    "dry-run",
+    "safety",
+    "audit"
+  ],
+  "interface": {
+    "displayName": "CAM Execution Gateway",
+    "shortDescription": "Review bound CAM queries and dry-run previews.",
+    "longDescription": "Adds a fail-closed gateway for instance-bound read-only queries and dry-run previews. It blocks live execution, Journal dispatch, NC, G-code, postprocessing, and machine control.",
+    "developerName": "CAM Automation Studio",
+    "category": "Productivity",
+    "capabilities": [
+      "Read-only query review",
+      "Target instance",
+      "Dry-run audit"
+    ],
+    "defaultPrompt": [
+      "Audit this CAM request and keep it read-only or dry-run."
+    ]
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "protocol": "cam.codex.bridge.v1",
+  "request_id": "codex-review-001",
+  "request_type": "workflow_review",
+  "created_at": "2026-08-23T09:04:00Z",
+  "execution_mode": "dry-run",
+  "product": "nx",
+  "target_version": "NX 2406",
+  "recipe": {
+    "schema_version": 1,
+    "recipe_id": "recipe:nx:planar-operation",
+    "recipe_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "name": "NX planar operation preview",
+    "product": "nx",
+    "status": "review_required",
+    "target_versions": [
+      "NX 2406"
+    ],
+    "source_session_ids": [
+      "session:nx:a",
+      "session:nx:b"
+    ],
+    "support": {
+      "matched_sessions": 2,
+      "total_sessions": 2,
+      "ratio": 1.0
+    },
+    "parameters": [
+      {
+        "name": "tolerance",
+        "value_type": "number",
+        "required": true,
+        "default": 0.02,
+        "samples": [
+          0.02,
+          0.03
+        ],
+        "description": "Reviewed operation tolerance in millimetres.",
+        "constraints": {
+          "minimum": 0.001,
+          "maximum": 0.1,
+          "units": "mm"
+        },
+        "source_event_refs": [
+          {
+            "event_session_id": "nx-source-a",
+            "seq": 0
+          }
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "step_id": "step-001",
+        "order": 1,
+        "action": "cam.operation.create",
+        "enabled": true,
+        "risk": "review",
+        "review_status": "needs_review",
+        "arguments": {
+          "operation_type": "mill_planar",
+          "tolerance": {
+            "parameter": "tolerance"
+          }
+        },
+        "condition": null,
+        "source_event_refs": [
+          {
+            "event_session_id": "nx-source-a",
+            "seq": 0
+          }
+        ],
+        "notes": "Resolve CAM groups with stable selectors."
+      }
+    ],
+    "required_gates": [
+      "recipe_review",
+      "target_version_validation",
+      "cam_simulation",
+      "collision_check",
+      "shop_approval"
+    ],
+    "created_at": "2026-08-23T09:02:00Z",
+    "updated_at": "2026-08-23T09:02:00Z",
+    "description": "Review-first NX operation preview.",
+    "project_conditions": {
+      "test_copy_required": true,
+      "units": "mm"
+    },
+    "branches": []
+  },
+  "source_events": [
+    {
+      "schema_version": 1,
+      "session_id": "nx-source-a",
+      "seq": 0,
+      "product": "nx",
+      "action": "cam.operation.create",
+      "category": "operation",
+      "mode": "manual",
+      "params": {
+        "operation_type": "mill_planar",
+        "tolerance": 0.02
+      },
+      "source_file": "nx:<SOURCE_A>.py",
+      "source_line": 42,
+      "duration_ms": null,
+      "timestamp": "2026-08-23T09:00:01Z",
+      "source_mode": "manual",
+      "view_level": "L1",
+      "expertise_label": "expert",
+      "instance_id": "nx:3101:A1",
+      "project_id": "nx-project-a",
+      "target_version": "NX 2406",
+      "review_status": "unreviewed",
+      "recipe_hash": null
+    }
+  ],
+  "session_diff": {
+    "schema_version": 1,
+    "diff_id": "session-diff:nx:a-b",
+    "session_ids": [
+      "session:nx:a",
+      "session:nx:b"
+    ],
+    "baseline_session_id": "session:nx:a",
+    "common_steps": [
+      {
+        "step_key": "step:operation-create",
+        "order": 1,
+        "action": "cam.operation.create"
+      }
+    ],
+    "session_deltas": [
+      {
+        "session_id": "session:nx:a",
+        "missing_step_keys": [],
+        "extra_steps": []
+      },
+      {
+        "session_id": "session:nx:b",
+        "missing_step_keys": [],
+        "extra_steps": []
+      }
+    ],
+    "parameter_differences": [
+      {
+        "step_key": "step:operation-create",
+        "parameter": "tolerance",
+        "values_by_session": {
+          "session:nx:a": 0.02,
+          "session:nx:b": 0.03
+        }
+      }
+    ],
+    "duration_ms_by_session": {
+      "session:nx:a": 8421,
+      "session:nx:b": 9010
+    },
+    "created_at": "2026-08-23T09:01:00Z"
+  },
+  "questions": [
+    "Is the tolerance range appropriate for the target NX 2406 setup?",
+    "Which stable selector should replace the recorded operation identifier?"
+  ],
+  "context_metadata": {
+    "redaction": "redacted-local-v1",
+    "source_event_count": 1,
+    "machine_ready_nc_included": false
+  }
+}

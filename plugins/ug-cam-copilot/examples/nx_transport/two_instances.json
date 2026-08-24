@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "transport": "fixture",
+  "instances": [
+    {
+      "product": "nx",
+      "instance_id": "nx:3101:A1",
+      "target_version": "NX 2406",
+      "project_id": "nx-project-a",
+      "queries": {
+        "nx.session.describe": {
+          "session_name": "fixture-session-a",
+          "part_loaded": true
+        },
+        "nx.part.describe": {
+          "part_name": "fixture-part-a",
+          "units": "mm"
+        },
+        "nx.cam.operations.list": {
+          "operations": [
+            {
+              "name": "PLANAR_REVIEW_A",
+              "status": "needs_review"
+            }
+          ]
+        }
+      },
+      "snapshot": {
+        "part": {
+          "name": "fixture-part-a",
+          "units": "mm"
+        },
+        "cam": {
+          "operation_count": 1,
+          "dirty_operation_count": 0
+        }
+      }
+    },
+    {
+      "product": "nx",
+      "instance_id": "nx:3102:B2",
+      "target_version": "NX 2312",
+      "project_id": "nx-project-b",
+      "queries": {
+        "nx.session.describe": {
+          "session_name": "fixture-session-b",
+          "part_loaded": true
+        },
+        "nx.part.describe": {
+          "part_name": "fixture-part-b",
+          "units": "inch"
+        },
+        "nx.cam.operations.list": {
+          "operations": [
+            {
+              "name": "PLANAR_REVIEW_B",
+              "status": "dirty"
+            },
+            {
+              "name": "DRILL_REVIEW_B",
+              "status": "needs_review"
+            }
+          ]
+        }
+      },
+      "snapshot": {
+        "part": {
+          "name": "fixture-part-b",
+          "units": "inch"
+        },
+        "cam": {
+          "operation_count": 2,
+          "dirty_operation_count": 1
+        }
+      }
+    }
+  ]
+}

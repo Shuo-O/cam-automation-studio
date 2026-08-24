@@ -113,6 +113,10 @@ def _doctor() -> int:
             (str(path.resolve()) for path in candidates if path.is_file()), None
         ),
         "nx_adapter": "ready",
+        "nx_version_contract": "offline AST stub inspection",
+        "nx_transport": "fixture-only",
+        "live_nx_connection": False,
+        "nx_query_policy": "read-only allowlist",
         "powermill_adapter": "browser demo and shared JSONL contract ready",
         "execution_policy": "dry-run scaffolds only",
     }
@@ -182,7 +186,7 @@ def _print_patterns(patterns) -> None:
 def _demo(output: Path) -> int:
     examples = PLUGIN_ROOT / "examples" / "nx_journals"
     db = output / "cam_learning.db"
-    _ingest([examples], product="nx", db=db)
+    _ingest(sorted(examples.glob("session_?.py")), product="nx", db=db)
     namespace = argparse.Namespace(
         product="nx",
         db=db,

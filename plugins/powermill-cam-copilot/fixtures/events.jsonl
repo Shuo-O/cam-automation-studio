@@ -1,0 +1,2 @@
+{"schema_version":1,"session_id":"pm-audit","product":"powermill","command":"SIZE MODEL \"Cavity   A\"","source":"authorized-local-fixture","source_mode":"execution_audit","instance_id":"powermill:fixture:A","project_id":"pm-a","target_version":"PowerMill 2026","parameters":[{"name":"selector"}]}
+{"schema_version":1,"session_id":"foreign","product":"nx","command":"PRINT \"must not enter PowerMill\""}

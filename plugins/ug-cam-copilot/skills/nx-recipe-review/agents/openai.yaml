@@ -1,0 +1,4 @@
+interface:
+  display_name: "NX Recipe Review"
+  short_description: "Review NX CAM recipes against evidence and safety gates"
+  default_prompt: "Use $nx-recipe-review to review this NX CAM recipe and list unresolved gates."

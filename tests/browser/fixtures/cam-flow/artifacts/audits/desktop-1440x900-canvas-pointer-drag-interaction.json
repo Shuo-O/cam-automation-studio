@@ -1,0 +1,58 @@
+{
+  "before_transform": "translate(610px, 115px)",
+  "after_transform": "translate(665px, 142px)",
+  "undo_transform": "translate(610px, 115px)",
+  "moved": true,
+  "undo_restored": true,
+  "pointer_events": [
+    {
+      "type": "pointermove",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": -1,
+      "buttons": 0
+    },
+    {
+      "type": "pointerdown",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": 0,
+      "buttons": 1
+    },
+    {
+      "type": "pointermove",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": -1,
+      "buttons": 1
+    },
+    {
+      "type": "pointermove",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": -1,
+      "buttons": 1
+    },
+    {
+      "type": "pointermove",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": -1,
+      "buttons": 1
+    },
+    {
+      "type": "pointermove",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": -1,
+      "buttons": 1
+    },
+    {
+      "type": "pointerup",
+      "is_trusted": true,
+      "pointer_type": "mouse",
+      "button": 0,
+      "buttons": 0
+    }
+  ]
+}

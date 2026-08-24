@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source_modes": [
+    "manual",
+    "automation",
+    "system",
+    "execution_audit"
+  ],
+  "view_levels": [
+    "L0",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "products": [
+    "nx",
+    "powermill"
+  ],
+  "instance_ids": [
+    "nx:3101:A1",
+    "nx:3102:B2",
+    "powermill:4101:C1",
+    "powermill:4102:process"
+  ],
+  "project_ids": [],
+  "session_ids": [],
+  "actions": [],
+  "categories": [],
+  "from_time": "2026-08-23T09:00:00Z",
+  "to_time": "2026-08-23T09:01:00Z",
+  "text": "",
+  "cursor": null,
+  "limit": 100,
+  "sort": "asc"
+}

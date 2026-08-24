@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "contract": "cam.capability_manifest.v1",
+  "manifest_id": "manifest:powermill:offline-import:v1",
+  "manifest_version": "1.1.0",
+  "manifest_hash": "sha256:0fa41ffb98bd2432b5158bdd994b6f2007a2caea505e2810049d775a0b6344d6",
+  "provider": {
+    "provider_id": "powermill-cam-copilot",
+    "display_name": "PowerMill lossless offline FlowGraph importer",
+    "claim_level": "fixture_verified"
+  },
+  "product": "powermill",
+  "adapter_kind": "builtin",
+  "authorization": {
+    "status": "fixture_verified",
+    "evidence_ref": "plugins/powermill-cam-copilot/tests/test_powermill_flow_import.py",
+    "verified_by": "repository-test-suite",
+    "valid_until": null
+  },
+  "target_version_ranges": [
+    "PowerMill 2025",
+    "PowerMill 2026"
+  ],
+  "execution_modes": [
+    "offline",
+    "read_only",
+    "fixture_dry_run"
+  ],
+  "permissions": [
+    "read:selected-files"
+  ],
+  "node_types": [
+    {
+      "node_type": "cam.flow.start",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Flow start",
+      "ports": [
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": true,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.flow.end",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Flow end",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": true,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.toolpath.bounds.query",
+      "node_type_version": "1.0.0",
+      "category": "inspection",
+      "display_name": "Toolpath bounds query",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": true,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.variable.declare",
+      "node_type_version": "1.0.0",
+      "category": "data",
+      "display_name": "Variable declaration",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "value:$value", "direction": "output", "edge_kinds": ["data"], "type_ref": "number", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.variable.assign",
+      "node_type_version": "1.0.0",
+      "category": "data",
+      "display_name": "Variable assignment",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "variable:$value", "direction": "input", "edge_kinds": ["data"], "type_ref": "number", "cardinality": "one", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.control.if",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Conditional branch",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "variable:$value", "direction": "input", "edge_kinds": ["data"], "type_ref": "number", "cardinality": "one", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.control.else",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Else branch",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.control.while",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Recorded loop",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "variable:$value", "direction": "input", "edge_kinds": ["data"], "type_ref": "number", "cardinality": "one", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.control.break",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Break branch",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.control.block_end",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Control block end",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.expression.query",
+      "node_type_version": "1.0.0",
+      "category": "inspection",
+      "display_name": "Expression query",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": true,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.function.declare",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Function declaration",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.function.return",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Function return",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "token_exact_outside_edits"
+    },
+    {
+      "node_type": "powermill.command.dynamic",
+      "node_type_version": "1.0.0",
+      "category": "unsupported",
+      "display_name": "Dynamic command evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "opaque_preserved"
+    },
+    {
+      "node_type": "powermill.include",
+      "node_type_version": "1.0.0",
+      "category": "unsupported",
+      "display_name": "Unresolved include",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "blocked",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "opaque_preserved"
+    },
+    {
+      "node_type": "powermill.unsupported.vendor",
+      "node_type_version": "1.0.0",
+      "category": "unsupported",
+      "display_name": "Unsupported vendor command",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "blocked",
+      "required_gates": ["recipe_review", "target_version_validation", "cam_simulation", "collision_check", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "opaque_preserved"
+    }
+  ],
+  "prohibited_operations": [
+    "live_journal",
+    "live_macro",
+    "live_cam_command",
+    "source_codegen",
+    "nc",
+    "gcode",
+    "clsf",
+    "postprocess",
+    "machine_control"
+  ],
+  "evidence": [
+    {
+      "kind": "fixture_test",
+      "ref": "plugins/powermill-cam-copilot/tests/test_powermill_flow_import.py",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    },
+    {
+      "kind": "fixture",
+      "ref": "plugins/powermill-cam-copilot/fixtures/flow/control-flow.mac",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    },
+    {
+      "kind": "fixture",
+      "ref": "plugins/powermill-cam-copilot/fixtures/flow/unsupported.mac",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    }
+  ],
+  "revocation": null,
+  "extensions": {
+    "cam_automation": {
+      "plugin_id": "powermill-cam-copilot",
+      "plugin_version": "0.1.1",
+      "flow_sdk_range": ">=1.0.0 <2.0.0",
+      "manifest_hash_profile": "adapter_capability_lock_v1",
+      "manifest_hash_input": "cam-automation-studio:powermill:offline-import:v1.1.0",
+      "version_compatibility": {
+        "policy_version": 1,
+        "aliases": [
+          "PowerMill",
+          "PowerMill Ultimate",
+          "Autodesk PowerMill",
+          "Autodesk PowerMill Ultimate",
+          "PowerMILL"
+        ],
+        "review_required_ranges": [
+          "PowerMill >=2017,<2025",
+          "PowerMill >2026",
+          "PowerMill 21.*"
+        ],
+        "opaque_only_ranges": [
+          "PowerMill >=2010,<2017"
+        ],
+        "unsupported_ranges": [],
+        "verified_source": "target_version_ranges",
+        "unverified_tiers_do_not_claim_macro_equivalence": true
+      },
+      "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
+      "fixture_pack": [
+        "plugins/powermill-cam-copilot/fixtures/flow/command-envelope.log",
+        "plugins/powermill-cam-copilot/fixtures/flow/control-flow.mac",
+        "plugins/powermill-cam-copilot/fixtures/flow/unsupported.mac"
+      ],
+      "sdk_conformance_version": "1.0.0",
+      "transport": "none",
+      "read_only": true,
+      "live_connected": false,
+      "network_egress": false,
+      "machine_outputs_allowed": false,
+      "capability_states": {
+        "installed": "fixture_verified",
+        "uninstalled": "capability_unavailable",
+        "revoked": "capability_unavailable",
+        "missing": "capability_unavailable"
+      }
+    }
+  }
+}

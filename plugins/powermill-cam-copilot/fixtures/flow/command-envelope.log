@@ -1,0 +1,2 @@
+[2026-08-24T08:00:00Z] PowerMill> SIZE TOOLPATH "Rough A"
+2026-08-24T08:00:01Z | PMILL> PRINT $entity('toolpath';'Rough A').Name

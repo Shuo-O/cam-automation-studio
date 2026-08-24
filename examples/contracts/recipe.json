@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "recipe_id": "recipe:nx:planar-operation",
+  "recipe_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "name": "NX planar operation preview",
+  "product": "nx",
+  "status": "review_required",
+  "target_versions": [
+    "NX 2312",
+    "NX 2406"
+  ],
+  "source_session_ids": [
+    "session:nx:a",
+    "session:nx:b"
+  ],
+  "support": {
+    "matched_sessions": 2,
+    "total_sessions": 2,
+    "ratio": 1.0
+  },
+  "parameters": [
+    {
+      "name": "tolerance",
+      "value_type": "number",
+      "required": true,
+      "default": 0.02,
+      "samples": [
+        0.02,
+        0.03
+      ],
+      "description": "Reviewed operation tolerance in millimetres.",
+      "constraints": {
+        "minimum": 0.001,
+        "maximum": 0.1,
+        "units": "mm"
+      },
+      "source_event_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 0
+        },
+        {
+          "event_session_id": "nx-source-b",
+          "seq": 0
+        }
+      ]
+    },
+    {
+      "name": "operation_selector",
+      "value_type": "object_selector",
+      "required": true,
+      "default": {
+        "strategy": "reviewed_name",
+        "value": "PLANAR_OP"
+      },
+      "samples": [
+        {
+          "strategy": "recorded_id",
+          "value": "PLANAR_OP_A"
+        },
+        {
+          "strategy": "recorded_id",
+          "value": "PLANAR_OP_B"
+        }
+      ],
+      "description": "Must be resolved to a stable reviewed NX object selector.",
+      "constraints": {
+        "allow_recorded_id": false
+      },
+      "source_event_refs": []
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "step-001",
+      "order": 1,
+      "action": "cam.operation.create",
+      "enabled": true,
+      "risk": "review",
+      "review_status": "needs_review",
+      "arguments": {
+        "operation_type": "mill_planar",
+        "tolerance": {
+          "parameter": "tolerance"
+        }
+      },
+      "condition": null,
+      "source_event_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 0
+        },
+        {
+          "event_session_id": "nx-source-b",
+          "seq": 0
+        }
+      ],
+      "notes": "Resolve all parent CAM groups through reviewed selectors.",
+      "adapter_payload": {
+        "builder_family": "CAMOperationCollection"
+      }
+    },
+    {
+      "step_id": "step-002",
+      "order": 2,
+      "action": "cam.toolpath.generate",
+      "enabled": true,
+      "risk": "review",
+      "review_status": "needs_review",
+      "arguments": {
+        "operation": {
+          "parameter": "operation_selector"
+        }
+      },
+      "condition": {
+        "all": [
+          {
+            "path": "step-001.review_status",
+            "equals": "accepted"
+          }
+        ]
+      },
+      "source_event_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 1
+        }
+      ],
+      "notes": "Preview only; do not save the part or create NC output."
+    }
+  ],
+  "required_gates": [
+    "recipe_review",
+    "target_version_validation",
+    "cam_simulation",
+    "collision_check",
+    "shop_approval"
+  ],
+  "created_at": "2026-08-23T09:02:00Z",
+  "updated_at": "2026-08-23T09:02:00Z",
+  "description": "Review-first NX operation and toolpath preview.",
+  "project_conditions": {
+    "test_copy_required": true,
+    "units": "mm"
+  },
+  "branches": []
+}

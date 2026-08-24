@@ -1,0 +1,6 @@
+{
+  "description": "UTF-8 BOM with CRLF, LF, CR, non-ASCII text, quotes, and trailing spaces.",
+  "base64": "77u/Ly8gZmlkZWxpdHkNClBvd2VyTWlsbD4gRURJVCBUT09MUEFUSCAiUm91Z2ggIEEiIFRPTEVSQU5DRSAwLjA1MCAgDQpQTUlMTD4gUFJJTlQgImNhZsOpIgpOT0dVSSBPTg0=",
+  "sha256": "534455ab3ad80052613168a8c4eadbdc197aec2a5ede46f00ebca7d49225768c",
+  "byte_length": 101
+}

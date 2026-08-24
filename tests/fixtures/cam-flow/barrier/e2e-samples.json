@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "sample_id": "pm-alpha",
+      "product": "powermill",
+      "source_name": "pm-alpha.mac",
+      "target_version": "PowerMill 2025",
+      "target_instance_id": "powermill:4102:process",
+      "source": "PRINT \"BARRIER_PM_ALPHA\"\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/source_values/0/value",
+        "before": "BARRIER_PM_ALPHA",
+        "after": "BARRIER_PM_ALPHA_REVIEWED"
+      }
+    },
+    {
+      "sample_id": "pm-beta",
+      "product": "powermill",
+      "source_name": "pm-beta.mac",
+      "target_version": "PowerMill 2025",
+      "target_instance_id": "powermill:4102:process",
+      "source": "PRINT 42\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/source_values/0/value",
+        "before": 42,
+        "after": 43
+      }
+    },
+    {
+      "sample_id": "pm-gamma",
+      "product": "powermill",
+      "source_name": "pm-gamma.log",
+      "target_version": "PowerMill 2025",
+      "target_instance_id": "powermill:4102:process",
+      "source": "[2026-08-24T08:00:00Z] PowerMill> SIZE TOOLPATH \"Rough A\"\n2026-08-24T08:00:01Z | PMILL> PRINT $entity('toolpath';'Rough A').Name\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/source_values/0/value",
+        "before": "Rough A",
+        "after": "Rough B"
+      }
+    },
+    {
+      "sample_id": "nx-alpha",
+      "product": "nx",
+      "source_name": "nx-alpha.py",
+      "target_version": "NX 2406",
+      "target_instance_id": "nx:3101:A1",
+      "source": "import NXOpen\nsession_alpha = NXOpen.Session.GetSession()\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/modules/0",
+        "before": "NXOpen",
+        "after": "NXOpen.CAM"
+      }
+    },
+    {
+      "sample_id": "nx-beta",
+      "product": "nx",
+      "source_name": "nx-beta.py",
+      "target_version": "NX 2406",
+      "target_instance_id": "nx:3101:A1",
+      "source": "import NXOpen\nsession_beta = NXOpen.Session.GetSession()\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/modules/0",
+        "before": "NXOpen",
+        "after": "NXOpen.UF"
+      }
+    },
+    {
+      "sample_id": "nx-gamma",
+      "product": "nx",
+      "source_name": "nx-gamma.py",
+      "target_version": "NX 2406",
+      "target_instance_id": "nx:3101:A1",
+      "source": "import NXOpen\nsession_gamma = NXOpen.Session.GetSession()\n",
+      "edit": {
+        "path": "/flows/0/nodes/1/configuration/modules/0",
+        "before": "NXOpen",
+        "after": "NXOpen.Assemblies"
+      }
+    }
+  ]
+}

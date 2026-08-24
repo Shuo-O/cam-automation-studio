@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "protocol": "cam.codex.bridge.v1",
+  "request_id": "codex-review-001",
+  "review_status": "needs_changes",
+  "findings": [
+    {
+      "finding_id": "finding-001",
+      "severity": "blocker",
+      "code": "nx.selector.recorded_id",
+      "message": "The recorded NX object identifier must be replaced with a stable reviewed selector.",
+      "step_ids": [
+        "step-001"
+      ],
+      "evidence_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 0
+        }
+      ]
+    },
+    {
+      "finding_id": "finding-002",
+      "severity": "warning",
+      "code": "cam.gates.incomplete",
+      "message": "Simulation, collision checking and shop approval have not been completed.",
+      "step_ids": [
+        "step-001"
+      ],
+      "evidence_refs": []
+    }
+  ],
+  "suggested_parameters": [
+    {
+      "name": "tolerance",
+      "proposed_value": 0.02,
+      "rationale": "Keep the observed expert-session value as the review default until the shop range is confirmed.",
+      "confidence": 0.72,
+      "evidence_refs": [
+        {
+          "event_session_id": "nx-source-a",
+          "seq": 0
+        },
+        {
+          "event_session_id": "nx-source-b",
+          "seq": 0
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "question-001",
+      "text": "Which NX attribute or shop-controlled name uniquely identifies the operation parent groups?",
+      "required": true
+    },
+    {
+      "question_id": "question-002",
+      "text": "Has the tolerance range been checked against the NX 2406 local Python stubs and project units?",
+      "required": true
+    }
+  ],
+  "summary": "The workflow remains review-first; resolve stable selectors and complete CAM safety gates before simulation.",
+  "required_gates": [
+    "stable_selector_review",
+    "target_version_validation",
+    "cam_simulation",
+    "collision_check",
+    "shop_approval"
+  ],
+  "reviewer": "Codex fixture reviewer",
+  "reviewed_at": "2026-08-23T09:04:10Z"
+}

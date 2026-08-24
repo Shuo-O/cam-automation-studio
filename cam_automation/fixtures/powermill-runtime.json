@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "instances": {
+    "powermill:4101:C1": {
+      "target_version": "PowerMill 2026",
+      "project_id": "pm-project-a",
+      "responses": {
+        "powermill.project.info": {
+          "raw_response": "Offline fixture project summary; no CAM command was sent.",
+          "structured_response": {
+            "project_name": "Cavity A",
+            "units": "mm",
+            "fixture_marker": "runtime-a"
+          }
+        },
+        "powermill.version.query": {
+          "structured_response": {
+            "version": "PowerMill 2026"
+          }
+        }
+      },
+      "snapshot": {
+        "snapshot_id": "fixture-pm-runtime-a",
+        "project_id": "pm-project-a",
+        "target_version": "PowerMill 2026",
+        "metadata": {
+          "entity_count": 12,
+          "toolpath_count": 3
+        }
+      }
+    },
+    "powermill:4102:process": {
+      "target_version": "PowerMill 2025",
+      "project_id": "pm-project-b",
+      "responses": {
+        "powermill.project.info": {
+          "structured_response": {
+            "project_name": "Headless fixture B"
+          }
+        }
+      },
+      "snapshot": {
+        "snapshot_id": "fixture-pm-runtime-b",
+        "project_id": "pm-project-b",
+        "target_version": "PowerMill 2025",
+        "metadata": {
+          "entity_count": 7
+        }
+      }
+    }
+  }
+}

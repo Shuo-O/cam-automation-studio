@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerMill Session Comparison"
+  short_description: "Compare reviewed PowerMill sessions and explain differences"
+  default_prompt: "Use $powermill-session-comparison to compare these PowerMill CAM sessions."

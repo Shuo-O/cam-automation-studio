@@ -6,14 +6,49 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-from .models import RecipeParameter, WorkflowRecipe
+from .models import LegacyRecipeParameter, WorkflowRecipe
+from .recipes import (
+    DiffReport,
+    PreviewAdapter,
+    PreviewRequest,
+    Recipe,
+    RecipeParameter,
+    RecipeService,
+    RecipeStep,
+    RecipeVersion,
+    canonical_json,
+    canonicalize,
+    compute_recipe_hash,
+)
+
+__all__ = [
+    "DiffReport",
+    "PreviewAdapter",
+    "PreviewRequest",
+    "Recipe",
+    "RecipeParameter",
+    "RecipeService",
+    "RecipeStep",
+    "RecipeVersion",
+    "canonical_json",
+    "canonicalize",
+    "compute_recipe_hash",
+    "generate_macro",
+    "generate_report",
+    "render_command",
+    "write_artifacts",
+]
 
 
 _PLACEHOLDER = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
 _NUMBER = re.compile(r"^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$")
+_MACHINE_READY_OUTPUT = re.compile(
+    r"(?:\bPOSTPROCESS\b|\bNC[_ ]?PROGRAM\b|\bG-?CODE\b|\bMACHINE[_ ]?CODE\b)",
+    re.IGNORECASE,
+)
 
 
-def _format_parameter(parameter: RecipeParameter, value: Any) -> str:
+def _format_parameter(parameter: LegacyRecipeParameter, value: Any) -> str:
     if parameter.value_type == "number":
         rendered = str(value)
         if not _NUMBER.match(rendered):
@@ -32,7 +67,7 @@ def _format_parameter(parameter: RecipeParameter, value: Any) -> str:
 
 def render_command(
     template: str,
-    parameters: list[RecipeParameter],
+    parameters: list[LegacyRecipeParameter],
     overrides: Mapping[str, Any] | None = None,
 ) -> str:
     overrides = overrides or {}
@@ -62,6 +97,13 @@ def generate_macro(
         "",
     ]
     for step in recipe.steps:
+        if _MACHINE_READY_OUTPUT.search(
+            " ".join((step.action, step.operation, step.template))
+        ):
+            lines.append(
+                f"// BLOCKED {step.step_id}: machine-ready NC content omitted by policy"
+            )
+            continue
         command = render_command(step.template, recipe.parameters, overrides)
         if step.risk == "blocked":
             reason = ", ".join(step.reasons) or "blocked by policy"

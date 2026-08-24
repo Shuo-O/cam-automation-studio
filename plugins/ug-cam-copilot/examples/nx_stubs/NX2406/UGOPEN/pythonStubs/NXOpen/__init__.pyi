@@ -1,0 +1,16 @@
+from typing import Any
+
+
+class NXException(Exception): ...
+
+
+class Session:
+    class MarkVisibility:
+        Visible: int
+        Invisible: int
+
+    @staticmethod
+    def GetSession() -> Session: ...
+    def SetUndoMark(self, visibility: int, name: str) -> int: ...
+    def SetUndoMarkName(self, mark_id: int, name: str) -> None: ...
+    def DeleteUndoMark(self, mark_id: int, delete_all_if_mark_not_found: bool) -> None: ...

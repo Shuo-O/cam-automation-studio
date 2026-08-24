@@ -1,0 +1,46 @@
+{
+  "instances": {
+    "powermill:fixture:A": {
+      "target_version": "PowerMill 2026",
+      "project_id": "pm-a",
+      "responses": {
+        "powermill.project.info": {
+          "raw_response": "Fixture project A",
+          "structured_response": {
+            "project_name": "Cavity A",
+            "fixture_marker": "A"
+          }
+        }
+      },
+      "snapshot": {
+        "snapshot_id": "fixture-snapshot-a",
+        "project_id": "pm-a",
+        "target_version": "PowerMill 2026",
+        "metadata": {
+          "entity_count": 12
+        }
+      }
+    },
+    "powermill:fixture:B": {
+      "target_version": "PowerMill 2025",
+      "project_id": "pm-b",
+      "responses": {
+        "powermill.project.info": {
+          "raw_response": "Fixture project B",
+          "structured_response": {
+            "project_name": "Cavity B",
+            "fixture_marker": "B"
+          }
+        }
+      },
+      "snapshot": {
+        "snapshot_id": "fixture-snapshot-b",
+        "project_id": "pm-b",
+        "target_version": "PowerMill 2025",
+        "metadata": {
+          "entity_count": 7
+        }
+      }
+    }
+  }
+}

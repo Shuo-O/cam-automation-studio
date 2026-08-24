@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import threading
+import uuid
 from concurrent.futures import CancelledError
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,10 +14,11 @@ from typing import Any, Mapping
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .flow_api import FlowApiRequest, FlowApiResponse, register_flow_routes
-from .flow_service import CancellationToken
+from .flow_service import CancellationToken, FlowRequestContext
 from .integrations import (
     ApiServices,
     OfflineFlowIntegration,
+    REVIEW_EVIDENCE_REQUEST_EXTENSION,
     plugin_api_status,
     register_product_flow_capability,
     service_payload,
@@ -457,6 +459,124 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             )
             self._json(HTTPStatus.CREATED, result)
             return
+
+        if parsed.path == "/api/flow/review-evidence" and method == "POST":
+            if body is None:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Flow review evidence requires a JSON object.",
+                )
+            product = self.server.flow_request_product(method, parsed.path, body)
+            if product is None:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Flow review evidence requires a known graph product.",
+                )
+            if not self._require_product(product):
+                return
+            graph_id = body.get("graph_id")
+            target = body.get("target")
+            if not isinstance(graph_id, str) or not graph_id:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Flow review evidence requires graph_id.",
+                )
+            if not isinstance(target, Mapping):
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Flow review evidence requires an exact target object.",
+                )
+            unexpected = sorted(
+                set(body) - {"graph_id", "revision_id", "target"}
+            )
+            if unexpected:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "Flow review evidence contains unknown fields.",
+                    details={"fields": unexpected},
+                )
+            token = self.server.begin_flow_request()
+            try:
+                result = self.server.services.flow.prepare_review_evidence(
+                    graph_id,
+                    target,
+                    revision_id=(
+                        str(body["revision_id"])
+                        if body.get("revision_id") is not None
+                        else None
+                    ),
+                    context=FlowRequestContext(cancellation=token),
+                )
+            finally:
+                self.server.end_flow_request(token)
+            correlation_id = (
+                self.headers.get("X-Correlation-ID")
+                or f"corr:{uuid.uuid4().hex}"
+            )
+            self._json(
+                HTTPStatus.OK,
+                {"review_evidence": result},
+                headers={"X-Correlation-ID": correlation_id},
+            )
+            return
+
+        if (
+            parsed.path == "/api/flow/versions"
+            and method == "POST"
+            and body is not None
+            and "projection_report_id" in body
+        ):
+            projection_report_id = body.pop("projection_report_id")
+            if not isinstance(projection_report_id, str) or not projection_report_id:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "projection_report_id must be a non-empty string.",
+                )
+            version_container = body.get("version", body)
+            if not isinstance(version_container, Mapping):
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "version must be a JSON object.",
+                )
+            container_value = dict(version_container)
+            extensions = container_value.get("extensions", {})
+            if not isinstance(extensions, Mapping):
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "extensions must be a JSON object.",
+                )
+            extension_value = dict(extensions)
+            existing = extension_value.get(REVIEW_EVIDENCE_REQUEST_EXTENSION)
+            if isinstance(existing, Mapping) and existing.get(
+                "projection_report_id"
+            ) not in {None, projection_report_id}:
+                raise _ApiError(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_parameters",
+                    "ProjectionReport references do not match.",
+                )
+            extension_value[REVIEW_EVIDENCE_REQUEST_EXTENSION] = {
+                "semantic": False,
+                "projection_report_id": projection_report_id,
+            }
+            container_value["extensions"] = extension_value
+            if "version" in body:
+                body["version"] = container_value
+            else:
+                body = container_value
+            raw_body = json.dumps(
+                body,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
 
         product = self.server.flow_request_product(method, parsed.path, body)
         if product is not None and not self._require_product(product):

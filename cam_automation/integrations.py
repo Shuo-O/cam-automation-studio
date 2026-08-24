@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol, runtime_checkable
 
+from .flow_service import FlowConflictError, FlowService, FlowServiceError
 from .generator import generate_macro, generate_report
 from .learning import learn_workflow
 from .models import LegacyRecipeStep, WorkflowRecipe
@@ -788,6 +789,8 @@ _FLOW_SAFETY_CODES = frozenset(
         "SAFETY_MACHINE_OUTPUT_FORBIDDEN",
     }
 )
+REVIEW_EVIDENCE_REQUEST_EXTENSION = "cam.flow.studio/review_evidence_request"
+REVIEW_EVIDENCE_EXTENSION = "cam.flow.studio/review_evidence"
 
 
 class FlowIntegrationError(ValueError):
@@ -929,6 +932,575 @@ def _bind_opaque_capability_blockers(graph: dict[str, Any]) -> None:
     )
 
 
+def _map_offline_flow_source(
+    source: bytes,
+    *,
+    product: str,
+    source_name: str,
+    target_versions: tuple[str, ...],
+) -> dict[str, Any]:
+    if product == "nx":
+        from ugcam_ai.adapters.nx_flow import NxFlowMapper
+
+        graph = NxFlowMapper().map_source(
+            _decode_offline_source(source),
+            source_file=source_name,
+            target_version=target_versions[0] if len(target_versions) == 1 else None,
+        )
+    else:
+        from .adapters.powermill_flow import PowerMillFlowImporter
+
+        graph = PowerMillFlowImporter(
+            source_name=source_name,
+            target_versions=target_versions,
+        ).import_source(source)
+    return _canonical_flow_namespace(graph)
+
+
+def _bind_imported_flow_asset(
+    graph: Mapping[str, Any],
+    asset: Mapping[str, Any],
+) -> dict[str, Any]:
+    value = copy.deepcopy(dict(graph))
+    asset_ref = value["asset_refs"][0]
+    old_revision_id = str(asset_ref["asset_revision_id"])
+    value = _replace_contract_value(
+        value,
+        old_revision_id,
+        str(asset["asset_revision_id"]),
+    )
+    value["asset_refs"][0] = {
+        "asset_id": asset["asset_id"],
+        "asset_revision_id": asset["asset_revision_id"],
+        "content_hash": asset["content_hash"],
+    }
+    _bind_opaque_capability_blockers(value)
+
+    from .flow_contracts import compute_semantic_hash, compute_source_snapshot_hash
+
+    value["source_snapshot_hash"] = compute_source_snapshot_hash(value, [asset])
+    value["semantic_hash"] = compute_semantic_hash(value)
+    return value
+
+
+class _OfflineImportRoundTripAdapter:
+    """Reparse F0 candidates through the same product-owned static adapter."""
+
+    def __init__(
+        self,
+        *,
+        product: str,
+        source_name: str,
+        target_versions: tuple[str, ...],
+        asset: Mapping[str, Any],
+    ) -> None:
+        self.product = product
+        self.source_name = source_name
+        self.target_versions = target_versions
+        self.asset = copy.deepcopy(dict(asset))
+
+    def validate_candidate(
+        self,
+        candidate: bytes,
+        *,
+        target_graph: Mapping[str, Any],
+    ) -> list[dict[str, Any]]:
+        del target_graph
+        graph = _map_offline_flow_source(
+            candidate,
+            product=self.product,
+            source_name=self.source_name,
+            target_versions=self.target_versions,
+        )
+        return [
+            item
+            for item in _flow_diagnostics(graph)
+            if str(item.get("code", "")) in _FLOW_SAFETY_CODES
+        ]
+
+    def reparse_candidate(
+        self,
+        candidate: bytes,
+        *,
+        target_graph: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        del target_graph
+        graph = _map_offline_flow_source(
+            candidate,
+            product=self.product,
+            source_name=self.source_name,
+            target_versions=self.target_versions,
+        )
+        return _bind_imported_flow_asset(graph, self.asset)
+
+
+class ReviewGatedFlowService(FlowService):
+    """T09 public gate for structured, current review evidence."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._round_trip_reports: dict[str, dict[str, Any]] = {}
+        self._round_trip_by_revision: dict[tuple[str, str], str] = {}
+        self._projection_reports: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _review_required(
+        message: str,
+        *,
+        details: Mapping[str, Any] | None = None,
+    ) -> FlowConflictError:
+        return FlowConflictError(
+            "PROJECTION_REVIEW_REQUIRED",
+            message,
+            http_status=409,
+            details=details,
+        )
+
+    def _current_graph(self, graph_id: str, revision_id: str | None) -> dict[str, Any]:
+        graph = self.get_graph(graph_id, revision_id)
+        head = self.get_graph(graph_id)
+        if graph["revision_id"] != head["revision_id"]:
+            raise self._review_required(
+                "Review evidence must bind the current graph revision.",
+                details={
+                    "graph_id": graph_id,
+                    "revision_id": graph["revision_id"],
+                    "current_revision_id": head["revision_id"],
+                },
+            )
+        return graph
+
+    def _validate_round_trip_report(
+        self,
+        report: Mapping[str, Any],
+        graph: Mapping[str, Any],
+        *,
+        result: Any | None = None,
+    ) -> None:
+        from .flow_contracts import compute_semantic_hash
+        from .flow_validation import validate_contract
+
+        value = copy.deepcopy(dict(report))
+        validation = validate_contract(value, "round_trip_report", limits=self.limits)
+        if not validation.valid:
+            raise self._review_required(
+                "RoundTripReport is not a valid frozen contract.",
+                details={"report_id": value.get("report_id")},
+            )
+        semantic_hash = compute_semantic_hash(graph)
+        asset_ref = next(
+            (
+                item
+                for item in graph.get("asset_refs", [])
+                if isinstance(item, Mapping)
+                and item.get("asset_revision_id") == value.get("asset_revision_id")
+            ),
+            None,
+        )
+        passed = (
+            value.get("graph_id") == graph.get("graph_id")
+            and value.get("revision_id") == graph.get("revision_id")
+            and value.get("status") == "passed"
+            and value.get("fidelity") in {"F0", "F1", "F2", "F3"}
+            and value.get("candidate_reparsed") is True
+            and value.get("untouched_spans_exact") is True
+            and value.get("opaque_spans_preserved") is True
+            and value.get("issues") == []
+            and value.get("original_semantic_hash") == semantic_hash
+            and value.get("candidate_semantic_hash") == semantic_hash
+            and asset_ref is not None
+            and value.get("original_content_hash") == asset_ref.get("content_hash")
+        )
+        if not passed:
+            raise self._review_required(
+                "RoundTripReport is blocked, stale, or does not bind this graph.",
+                details={"report_id": value.get("report_id")},
+            )
+        if result is not None:
+            candidate = getattr(result, "candidate", None)
+            reparsed = getattr(result, "reparsed_graph", None)
+            reparsed_value = (
+                reparsed.to_dict()
+                if callable(getattr(reparsed, "to_dict", None))
+                else reparsed
+            )
+            if (
+                candidate is None
+                or reparsed_value is None
+                or candidate.content_hash != value.get("candidate_content_hash")
+                or compute_semantic_hash(reparsed_value) != semantic_hash
+            ):
+                raise self._review_required(
+                    "Round-trip evidence has no matching in-memory candidate reparse.",
+                    details={"report_id": value.get("report_id")},
+                )
+
+    def register_round_trip_result(self, result: Any) -> dict[str, Any]:
+        report_object = getattr(result, "report", None)
+        to_dict = getattr(report_object, "to_dict", None)
+        if not callable(to_dict):
+            raise TypeError("result must contain a frozen RoundTripReport.")
+        report = to_dict()
+        graph = self._current_graph(
+            str(report.get("graph_id", "")),
+            str(report.get("revision_id", "")),
+        )
+        self._validate_round_trip_report(report, graph, result=result)
+        identity = str(report["report_id"])
+        key = (str(report["graph_id"]), str(report["revision_id"]))
+        with self._lock:
+            self._round_trip_reports[identity] = copy.deepcopy(report)
+            self._round_trip_by_revision[key] = identity
+        return copy.deepcopy(report)
+
+    def _require_round_trip(
+        self,
+        report_id: str,
+        graph: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        with self._lock:
+            report = copy.deepcopy(self._round_trip_reports.get(report_id))
+        if report is None:
+            raise self._review_required(
+                "Reviewed versions require a stored structured RoundTripReport.",
+                details={"round_trip_report_id": report_id},
+            )
+        self._validate_round_trip_report(report, graph)
+        return report
+
+    def prepare_review_evidence(
+        self,
+        graph_id: str,
+        target: Mapping[str, Any],
+        *,
+        revision_id: str | None = None,
+        context: Any | None = None,
+    ) -> dict[str, Any]:
+        from .flow_compatibility import project_flow_to_recipe
+
+        graph = self._current_graph(graph_id, revision_id)
+        key = (str(graph["graph_id"]), str(graph["revision_id"]))
+        with self._lock:
+            round_trip_id = self._round_trip_by_revision.get(key)
+        if round_trip_id is None:
+            raise self._review_required(
+                "Create current structured round-trip evidence before review.",
+                details={"graph_id": graph["graph_id"], "revision_id": graph["revision_id"]},
+            )
+        round_trip = self._require_round_trip(round_trip_id, graph)
+        compatibility = self.check_compatibility(
+            graph["graph_id"],
+            target,
+            revision_id=graph["revision_id"],
+            context=context,
+        )
+        projection = project_flow_to_recipe(
+            graph,
+            compatibility_report=compatibility,
+            manifests=self._manifests(),
+            checked_at=self._timestamp(),
+        ).report.to_dict()
+        with self._lock:
+            self._projection_reports[str(projection["report_id"])] = copy.deepcopy(
+                projection
+            )
+        return {
+            "schema_version": 1,
+            "graph_id": graph["graph_id"],
+            "revision_id": graph["revision_id"],
+            "status": (
+                "ready"
+                if projection.get("preview_eligible") is True
+                else "blocked"
+            ),
+            "preview_eligible": projection.get("preview_eligible") is True,
+            "round_trip_report": round_trip,
+            "compatibility_report": compatibility,
+            "projection_report": projection,
+            "transport": "none",
+            "commands_sent": 0,
+            "journal_executed": False,
+            "macro_executed": False,
+            "machine_output_count": 0,
+        }
+
+    @staticmethod
+    def _projection_id_from_extensions(
+        extensions: Mapping[str, Any] | None,
+    ) -> str:
+        values = dict(extensions or {})
+        for namespace in (
+            REVIEW_EVIDENCE_REQUEST_EXTENSION,
+            REVIEW_EVIDENCE_EXTENSION,
+        ):
+            item = values.get(namespace)
+            if isinstance(item, Mapping) and item.get("projection_report_id"):
+                return str(item["projection_report_id"])
+        return ""
+
+    def _verify_review_evidence(
+        self,
+        *,
+        graph_id: str,
+        revision_id: str | None,
+        round_trip_report_id: str,
+        compatibility_report_id: str,
+        projection_report_id: str,
+        expected_target: Mapping[str, Any] | None = None,
+        context: Any | None = None,
+    ) -> dict[str, Any]:
+        from .flow_compatibility import project_flow_to_recipe
+        from .flow_contracts import canonical_hash, compute_capability_lock_hash
+
+        graph = self._current_graph(graph_id, revision_id)
+        round_trip = self._require_round_trip(round_trip_report_id, graph)
+        try:
+            compatibility = self.get_compatibility_report(compatibility_report_id)
+        except FlowServiceError as error:
+            raise self._review_required(
+                "Reviewed versions require a stored structured CompatibilityReport.",
+                details={"compatibility_report_id": compatibility_report_id},
+            ) from error
+        target_profile = compatibility.get("target_profile", {})
+        target = {
+            "product": graph["product"],
+            "target_version": target_profile.get("target_version"),
+            "target_instance_id": target_profile.get("target_instance_id"),
+            "project_id": target_profile.get("project_id"),
+            "project_snapshot_hash": target_profile.get("project_snapshot_hash"),
+            "target_kind": target_profile.get("target_kind"),
+        }
+        current_compatibility = self.check_compatibility(
+            graph["graph_id"],
+            target,
+            revision_id=graph["revision_id"],
+            context=context,
+        )
+        compatibility_valid = (
+            compatibility.get("contract") == "cam.compatibility_report.v1"
+            and compatibility.get("graph_id") == graph["graph_id"]
+            and compatibility.get("revision_id") == graph["revision_id"]
+            and compatibility.get("status") == "compatible"
+            and compatibility.get("preview_eligible") is True
+            and compatibility.get("blocker_codes") == []
+            and compatibility.get("capability_lock_hash")
+            == compute_capability_lock_hash(graph)
+            and current_compatibility.get("report_id") == compatibility_report_id
+            and canonical_hash(current_compatibility) == canonical_hash(compatibility)
+        )
+        if not compatibility_valid:
+            raise self._review_required(
+                "CompatibilityReport is blocked, stale, or does not bind this target.",
+                details={"compatibility_report_id": compatibility_report_id},
+            )
+        if expected_target is not None:
+            resolved_expected = self._resolve_target(expected_target).to_dict()
+            resolved_report = self._resolve_target(target).to_dict()
+            target_fields = (
+                "product",
+                "target_version",
+                "target_instance_id",
+                "project_id",
+                "project_snapshot_hash",
+                "target_kind",
+            )
+            if any(
+                resolved_expected.get(field) != resolved_report.get(field)
+                for field in target_fields
+            ):
+                raise self._review_required(
+                    "Preview target does not match the reviewed CompatibilityReport.",
+                    details={"compatibility_report_id": compatibility_report_id},
+                )
+        with self._lock:
+            projection = copy.deepcopy(
+                self._projection_reports.get(projection_report_id)
+            )
+        if projection is None:
+            raise self._review_required(
+                "Reviewed versions require a stored structured ProjectionReport.",
+                details={"projection_report_id": projection_report_id},
+            )
+        recomputed = project_flow_to_recipe(
+            graph,
+            compatibility_report=compatibility,
+            manifests=self._manifests(),
+            checked_at=str(projection.get("checked_at", "")),
+        ).report.to_dict()
+        projection_valid = (
+            projection.get("contract") == "cam.projection_report.v1"
+            and projection.get("graph_id") == graph["graph_id"]
+            and projection.get("revision_id") == graph["revision_id"]
+            and projection.get("status") == "projected"
+            and projection.get("preview_eligible") is True
+            and projection.get("blockers") == []
+            and isinstance(projection.get("recipe_hash"), str)
+            and bool(projection.get("recipe_hash"))
+            and recomputed.get("report_id") == projection_report_id
+            and canonical_hash(recomputed) == canonical_hash(projection)
+        )
+        if not projection_valid:
+            raise self._review_required(
+                "ProjectionReport is blocked, stale, or not preview-eligible.",
+                details={"projection_report_id": projection_report_id},
+            )
+        resolved_target = self._resolve_target(target).to_dict()
+        return {
+            "semantic": True,
+            "graph_id": graph["graph_id"],
+            "revision_id": graph["revision_id"],
+            "semantic_hash": graph["semantic_hash"],
+            "source_snapshot_hash": graph["source_snapshot_hash"],
+            "capability_lock_hash": compute_capability_lock_hash(graph),
+            "round_trip_report_id": round_trip_report_id,
+            "round_trip_report_hash": canonical_hash(round_trip),
+            "compatibility_report_id": compatibility_report_id,
+            "compatibility_report_hash": canonical_hash(compatibility),
+            "projection_report_id": projection_report_id,
+            "projection_report_hash": canonical_hash(projection),
+            "reviewed_recipe_hash": projection["recipe_hash"],
+            "target": {
+                field: resolved_target[field]
+                for field in (
+                    "product",
+                    "target_version",
+                    "target_instance_id",
+                    "project_id",
+                    "project_snapshot_hash",
+                    "target_kind",
+                )
+            },
+        }
+
+    def create_version(
+        self,
+        version: Mapping[str, Any] | None = None,
+        *,
+        projection_report_id: str | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        value = copy.deepcopy(dict(version)) if version is not None else None
+        status = value.get("status") if value is not None else kwargs.get("status", "draft")
+        if status != "reviewed_for_fixture":
+            return super().create_version(value, **kwargs)
+
+        graph_id = str(
+            value.get("graph_id", "") if value is not None else kwargs.get("graph_id", "")
+        )
+        revision_id = (
+            str(value.get("revision_id", ""))
+            if value is not None
+            else kwargs.get("revision_id")
+        )
+        round_trip_report_id = str(
+            value.get("round_trip_report_id", "")
+            if value is not None
+            else kwargs.get("round_trip_report_id", "")
+        )
+        compatibility_report_id = str(
+            value.get("compatibility_report_id", "")
+            if value is not None
+            else kwargs.get("compatibility_report_id", "")
+        )
+        extensions = (
+            value.get("extensions", {})
+            if value is not None
+            else kwargs.get("extensions", {})
+        )
+        projection_id = str(
+            projection_report_id
+            or self._projection_id_from_extensions(
+                extensions if isinstance(extensions, Mapping) else None
+            )
+        )
+        evidence = self._verify_review_evidence(
+            graph_id=graph_id,
+            revision_id=revision_id,
+            round_trip_report_id=round_trip_report_id,
+            compatibility_report_id=compatibility_report_id,
+            projection_report_id=projection_id,
+            context=kwargs.get("context"),
+        )
+        requested_recipe_hash = (
+            self._reviewed_recipe_hash(value)
+            if value is not None
+            else kwargs.get("reviewed_recipe_hash")
+        )
+        if requested_recipe_hash not in {None, evidence["reviewed_recipe_hash"]}:
+            raise self._review_required(
+                "The caller-provided recipe hash does not match ProjectionReport.",
+                details={"projection_report_id": projection_id},
+            )
+        extension_value = copy.deepcopy(
+            dict(extensions) if isinstance(extensions, Mapping) else {}
+        )
+        extension_value.pop(REVIEW_EVIDENCE_REQUEST_EXTENSION, None)
+        extension_value[REVIEW_EVIDENCE_EXTENSION] = evidence
+        if value is not None:
+            value["extensions"] = extension_value
+            value.setdefault("extensions", {})[
+                "cam.flow.api/reviewed_recipe_hash"
+            ] = {
+                "semantic": True,
+                "value": evidence["reviewed_recipe_hash"],
+            }
+            return super().create_version(value, **kwargs)
+        kwargs["extensions"] = extension_value
+        kwargs["reviewed_recipe_hash"] = evidence["reviewed_recipe_hash"]
+        return super().create_version(None, **kwargs)
+
+    save_version = create_version
+
+    def create_preview_plan(
+        self,
+        request: Mapping[str, Any],
+        *,
+        idempotency_key: str | None = None,
+        context: Any | None = None,
+    ) -> dict[str, Any]:
+        if not isinstance(request, Mapping):
+            return super().create_preview_plan(
+                request,
+                idempotency_key=idempotency_key,
+                context=context,
+            )
+        version_id = str(request.get("flow_version_id", ""))
+        version = self.get_version(version_id)
+        extensions = version.get("extensions", {})
+        evidence = (
+            extensions.get(REVIEW_EVIDENCE_EXTENSION)
+            if isinstance(extensions, Mapping)
+            else None
+        )
+        if not isinstance(evidence, Mapping):
+            raise self._review_required(
+                "Preview requires structured review evidence bound to FlowVersion.",
+                details={"flow_version_id": version_id},
+            )
+        self._verify_review_evidence(
+            graph_id=str(version.get("graph_id", "")),
+            revision_id=str(version.get("revision_id", "")),
+            round_trip_report_id=str(evidence.get("round_trip_report_id", "")),
+            compatibility_report_id=str(
+                evidence.get("compatibility_report_id", "")
+            ),
+            projection_report_id=str(evidence.get("projection_report_id", "")),
+            expected_target=(
+                request.get("target")
+                if isinstance(request.get("target"), Mapping)
+                else None
+            ),
+            context=context,
+        )
+        return super().create_preview_plan(
+            request,
+            idempotency_key=idempotency_key,
+            context=context,
+        )
+
+    create_preview = create_preview_plan
+
+
 class OfflineFlowIntegration:
     """Join product-isolated static adapters to the canonical Flow service."""
 
@@ -966,24 +1538,12 @@ class OfflineFlowIntegration:
             sorted({str(item).strip() for item in target_versions if str(item).strip()})
         )
 
-        if product_name == "nx":
-            from ugcam_ai.adapters.nx_flow import NxFlowMapper
-
-            graph = NxFlowMapper().map_source(
-                _decode_offline_source(raw),
-                source_file=display_name,
-                target_version=versions[0] if len(versions) == 1 else None,
-            )
-        else:
-            from .adapters.powermill_flow import PowerMillFlowImporter
-
-            importer = PowerMillFlowImporter(
-                source_name=display_name,
-                target_versions=versions,
-            )
-            graph = importer.import_source(raw)
-
-        graph = _canonical_flow_namespace(graph)
+        graph = _map_offline_flow_source(
+            raw,
+            product=product_name,
+            source_name=display_name,
+            target_versions=versions,
+        )
         diagnostics = _flow_diagnostics(graph)
         blocked = next(
             (
@@ -998,10 +1558,7 @@ class OfflineFlowIntegration:
                 str(blocked["code"]),
                 "The offline source was rejected by the permanent CAM safety boundary.",
             )
-        _bind_opaque_capability_blockers(graph)
-
         asset_ref = graph["asset_refs"][0]
-        old_revision_id = str(asset_ref["asset_revision_id"])
         asset = self.flow_service.register_asset(
             raw,
             asset_id=str(asset_ref["asset_id"]),
@@ -1016,26 +1573,39 @@ class OfflineFlowIntegration:
             dependencies=(),
             extensions={"cam.flow.integration": {"semantic": False}},
         )
-        graph = _replace_contract_value(
-            copy.deepcopy(graph),
-            old_revision_id,
-            str(asset["asset_revision_id"]),
-        )
-        graph["asset_refs"][0] = {
-            "asset_id": asset["asset_id"],
-            "asset_revision_id": asset["asset_revision_id"],
-            "content_hash": asset["content_hash"],
-        }
-        from .flow_contracts import compute_semantic_hash, compute_source_snapshot_hash
-
-        graph["source_snapshot_hash"] = compute_source_snapshot_hash(graph, [asset])
-        graph["semantic_hash"] = compute_semantic_hash(graph)
+        graph = _bind_imported_flow_asset(graph, asset)
         saved = self.flow_service.save_graph(graph)
+        from .flow_roundtrip import verify_round_trip
+
+        round_trip_result = verify_round_trip(
+            saved,
+            saved,
+            raw,
+            (),
+            _OfflineImportRoundTripAdapter(
+                product=product_name,
+                source_name=display_name,
+                target_versions=versions,
+                asset=asset,
+            ),
+            required_fidelity="F0",
+            checked_at=self.flow_service._timestamp(),
+        )
+        round_trip_report = round_trip_result.report.to_dict()
+        if round_trip_report.get("status") != "passed":
+            raise FlowIntegrationError(
+                "PROJECTION_REVIEW_REQUIRED",
+                "The imported source did not produce current round-trip evidence.",
+            )
+        register_result = getattr(self.flow_service, "register_round_trip_result", None)
+        if callable(register_result):
+            round_trip_report = register_result(round_trip_result)
         return {
             "schema_version": 1,
             "mode": "offline",
             "asset": asset,
             "graph": saved,
+            "round_trip_report": round_trip_report,
             "diagnostics": diagnostics,
             "transport": "none",
             "commands_sent": 0,

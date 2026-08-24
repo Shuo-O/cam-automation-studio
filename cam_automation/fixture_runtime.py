@@ -15,8 +15,11 @@ from .command_tasks import CommandTaskService
 from .connection_monitor import ConnectionMonitor
 from .diagnostics import DiagnosticsService
 from .flow_contracts import canonical_hash
-from .flow_service import FlowService
-from .integrations import ApiServices, OfflineFlowIntegration
+from .integrations import (
+    ApiServices,
+    OfflineFlowIntegration,
+    ReviewGatedFlowService,
+)
 from .recipes import PreviewRequest, RecipeService
 from .recorder import RecorderService
 from .sessions import SessionService
@@ -240,7 +243,7 @@ def _fixture_windows() -> tuple[list[dict[str, Any]], int]:
     )
 
 
-def build_fixture_flow_service(data_dir: str | Path) -> FlowService:
+def build_fixture_flow_service(data_dir: str | Path) -> ReviewGatedFlowService:
     """Build the transport-free canonical Flow service and its four exact targets."""
 
     root = Path(data_dir)
@@ -270,7 +273,7 @@ def build_fixture_flow_service(data_dir: str | Path) -> FlowService:
         }
         for product, target_version, instance_id, project_id, snapshot_id in _FLOW_TARGETS
     ]
-    return FlowService(
+    return ReviewGatedFlowService(
         asset_registry=AssetRegistry(root / "assets"),
         capability_registry=CapabilityRegistry(root / "capabilities"),
         fixture_targets=targets,

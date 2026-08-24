@@ -105,7 +105,7 @@ def _run_flow_command(args: argparse.Namespace) -> int:
 
     from .asset_registry import AssetRegistry
     from .capability_registry import CapabilityRegistry
-    from .flow_service import FlowService
+    from .integrations import ReviewGatedFlowService
 
     required = {
         "asset_request",
@@ -121,7 +121,7 @@ def _run_flow_command(args: argparse.Namespace) -> int:
             "graph, version_request, target, and preview_request."
         )
     with tempfile.TemporaryDirectory(prefix="cam-flow-preview-") as directory:
-        service = FlowService(
+        service = ReviewGatedFlowService(
             asset_registry=AssetRegistry(Path(directory) / "assets"),
             capability_registry=CapabilityRegistry(Path(directory) / "capabilities"),
             fixture_targets=[value["target"]],

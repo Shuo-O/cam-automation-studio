@@ -1,0 +1,4 @@
+interface:
+  display_name: "PowerMill Flow Studio Review"
+  short_description: "Review PowerMill FlowGraph and fixture preview plans"
+  default_prompt: "Use $powermill-flow-studio to review this PowerMill FlowGraph, its reports, diff, and fixture PreviewPlan."

@@ -9,5 +9,7 @@
   "features": ["analysis:nx", "preview:nx", "connection:nx"],
   "dependencies": [],
   "permissions": ["read:selected-files"],
+  "capability_manifest": "capabilities/flow-nodes.v1.json",
+  "flow_sdk_range": ">=1.0.0 <2.0.0",
   "icon": "NX"
 }

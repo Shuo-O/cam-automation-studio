@@ -1,0 +1,638 @@
+{
+  "schema_version": 1,
+  "contract": "cam.capability_manifest.v1",
+  "manifest_id": "manifest:nx:offline-static-mapper",
+  "manifest_version": "1.0.0",
+  "manifest_hash": "sha256:e5de4bf7d359762c69903b0306c43ce14934ed2523dea4b6322e297943aae312",
+  "provider": {
+    "provider_id": "ug-cam-copilot",
+    "display_name": "NX offline static FlowGraph mapper",
+    "claim_level": "fixture_verified"
+  },
+  "product": "nx",
+  "adapter_kind": "builtin",
+  "authorization": {
+    "status": "fixture_verified",
+    "evidence_ref": "plugins/ug-cam-copilot/tests/test_nx_flow_import.py",
+    "verified_by": "repository-test-suite",
+    "valid_until": null
+  },
+  "target_version_ranges": [
+    "NX 2406"
+  ],
+  "execution_modes": [
+    "offline",
+    "read_only",
+    "fixture_dry_run"
+  ],
+  "permissions": [
+    "read:selected-files"
+  ],
+  "node_types": [
+    {
+      "node_type": "flow.start",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Flow start",
+      "ports": [
+        {
+          "port_id": "next",
+          "direction": "output",
+          "edge_kinds": ["control"],
+          "type_ref": "cam.control",
+          "cardinality": "many",
+          "required": false,
+          "constraints": {},
+          "sensitivity": "public",
+          "extensions": {}
+        }
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.end",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Flow end",
+      "ports": [
+        {
+          "port_id": "in",
+          "direction": "input",
+          "edge_kinds": ["control"],
+          "type_ref": "cam.control",
+          "cardinality": "many",
+          "required": true,
+          "constraints": {},
+          "sensitivity": "public",
+          "extensions": {}
+        }
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.function.define",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Function definition",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.assignment",
+      "node_type_version": "1.0.0",
+      "category": "data",
+      "display_name": "Static assignment",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.expression",
+      "node_type_version": "1.0.0",
+      "category": "data",
+      "display_name": "Static expression",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.if",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Conditional branch",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "true", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "false", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.merge",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Control merge",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.try",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Exception boundary",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "protected", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "exception", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.except",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Exception handler",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.finally",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Finally path",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.raise",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Raise path",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "flow.subflow_call",
+      "node_type_version": "1.0.0",
+      "category": "control",
+      "display_name": "Static subflow call",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.builder.create",
+      "node_type_version": "1.0.0",
+      "category": "builder",
+      "display_name": "Create builder",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "output", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.builder.configure",
+      "node_type_version": "1.0.0",
+      "category": "builder",
+      "display_name": "Configure builder",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.builder.commit",
+      "node_type_version": "1.0.0",
+      "category": "builder",
+      "display_name": "Commit builder evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.builder.destroy",
+      "node_type_version": "1.0.0",
+      "category": "builder",
+      "display_name": "Destroy builder",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.operation.create",
+      "node_type_version": "1.0.0",
+      "category": "operation",
+      "display_name": "Create CAM operation evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.parameter.set.tolerance",
+      "node_type_version": "1.0.0",
+      "category": "parameter",
+      "display_name": "Set recorded tolerance",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "cam.toolpath.generate",
+      "node_type_version": "1.0.0",
+      "category": "toolpath",
+      "display_name": "Recorded toolpath generation",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.import",
+      "node_type_version": "1.0.0",
+      "category": "evidence",
+      "display_name": "Static import evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.session.access",
+      "node_type_version": "1.0.0",
+      "category": "evidence",
+      "display_name": "Session access evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "safe",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.object.rename",
+      "node_type_version": "1.0.0",
+      "category": "object",
+      "display_name": "Recorded object rename",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.api.create.commit",
+      "node_type_version": "1.0.0",
+      "category": "api",
+      "display_name": "Recorded API call evidence",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.selector.find_object",
+      "node_type_version": "1.0.0",
+      "category": "selector",
+      "display_name": "Find object selector",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.undo.scope.open",
+      "node_type_version": "1.0.0",
+      "category": "transaction",
+      "display_name": "Open undo scope",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "output", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.undo.scope.rename",
+      "node_type_version": "1.0.0",
+      "category": "transaction",
+      "display_name": "Rename undo scope",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.undo.scope.close",
+      "node_type_version": "1.0.0",
+      "category": "transaction",
+      "display_name": "Close undo scope",
+      "ports": [
+        {"port_id": "in", "direction": "input", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "next", "direction": "output", "edge_kinds": ["control"], "type_ref": "cam.control", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "public", "extensions": {}},
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": true, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "review",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": true,
+      "recipe_projection_support": false,
+      "fidelity": "semantic_round_trip"
+    },
+    {
+      "node_type": "nx.builder.lifecycle_incomplete",
+      "node_type_version": "1.0.0",
+      "category": "unsupported",
+      "display_name": "Incomplete builder lifecycle",
+      "ports": [
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "blocked",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "blocked"
+    },
+    {
+      "node_type": "nx.undo.scope_incomplete",
+      "node_type_version": "1.0.0",
+      "category": "unsupported",
+      "display_name": "Incomplete undo scope",
+      "ports": [
+        {"port_id": "dependency", "direction": "input", "edge_kinds": ["dependency"], "type_ref": "cam.dependency", "cardinality": "many", "required": false, "constraints": {}, "sensitivity": "project_local", "extensions": {}}
+      ],
+      "configuration_schema": {"type": "object", "additionalProperties": true},
+      "static_risk_floor": "blocked",
+      "required_gates": ["recipe_review", "target_version_validation", "stable_selector_review", "unsupported_resolution", "cam_simulation", "collision_check", "machine_simulation", "shop_approval"],
+      "forbidden_modes": ["live", "native", "production", "machine_output"],
+      "parse_support": true,
+      "preview_support": false,
+      "recipe_projection_support": false,
+      "fidelity": "blocked"
+    }
+  ],
+  "prohibited_operations": [
+    "live_journal",
+    "live_macro",
+    "live_cam_command",
+    "source_codegen",
+    "nc",
+    "gcode",
+    "clsf",
+    "postprocess",
+    "machine_control"
+  ],
+  "evidence": [
+    {
+      "kind": "fixture_test",
+      "ref": "plugins/ug-cam-copilot/tests/test_nx_flow_import.py",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    },
+    {
+      "kind": "fixture",
+      "ref": "plugins/ug-cam-copilot/examples/nx_flow/review_only_journal.py",
+      "version": "1",
+      "checked_at": "2026-08-24T00:00:00Z"
+    },
+    {
+      "kind": "target_stub_fixture",
+      "ref": "plugins/ug-cam-copilot/examples/nx_stubs/NX2406/UGOPEN/pythonStubs/nx_version.json",
+      "version": "NX 2406",
+      "checked_at": "2026-08-24T00:00:00Z"
+    }
+  ],
+  "revocation": null,
+  "extensions": {
+    "cam_automation": {
+      "plugin_id": "ug-cam-copilot",
+      "plugin_version": "0.2.0",
+      "flow_sdk_range": ">=1.0.0 <2.0.0",
+      "manifest_hash_profile": "adapter_capability_lock_v1",
+      "manifest_hash_input": "cam.flow.nx.offline-static-mapper.v1",
+      "required_host_capabilities": ["offline.asset.read", "fixture.preview.review"],
+      "fixture_pack": [
+        "plugins/ug-cam-copilot/examples/nx_flow/review_only_journal.py",
+        "plugins/ug-cam-copilot/examples/nx_journals/recorded_builder_session.py",
+        "plugins/ug-cam-copilot/examples/nx_journals/incomplete_builder_session.py"
+      ],
+      "sdk_conformance_version": "1.0.0",
+      "transport": "none",
+      "read_only": true,
+      "live_connected": false,
+      "network_egress": false,
+      "machine_outputs_allowed": false,
+      "capability_states": {
+        "installed": "fixture_verified",
+        "uninstalled": "capability_unavailable",
+        "revoked": "capability_unavailable",
+        "missing": "capability_unavailable"
+      }
+    }
+  }
+}

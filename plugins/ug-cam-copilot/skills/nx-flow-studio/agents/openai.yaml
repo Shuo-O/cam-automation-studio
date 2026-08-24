@@ -1,0 +1,4 @@
+interface:
+  display_name: "NX Flow Studio Review"
+  short_description: "Review NX FlowGraph evidence and fixture preview plans"
+  default_prompt: "Use $nx-flow-studio to review this NX FlowGraph, its reports, diff, and fixture PreviewPlan."

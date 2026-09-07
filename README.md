@@ -29,6 +29,18 @@ python -m cam_automation learn examples/powermill/manual-session.log --output bu
 
 旧的 `POST /api/learn` 仍作为 PowerMill 兼容入口保留。
 
+## MCP
+
+工作台新增 **MCP** 页：搜索 FreeCAD、CadQuery、OpenSCAD、Fusion、STEP 检查器及 NX 相关项目，查看来源与安装条件，并导出所选配置。本项目也提供可选的 stdio MCP 服务，复用现有 NX/PowerMill 分析能力：
+
+```sh
+python -m pip install -e '.[mcp]'
+python -m cam_automation mcp-config cam-studio step-inspector
+python -m cam_automation mcp
+```
+
+外部条目是配置模板；安装、宿主启动和实机验收状态不会混为“已连接”。详细工具、资料来源、使用方法及验证范围见 [MCP 集成](docs/cad-mcp.md)。
+
 ## Siemens NX / UG Demo
 
 NX 适配器静态解析录制的 NX Open Python Journal，不会导入或执行 Journal。它使用 SQLite WAL 保存事件，并按独立会话支持度发现重复流程：

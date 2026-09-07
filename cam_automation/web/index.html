@@ -85,6 +85,7 @@
               <span id="previewTabLabel">NX 预览</span>
             </button>
             <button class="tab" type="button" role="tab" data-tab="codex">Codex 审阅</button>
+            <button class="tab" type="button" role="tab" data-tab="mcp">MCP</button>
           </nav>
           <div id="analysisState" class="analysis-state">等待输入</div>
         </div>
@@ -209,9 +210,30 @@
           <button id="submitReview" class="button secondary" type="button">保存审阅结论</button>
           <pre id="contextOutput" class="context-output"></pre>
         </div>
+        <div id="mcpPanel" class="tab-panel mcp-panel" data-panel="mcp">
+          <div class="section-heading">
+            <div><span class="eyebrow">MCP INTEGRATIONS</span><h2>MCP 工具目录</h2></div>
+            <span id="mcpCount">加载中</span>
+          </div>
+          <p id="mcpNote" class="codex-note"></p>
+          <label class="field-label" for="mcpSearch">搜索工具、产品或能力</label>
+          <input id="mcpSearch" class="text-input" type="search" placeholder="例如 NX、STEP、FreeCAD">
+          <div id="mcpList" class="mcp-list"></div>
+          <div class="mcp-export">
+            <h3>导出所选配置</h3>
+            <p class="codex-note">先按工具说明安装依赖，再将配置合并到支持 mcpServers 的客户端。替换 REPLACE_WITH 路径；需要指定虚拟环境时使用可执行文件的绝对路径。</p>
+            <div class="codex-actions">
+              <button id="generateMcpConfig" class="button primary" type="button">生成配置</button>
+              <button id="copyMcpConfig" class="button secondary" type="button" disabled>复制配置</button>
+              <button id="downloadMcpConfig" class="button secondary" type="button" disabled>下载 JSON</button>
+            </div>
+            <p id="mcpConfigStatus" role="status"></p>
+            <pre id="mcpConfigOutput"></pre>
+          </div>
+        </div>
       </section>
     </main>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=mcp-2"></script>
   </body>
 </html>

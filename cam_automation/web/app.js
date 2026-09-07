@@ -553,3 +553,115 @@ elements.downloadPreview.addEventListener("click", () => {
 new ResizeObserver(drawWorkflow).observe(elements.canvas);
 setProduct("nx");
 loadConnections();
+
+// The catalog is local metadata. Selecting a tool never starts its CAD host.
+const mcpUi = Object.fromEntries([
+  'mcpList', 'mcpNote', 'mcpCount', 'mcpSearch', 'generateMcpConfig',
+  'copyMcpConfig', 'downloadMcpConfig', 'mcpConfigOutput', 'mcpConfigStatus',
+].map((id) => [id, document.getElementById(id)]));
+let cadServers = [];
+const selectedMcp = new Set(['cam-studio']);
+
+function clearMcpConfig() {
+  mcpUi.mcpConfigOutput.textContent = '';
+  mcpUi.copyMcpConfig.disabled = true;
+  mcpUi.downloadMcpConfig.disabled = true;
+  mcpUi.mcpConfigStatus.textContent = `已选 ${selectedMcp.size} 项；配置尚未生成`;
+}
+
+function renderCadCatalog() {
+  const query = mcpUi.mcpSearch.value.trim().toLowerCase();
+  const visible = cadServers.filter((item) =>
+    [item.name, item.id, item.category, item.summary, ...item.capabilities]
+      .join(' ').toLowerCase().includes(query));
+  mcpUi.mcpCount.textContent = `${visible.length} / ${cadServers.length} 项`;
+  mcpUi.mcpList.replaceChildren();
+  if (!visible.length) mcpUi.mcpList.textContent = '没有匹配的 MCP 工具';
+  visible.forEach((item) => {
+    const card = document.createElement('article');
+    card.className = 'mcp-card';
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedMcp.has(item.id);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) selectedMcp.add(item.id);
+      else selectedMcp.delete(item.id);
+      clearMcpConfig();
+    });
+    label.append(checkbox, document.createTextNode(item.name));
+    const status = document.createElement('small');
+    status.textContent = `${item.category} · ${item.integration_status === 'builtin' ? '本项目 MCP 接口' : '外部配置模板 · 未连接'}`;
+    const summary = document.createElement('p');
+    summary.textContent = item.summary;
+    const source = document.createElement('a');
+    source.href = item.repository;
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    source.textContent = '查看上游项目';
+    const details = document.createElement('details');
+    const title = document.createElement('summary');
+    title.textContent = '能力、安装与限制';
+    const capabilities = document.createElement('p');
+    capabilities.textContent = item.capabilities.join(' · ');
+    const requirements = document.createElement('ul');
+    item.prerequisites.forEach((requirement) => {
+      const li = document.createElement('li');
+      li.textContent = requirement;
+      requirements.append(li);
+    });
+    const setup = document.createElement('pre');
+    setup.textContent = item.setup.join('\n');
+    const caveats = document.createElement('p');
+    caveats.textContent = item.caveats;
+    const license = document.createElement('small');
+    license.textContent = `${item.license}${item.revision ? ` · 核对 commit ${item.revision.slice(0, 12)}` : ''}`;
+    details.append(title, capabilities, requirements, setup, caveats, license);
+    card.append(label, status, summary, source, details);
+    mcpUi.mcpList.append(card);
+  });
+}
+
+async function loadCadCatalog() {
+  try {
+    const response = await fetch('/api/mcp/catalog');
+    if (!response.ok) throw new Error('MCP 目录加载失败，请刷新页面重试');
+    const catalog = await response.json();
+    cadServers = catalog.servers;
+    mcpUi.mcpNote.textContent = `${catalog.note} 资料核对：${catalog.checked_on}。`;
+    renderCadCatalog();
+    clearMcpConfig();
+  } catch (error) {
+    mcpUi.mcpList.textContent = error.message;
+    mcpUi.mcpCount.textContent = '加载失败';
+  }
+}
+
+mcpUi.mcpSearch.addEventListener('input', renderCadCatalog);
+mcpUi.generateMcpConfig.addEventListener('click', async () => {
+  const ids = [...selectedMcp];
+  try {
+    const query = new URLSearchParams(ids.map((id) => ['server', id]));
+    const response = await fetch(`/api/mcp/config?${query}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || '配置生成失败');
+    if (JSON.stringify(ids) !== JSON.stringify([...selectedMcp])) return;
+    mcpUi.mcpConfigOutput.textContent = JSON.stringify(payload, null, 2);
+    mcpUi.copyMcpConfig.disabled = false;
+    mcpUi.downloadMcpConfig.disabled = false;
+    mcpUi.mcpConfigStatus.textContent = `已生成 ${ids.length} 项配置；尚未安装或连接`;
+  } catch (error) {
+    mcpUi.mcpConfigStatus.textContent = error.message;
+  }
+});
+mcpUi.copyMcpConfig.addEventListener('click', () =>
+  copyText(mcpUi.mcpConfigOutput.textContent, mcpUi.copyMcpConfig)
+    .catch((error) => { mcpUi.mcpConfigStatus.textContent = error.message; }));
+mcpUi.downloadMcpConfig.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([mcpUi.mcpConfigOutput.textContent], { type: 'application/json' }));
+  link.download = 'mcp.config.json';
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+loadCadCatalog();

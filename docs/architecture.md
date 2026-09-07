@@ -104,3 +104,15 @@ Keep this transport out of the learner. This allows the same reviewed recipe to 
 ## Performance
 
 Log parsing is a single pass over input lines. Session signature construction and aligned literal inference are linear in the selected command count. The included test parses 20,000 commands under a conservative three-second ceiling on the bundled local runtime.
+
+## MCP transport and integration catalog
+
+`cam_automation/mcp_server.py` uses the optional official MCP Python SDK and stdio transport.
+It calls the existing `analyze` service with review execution disabled. It does not run a
+second learner, attach a CAD host, write artifacts, or synchronize the HTTP review session.
+
+`cad_integrations.json` records reviewed upstream projects, source revisions, prerequisites,
+and client configuration templates. `mcp_catalog.py` serves the same metadata to CLI, HTTP,
+and MCP consumers. The web UI selects and exports configurations; it is not a proxy for
+external tool calls. External CAD servers operate under their own execution semantics.
+See [CAD MCP integration](cad-mcp.md) for setup and verification scope.

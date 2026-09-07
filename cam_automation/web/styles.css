@@ -15,6 +15,20 @@
   --code: #151a1a;
 }
 
+.mcp-panel { overflow: auto; padding: 22px; }
+.mcp-list { display: grid; gap: 12px; margin: 18px 0; }
+.mcp-card { border: 1px solid var(--line); border-radius: 6px; padding: 16px; background: var(--paper); }
+.mcp-card label { display: flex; align-items: center; gap: 10px; font-weight: 700; cursor: pointer; }
+.mcp-card p { margin: 10px 0; }
+.mcp-card small { display: block; color: var(--muted); margin: 8px 0; overflow-wrap: anywhere; }
+.mcp-card a { color: var(--accent); }
+.mcp-card summary { cursor: pointer; color: var(--accent); }
+.mcp-card pre, #mcpConfigOutput { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; }
+.mcp-export { border-top: 1px solid var(--line); padding-top: 12px; }
+.mcp-export .codex-actions { flex-wrap: wrap; justify-content: flex-start; }
+#mcpConfigStatus { color: var(--muted); }
+.tabs { overflow-x: auto; }
+
 * {
   box-sizing: border-box;
 }

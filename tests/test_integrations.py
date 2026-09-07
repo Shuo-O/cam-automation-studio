@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from cam_automation.codex_bridge import validate_review
@@ -24,7 +25,9 @@ part = session.Parts.Work
 operation = part.CAMSetup.CAMOperationCollection.Create("mill_planar")
 operation.GenerateToolPath()
 """
-        result = analyze(product="nx", source=source, source_format="nx_journal")
+        result = analyze(product="nx", source=source, source_format="nx_journal", name="custom-nx")
+
+        self.assertEqual("custom-nx", result["recipe"]["name"])
 
         self.assertEqual("nx", result["recipe"]["profile"])
         self.assertEqual("nx_preview", result["output"]["kind"])
@@ -42,6 +45,19 @@ operation.GenerateToolPath()
             )
         )
         self.assertIn("does not import NXOpen", result["output"]["text"])
+
+    def test_nx_jsonl_accepts_multiple_sessions(self) -> None:
+        records = [
+            {"session_id": "a", "seq": 0, "product": "nx", "action": "cam.operation.create"},
+            {"session_id": "b", "seq": 0, "product": "nx", "action": "cam.operation.create"},
+            {"session_id": "b", "seq": 1, "product": "nx", "action": "cam.toolpath.generate"},
+        ]
+        result = analyze(product="nx", source_format="jsonl",
+                         source="\n".join(json.dumps(record) for record in records))
+        self.assertEqual(2, result["recipe"]["source"]["sessions_analyzed"])
+        self.assertEqual(["a", "b"], result["recipe"]["source"]["sessions_matched"])
+        self.assertEqual(2, len(result["recipe"]["steps"]))
+        self.assertEqual(3, len(result["activity_events"]))
 
     def test_manifest_and_review_validation_are_explicit(self) -> None:
         manifest = capability_manifest()

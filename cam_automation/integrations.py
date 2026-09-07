@@ -222,6 +222,7 @@ def _parse_nx(
     source: str,
     source_name: str,
     source_format: str,
+    name: str | None = None,
 ) -> tuple[dict[str, Any], WorkflowRecipe, str, list[dict[str, Any]]]:
     if NxJournalAdapter is None:
         raise ValueError("NX adapter is unavailable in this checkout.")
@@ -247,10 +248,10 @@ def _parse_nx(
         for event in events:
             sessions.setdefault(event.session_id, []).append(event)
         selected_session = max(sessions.values(), key=len)
-        session_names = [event.session_id for event in sessions.values() if event]
+        session_names = list(sessions)
         recipe = _nx_recipe_from_events(
             selected_session,
-            name=Path(source_name).stem or "nx-workflow",
+            name=name or Path(source_name).stem or "nx-workflow",
             sessions_analyzed=len(sessions),
             sessions_matched=session_names,
         )
@@ -264,7 +265,7 @@ def _parse_nx(
         )
         if not events:
             raise ValueError("No NX Open actions were found in the supplied Journal.")
-        recipe = _nx_recipe_from_events(events, name=Path(source_name).stem or "nx-workflow")
+        recipe = _nx_recipe_from_events(events, name=name or Path(source_name).stem or "nx-workflow")
     parse = {
         "input_lines": len(source.splitlines()),
         "commands": len(events),
@@ -320,6 +321,7 @@ def analyze(
             source,
             source_name,
             selected_format,
+            name=recipe_name if name else None,
         )
         report = generate_report(parse["commands"], recipe)
         output_kind = "nx_preview"

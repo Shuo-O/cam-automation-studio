@@ -70,12 +70,33 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", default=8765, type=int)
 
+    subparsers.add_parser("mcp", help="Start the optional stdio MCP server (install .[mcp]).")
+    subparsers.add_parser("mcp-catalog", help="List reviewed CAD MCP integrations as JSON.")
+    config = subparsers.add_parser("mcp-config", help="Export selected MCP client config templates.")
+    config.add_argument("servers", nargs="+", help="Server IDs from mcp-catalog.")
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
+        if args.command in {"mcp-catalog", "mcp-config"}:
+            from .mcp_catalog import integration_catalog, mcp_config
+
+            value = integration_catalog() if args.command == "mcp-catalog" else mcp_config(args.servers)
+            print(json.dumps(value, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "mcp":
+            try:
+                from .mcp_server import run
+            except ModuleNotFoundError as error:
+                if error.name != "mcp":
+                    raise
+                print('MCP requires: python -m pip install -e ".[mcp]"', file=sys.stderr)
+                return 2
+            run()
+            return 0
         if args.command == "learn":
             path = Path(args.input)
             parsed, recipe = learn_file(path, name=args.name)

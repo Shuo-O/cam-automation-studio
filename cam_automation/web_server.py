@@ -16,6 +16,7 @@ from .integrations import (
     sample_for,
 )
 from .sample import SAMPLE_LOG
+from .mcp_catalog import integration_catalog, mcp_config
 
 
 _WEB_ROOT = Path(__file__).with_name("web")
@@ -62,6 +63,16 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/connections":
             self._json(HTTPStatus.OK, {"connections": connection_statuses()})
+            return
+        if path == "/api/mcp/catalog":
+            self._json(HTTPStatus.OK, integration_catalog())
+            return
+        if path == "/api/mcp/config":
+            try:
+                query = parse_qs(urlparse(self.path).query)
+                self._json(HTTPStatus.OK, mcp_config(query.get("server", [])))
+            except ValueError as error:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
             return
         if path == "/api/state":
             self._json(HTTPStatus.OK, self.server.state)

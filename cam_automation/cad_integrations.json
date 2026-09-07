@@ -1,0 +1,233 @@
+{
+  "schema": "cam.mcp.catalog.v1",
+  "checked_on": "2026-09-07",
+  "note": "目录与配置模板不会安装、启动或连接外部 CAD 服务。能力与前置条件依据所列上游版本核对；本机测试范围见工具说明，目标 CAD 宿主需单独验证。",
+  "servers": [
+    {
+      "id": "nxopen-docs",
+      "name": "NXOpen MCP",
+      "category": "API 文档检索",
+      "summary": "检索本机 NXOpen .NET API 文档，辅助核对 CAM Builder、类和成员签名。",
+      "repository": "https://github.com/mingfeng6684/nxopen-mcp",
+      "revision": "7a9d7cc0e4f158a545c8e2c4953cf32f05df20d5",
+      "license": "MIT",
+      "integration_status": "template",
+      "capabilities": [
+        "search_api",
+        "get_class",
+        "get_member",
+        "find_builder"
+      ],
+      "prerequisites": [
+        "Python 3.11+",
+        "自有 NX 安装中的 XML 文档；先建立本地索引",
+        "语义搜索需要 BGE-M3 模型和 embed extra"
+      ],
+      "setup": [
+        "python -m pip install 'nxopen-mcp[embed,reflect]'",
+        "nxopen-mcp index --nx-path REPLACE_WITH_NX_INSTALL"
+      ],
+      "caveats": ".NET API 检索结果不能直接当作 NXOpen Python 签名；完整索引可能耗时数小时。",
+      "config": {
+        "command": "nxopen-mcp",
+        "args": [
+          "serve"
+        ]
+      }
+    },
+    {
+      "id": "step-inspector",
+      "name": "CAD MCP Server · STEP",
+      "category": "几何检查",
+      "summary": "本地读取 STEP，检查尺寸、面、边及几何差异，为加工前审阅补充几何证据。",
+      "repository": "https://github.com/mattmohandiss/cad-mcp-server",
+      "revision": "3fee50870b5a86556444e79b554d0d39bcdd8aa6",
+      "license": "MIT；内含 OCCT LGPL-2.1，见上游 THIRD_PARTY_NOTICES.md",
+      "integration_status": "template",
+      "capabilities": [
+        "inspect_step",
+        "find_faces",
+        "find_edges",
+        "measure_geometry",
+        "diff_step"
+      ],
+      "prerequisites": [
+        "Node.js 24+",
+        "本地 STEP 文件"
+      ],
+      "setup": [
+        "npx -y cad-mcp-server@0.6.1"
+      ],
+      "caveats": "只读几何查询；测量结果需要工程师解释，不能替代 CAM 碰撞检查或机床仿真。npx 首次启动下载依赖。 本机已验证 0.6.1 的 inspect_step：公开样件返回 2 个实体、约 25 × 10 × 10 mm；其余工具未验收。",
+      "config": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "cad-mcp-server@0.6.1"
+        ]
+      }
+    },
+    {
+      "id": "freecad",
+      "name": "FreeCAD MCP",
+      "category": "桌面 CAD 建模",
+      "summary": "通过 FreeCAD 工作台内的 RPC 桥接创建与查询对象、获取视图、执行 Python。",
+      "repository": "https://github.com/neka-nat/freecad-mcp",
+      "revision": "3da6db5f71a7b74d1b69d295d1ba89233ad622b5",
+      "license": "MIT",
+      "integration_status": "template",
+      "capabilities": [
+        "create_document",
+        "create_object",
+        "get_objects",
+        "get_view",
+        "execute_code"
+      ],
+      "prerequisites": [
+        "FreeCAD 桌面应用",
+        "安装上游 FreeCADMCP addon，切换 MCP Addon 工作台并启动 RPC Server",
+        "uv / uvx"
+      ],
+      "setup": [
+        "uvx freecad-mcp"
+      ],
+      "caveats": "可修改或删除 CAD 对象，execute_code 拥有 FreeCAD 的执行权限；应在项目副本中验证。MCP 启动不代表 RPC 已连接。",
+      "config": {
+        "command": "uvx",
+        "args": [
+          "freecad-mcp"
+        ]
+      }
+    },
+    {
+      "id": "cadquery",
+      "name": "CadQuery contrib MCP",
+      "category": "参数化 CAD",
+      "summary": "执行 CadQuery 脚本，渲染 SVG、查询几何参数并导出 STEP/STL 等格式。",
+      "repository": "https://github.com/CadQuery/cadquery-contrib/tree/master/mcp-server",
+      "revision": "06b5e50a87fcf6808859f33d84e224fce675f8d7",
+      "license": "MCP 子包声明 Apache-2.0；仓库根 LICENSE 为 MIT，复用源码前核对范围",
+      "integration_status": "template",
+      "capabilities": [
+        "render",
+        "inspect",
+        "get_parameters",
+        "export"
+      ],
+      "prerequisites": [
+        "Python 3.10+ 与 CadQuery / OCCT 环境",
+        "安装 cadquery-contrib 的 mcp-server 子包"
+      ],
+      "setup": [
+        "git clone https://github.com/CadQuery/cadquery-contrib.git",
+        "python -m pip install ./cadquery-contrib/mcp-server"
+      ],
+      "caveats": "执行 Python 脚本并写入导出文件；适合隔离的参数化样件实验，不是 NX/PowerMill 刀路执行器。",
+      "config": {
+        "command": "cadquery-mcp",
+        "args": []
+      }
+    },
+    {
+      "id": "openscad",
+      "name": "OpenSCAD MCP",
+      "category": "参数化 CAD",
+      "summary": "通过本地 OpenSCAD CLI 验证 SCAD、渲染预览、导出网格和批量参数变体。",
+      "repository": "https://github.com/petrijr/openscad-mcp",
+      "revision": "ffd0dbc8319e150dc033f7a35827ab1091fde68a",
+      "license": "MIT",
+      "integration_status": "template",
+      "capabilities": [
+        "ping",
+        "validate_scad",
+        "export_model",
+        "render_preview",
+        "batch_render_scad"
+      ],
+      "prerequisites": [
+        "Python 3.10+",
+        "安装 OpenSCAD 并加入 PATH，或设置 OPENSCAD_MCP_OPENSCAD_PATH"
+      ],
+      "setup": [
+        "git clone https://github.com/petrijr/openscad-mcp.git",
+        "python -m pip install ./openscad-mcp"
+      ],
+      "caveats": "主要产物是 STL/3MF/OFF 网格与 PNG；不能将网格导出描述为精确 STEP/B-rep 或机床刀路。",
+      "config": {
+        "command": "openscad-mcp",
+        "args": []
+      }
+    },
+    {
+      "id": "fusion",
+      "name": "Autodesk Fusion 360 MCP",
+      "category": "桌面 CAD 建模",
+      "summary": "通过 Fusion Add-In 连接宿主，提供草图、拉伸等建模工具和交互提示。",
+      "repository": "https://github.com/JustusBraitinger/Autodesk-Fusion-360-MCP-Server",
+      "revision": "dd2f156fe2e79d1ee2282a26eaa8b7e58661a28a",
+      "license": "MIT",
+      "integration_status": "template",
+      "capabilities": [
+        "草图",
+        "参数化建模",
+        "Fusion Add-In 桥接"
+      ],
+      "prerequisites": [
+        "Autodesk Fusion 与 Python 3.10+",
+        "克隆上游，安装 Server/requirements.txt 与 MCP SDK",
+        "按上游 Install_Addin.py 步骤安装并激活 Add-In；替换配置中的路径"
+      ],
+      "setup": [
+        "git clone https://github.com/JustusBraitinger/Autodesk-Fusion-360-MCP-Server.git",
+        "python -m pip install -r Autodesk-Fusion-360-MCP-Server/Server/requirements.txt",
+        "python -m pip install 'mcp[cli]'"
+      ],
+      "caveats": "源码默认 SSE；此模板显式使用 --server_type stdio。属于教育/辅助项目，可修改设计，尚未在目标 Fusion 版本验收。",
+      "config": {
+        "command": "python",
+        "args": [
+          "REPLACE_WITH_FUSION_REPO/Server/MCP_Server.py",
+          "--server_type",
+          "stdio"
+        ]
+      }
+    },
+    {
+      "id": "nx-bridge",
+      "name": "NX MCP · Siemens NX",
+      "category": "桌面 CAD 建模",
+      "summary": "独立 MCP sidecar 通过 NX 内的 Journal 桥接 NXOpen；适合研究现有 NX 适配器的后续执行端。",
+      "repository": "https://github.com/DreamEnding/NX_MCP",
+      "revision": "179086b6de28a53d340132aca7678fa6ed03b422",
+      "license": "MIT",
+      "integration_status": "template",
+      "capabilities": [
+        "nx_status",
+        "nx_list_bodies",
+        "nx_create_sketch",
+        "nx_extrude",
+        "nx_export_step"
+      ],
+      "prerequisites": [
+        "Windows、原生 Siemens NX、Python 3.10+",
+        "独立测试目录 NX_MCP_WORKSPACE",
+        "依照上游 Internal feasibility run 启动 NX 侧 bridge"
+      ],
+      "setup": [
+        "git clone https://github.com/DreamEnding/NX_MCP.git",
+        "python -m pip install ./NX_MCP"
+      ],
+      "caveats": "当前 README 默认暴露 16 个工具；旧版更多工具隐藏。上游 NX 2506 批处理验证不代表 GUI 非阻塞可用，本项目未实机验收。与 JavaScript monorepo 的 Nx MCP 无关。",
+      "config": {
+        "command": "python",
+        "args": [
+          "-m",
+          "nx_mcp.server"
+        ],
+        "env": {
+          "NX_MCP_WORKSPACE": "REPLACE_WITH_DISPOSABLE_NX_WORKSPACE"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "source": "fixture",
+  "product": "powermill",
+  "instance_id": "pm-fixture",
+  "project_id": "demo-cavity",
+  "target_version": "PowerMill 2026",
+  "units": "mm",
+  "material": "P20",
+  "machine": {
+    "axes": 3
+  },
+  "objects": [
+    {
+      "object_id": "cavity-1",
+      "kind": "pocket",
+      "name": "型腔",
+      "attributes": {
+        "role": "cavity"
+      }
+    }
+  ]
+}

@@ -7,14 +7,22 @@ import re
 import shutil
 import sys
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol, runtime_checkable
 
+from .adapters.cimatron_journal import CimatronJournalAdapter
 from .flow_service import FlowConflictError, FlowService, FlowServiceError
 from .generator import generate_macro, generate_report
 from .learning import learn_workflow
 from .models import LegacyRecipeStep, WorkflowRecipe
+from .product_catalog import (
+    PRODUCT_CATALOG,
+    PRODUCT_KEYS,
+    PRODUCT_PLUGINS,
+    products_for_plugin_ids,
+    require_product,
+)
 from .sample import SAMPLE_LOG
 
 
@@ -32,10 +40,9 @@ except ImportError:  # pragma: no cover - only relevant to incomplete source che
     NxJournalAdapter = None  # type: ignore[assignment,misc]
 
 
-SUPPORTED_PRODUCTS = ("nx", "powermill")
+SUPPORTED_PRODUCTS = tuple(PRODUCT_CATALOG)
 SUPPORTED_FORMATS = {
-    "nx": ("nx_journal", "jsonl"),
-    "powermill": ("powermill_log", "jsonl"),
+    product.key: product.source_formats for product in PRODUCT_CATALOG.values()
 }
 _WINDOWS_PATH = re.compile(
     r"(?<![A-Za-z0-9_])(?:[A-Za-z]:[\\/]|\\\\)[^\r\n\t\"'<>|]*"
@@ -203,6 +210,10 @@ def connection_statuses(
         os.environ.get("PMILL_HOME"),
         os.environ.get("POWERMILL_ROOT"),
     )
+    cimatron_root = _first_existing(
+        os.environ.get("CIMATRON_HOME"),
+        os.environ.get("CIMATRON_ROOT"),
+    )
     captured_instances = (
         capture_status.get("instances", {})
         if capture_status and capture_status.get("consent")
@@ -213,6 +224,7 @@ def connection_statuses(
     service_instances: dict[str, list[dict[str, Any]]] = {
         "nx": [],
         "powermill": [],
+        "cimatron": [],
     }
     if connection_service is not None:
         list_instances = getattr(connection_service, "list_instances", None)
@@ -347,6 +359,18 @@ def connection_statuses(
             capabilities=("macro.parse", "macro.export", "project.review"),
             root_detail="检测到 PowerMill 目录",
         ).to_dict(),
+        product_connection(
+            key="cimatron",
+            plugin_id="cimatron-cam-copilot",
+            label="Cimatron",
+            root=cimatron_root,
+            unconfigured_detail=(
+                "设置 CIMATRON_HOME 或 CIMATRON_ROOT 后可定位 Cimatron；"
+                "首版只静态读取 Cimatron 2026 Journaling 文件"
+            ),
+            capabilities=("journal.parse", "workflow.learn", "project.review"),
+            root_detail="检测到 Cimatron 目录",
+        ).to_dict(),
     ]
     if installed_plugins is None or include_uninstalled:
         return statuses
@@ -355,6 +379,7 @@ def connection_statuses(
         "codex" if "cam-codex-review" in installed else "",
         "nx" if "ug-cam-copilot" in installed else "",
         "powermill" if "powermill-cam-copilot" in installed else "",
+        "cimatron" if "cimatron-cam-copilot" in installed else "",
     }
     return [item for item in statuses if item["key"] in enabled_keys]
 
@@ -366,6 +391,7 @@ def capability_manifest(
         {
             "ug-cam-copilot",
             "powermill-cam-copilot",
+            "cimatron-cam-copilot",
             "cam-local-capture",
             "cam-execution-gateway",
             "cam-codex-review",
@@ -373,14 +399,7 @@ def capability_manifest(
         if installed_plugins is None
         else set(installed_plugins)
     )
-    products = [
-        product
-        for product, plugin_id in (
-            ("nx", "ug-cam-copilot"),
-            ("powermill", "powermill-cam-copilot"),
-        )
-        if plugin_id in installed
-    ]
+    products = products_for_plugin_ids(installed)
     capture_installed = "cam-local-capture" in installed
     execution_installed = "cam-execution-gateway" in installed
     codex_installed = "cam-codex-review" in installed
@@ -390,9 +409,12 @@ def capability_manifest(
         "execution_mode": "dry-run" if execution_installed else "unavailable",
         "products": [
             {
-                "key": product,
-                "label": "UG / NX" if product == "nx" else "PowerMill",
-                "formats": list(SUPPORTED_FORMATS[product]),
+                "key": product.key,
+                "label": product.label,
+                "formats": list(product.source_formats),
+                "proprietary_sources_supported": product.proprietary_sources_supported,
+                "command_tasks_supported": product.command_tasks_supported,
+                "flow_import_supported": product.flow_import_supported,
             }
             for product in products
         ],
@@ -680,6 +702,146 @@ def _parse_nx(
     ]
 
 
+def _cimatron_recipe_from_events(
+    events: list[Any],
+    *,
+    name: str,
+    sessions_analyzed: int = 1,
+    sessions_matched: list[str] | None = None,
+) -> WorkflowRecipe:
+    steps: list[LegacyRecipeStep] = []
+    for index, event in enumerate(events):
+        params = event.params if isinstance(event.params, Mapping) else {}
+        risk = str(params.get("risk", "review"))
+        if risk not in {"safe", "review", "blocked"}:
+            risk = "review"
+        reasons = [
+            str(item)
+            for item in params.get("reasons", [])
+            if str(item).strip()
+        ]
+        steps.append(
+            LegacyRecipeStep(
+                step_id=f"step-{index + 1:03d}",
+                operation=str(params.get("api", event.action)),
+                action=event.action,
+                template=f"static-evidence::{event.action}",
+                risk=risk,
+                reasons=reasons,
+                source_lines=[event.source_line],
+            )
+        )
+    return WorkflowRecipe(
+        name=name,
+        profile="cimatron",
+        sessions_analyzed=sessions_analyzed,
+        sessions_matched=sessions_matched
+        or [events[0].session_id if events else "cimatron-session"],
+        parameters=[],
+        steps=steps,
+        diagnostics=[
+            "Cimatron Journal was statically parsed; Python/C# source was never imported or executed.",
+            "Only source evidence is available in the MVP; semantic editing and live execution remain unavailable.",
+            "Cimatron 2026 Journaling covers supported UI tools only and must not be treated as a complete command log.",
+        ],
+    )
+
+
+def _cimatron_preview(recipe: WorkflowRecipe) -> str:
+    lines = [
+        "Cimatron 2026 Journaling evidence report (offline only)",
+        f"Recipe candidate: {recipe.name}",
+        "No Journal, Hook, macro, postprocessor, or machine command was executed.",
+        "",
+    ]
+    for step in recipe.steps:
+        reason = f" -- {', '.join(step.reasons)}" if step.reasons else ""
+        lines.append(f"{step.step_id} [{step.risk}] {step.action}{reason}")
+    lines.extend(
+        [
+            "",
+            "Before any implementation: verify the exact Cimatron release and license,",
+            "review the generated recipe, then run CAM simulation, collision checks, and shop approval.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _normalize_cimatron_event(event: Any) -> Any:
+    """Keep legacy cimatron.* evidence readable without granting an action."""
+
+    action = str(getattr(event, "action", ""))
+    if not action.casefold().startswith("cimatron."):
+        return event
+    params = dict(event.params) if isinstance(event.params, Mapping) else {}
+    params.setdefault("raw_action", action)
+    params.setdefault("api", action)
+    params.setdefault("mapping_confidence", "opaque")
+    params.setdefault(
+        "reasons",
+        ["Legacy Cimatron action namespace is preserved as opaque evidence."],
+    )
+    return replace(event, action="cam.source.call", params=params)
+
+
+def _parse_cimatron(
+    source: str,
+    source_name: str,
+    source_format: str,
+) -> tuple[dict[str, Any], WorkflowRecipe, str, list[dict[str, Any]]]:
+    if source_format == "jsonl":
+        events: list[Any] = []
+        for line_number, line in enumerate(source.splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"JSONL line {line_number}: {error.msg}") from error
+            if not isinstance(value, Mapping):
+                raise ValueError(f"JSONL line {line_number} must be an object.")
+            from .models import ActivityEvent
+
+            event = ActivityEvent.from_dict(value)
+            if event.product != "cimatron":
+                raise ValueError(
+                    f"JSONL line {line_number} product must be cimatron."
+                )
+            events.append(_normalize_cimatron_event(event))
+    else:
+        events = list(
+            CimatronJournalAdapter().parse_source(
+                source,
+                source_file=source_name,
+                session_name=Path(source_name).stem or None,
+            )
+        )
+    if not events:
+        raise ValueError("No static Cimatron Journal API calls were found.")
+    sessions: dict[str, list[Any]] = {}
+    for event in events:
+        sessions.setdefault(event.session_id, []).append(event)
+    selected_session = max(sessions.values(), key=len)
+    recipe = _cimatron_recipe_from_events(
+        selected_session,
+        name=Path(source_name).stem or "cimatron-workflow",
+        sessions_analyzed=len(sessions),
+        sessions_matched=sorted(sessions),
+    )
+    parse = {
+        "input_lines": len(source.splitlines()),
+        "commands": len(events),
+        "ignored_lines": max(0, len(source.splitlines()) - len(events)),
+        "diagnostics": [],
+    }
+    return (
+        parse,
+        recipe,
+        _cimatron_preview(recipe),
+        [event.to_dict() for event in events],
+    )
+
+
 def analyze(
     *,
     product: str,
@@ -691,9 +853,8 @@ def analyze(
     source_name: str = "pasted-input",
 ) -> dict[str, Any]:
     product = product.lower().strip()
-    if product not in SUPPORTED_PRODUCTS:
-        raise ValueError(f"Unsupported product: {product}. Choose nx or powermill.")
-    selected_format = source_format or ("nx_journal" if product == "nx" else "powermill_log")
+    descriptor = require_product(product)
+    selected_format = source_format or descriptor.default_source_format
     if selected_format not in SUPPORTED_FORMATS[product]:
         raise ValueError(f"Unsupported {product} input format: {selected_format}.")
     if not isinstance(source, str) or not source.strip():
@@ -719,7 +880,7 @@ def analyze(
         events = parsed.to_activity_events()
         report = generate_report(parsed.event_count, recipe)
         output_kind = "powermill_macro"
-    else:
+    elif product == "nx":
         parse, recipe, preview, events = _parse_nx(
             source,
             source_name,
@@ -727,13 +888,26 @@ def analyze(
         )
         report = generate_report(parse["commands"], recipe)
         output_kind = "nx_preview"
+    else:
+        parse, recipe, preview, events = _parse_cimatron(
+            source,
+            source_name,
+            selected_format,
+        )
+        report = generate_report(parse["commands"], recipe)
+        output_kind = "cimatron_evidence_report"
 
     return {
         "product": product,
         "source_format": selected_format,
         "adapter": {
-            "name": "PowerMill profile" if product == "powermill" else "NX Open Journal adapter",
+            "name": {
+                "powermill": "PowerMill profile",
+                "nx": "NX Open Journal adapter",
+                "cimatron": "Cimatron 2026 Journaling static adapter",
+            }[product],
             "execution_mode": "dry-run",
+            "source_execution": False,
         },
         "parse": parse,
         "activity_events": events,
@@ -947,13 +1121,25 @@ def _map_offline_flow_source(
             source_file=source_name,
             target_version=target_versions[0] if len(target_versions) == 1 else None,
         )
-    else:
+    elif product == "powermill":
         from .adapters.powermill_flow import PowerMillFlowImporter
 
         graph = PowerMillFlowImporter(
             source_name=source_name,
             target_versions=target_versions,
         ).import_source(source)
+    elif product == "cimatron":
+        raise FlowIntegrationError(
+            "CAPABILITY_UNAVAILABLE",
+            "Cimatron supports static Journal analysis only; Flow import is unavailable.",
+            http_status=409,
+        )
+    else:
+        raise FlowIntegrationError(
+            "FLOW_PRODUCT_MIXED",
+            "Offline Flow import requires product=nx or product=powermill.",
+            http_status=400,
+        )
     return _canonical_flow_namespace(graph)
 
 
@@ -1518,7 +1704,13 @@ class OfflineFlowIntegration:
         source_origin: str = "user_authored",
     ) -> dict[str, Any]:
         product_name = str(product).casefold()
-        if product_name not in SUPPORTED_PRODUCTS:
+        if product_name == "cimatron":
+            raise FlowIntegrationError(
+                "CAPABILITY_UNAVAILABLE",
+                "Cimatron supports static Journal analysis only; Flow import is unavailable.",
+                http_status=409,
+            )
+        if product_name not in {"nx", "powermill"}:
             raise FlowIntegrationError(
                 "FLOW_PRODUCT_MIXED",
                 "Offline Flow import requires product=nx or product=powermill.",
@@ -1531,9 +1723,10 @@ class OfflineFlowIntegration:
                 "Offline Flow import requires non-empty source bytes.",
                 http_status=400,
             )
-        display_name = Path(str(source_name)).name or (
-            "journal.py" if product_name == "nx" else "workflow.mac"
-        )
+        display_name = Path(str(source_name)).name or {
+            "nx": "journal.py",
+            "powermill": "workflow.mac",
+        }[product_name]
         versions = tuple(
             sorted({str(item).strip() for item in target_versions if str(item).strip()})
         )
@@ -1563,7 +1756,10 @@ class OfflineFlowIntegration:
             raw,
             asset_id=str(asset_ref["asset_id"]),
             product=product_name,
-            asset_type="nx_journal" if product_name == "nx" else "powermill_macro",
+            asset_type={
+                "nx": "nx_journal",
+                "powermill": "powermill_macro",
+            }[product_name],
             display_name=display_name,
             source_locator="selected-file",
             source_origin=source_origin,
@@ -1618,6 +1814,12 @@ class OfflineFlowIntegration:
 def sample_for(product: str) -> str:
     if product == "powermill":
         return SAMPLE_LOG
+    if product == "cimatron":
+        return """# Cimatron 2026 Journaling sample (static evidence only)
+document = application.Documents.Active
+command = document.Commands.Item("CreateOperation")
+command.Execute("roughing")
+"""
     return """# NX Open Journal sample
 session = NXOpen.Session.GetSession()
 part = session.Parts.Work

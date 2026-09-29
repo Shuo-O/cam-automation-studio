@@ -25,6 +25,7 @@ from .integrations import (
 )
 from .models import EventQuery
 from .plugin_manager import PRODUCT_PLUGINS, PluginManager, PluginNotInstalled
+from .product_catalog import get_product
 
 
 _WEB_ROOT = Path(__file__).with_name("web")
@@ -106,7 +107,7 @@ def _runtime_connection_label(connection: dict[str, Any]) -> str:
 
 
 class _WorkflowHandler(BaseHTTPRequestHandler):
-    server_version = "CamAutomationStudio/0.6.1"
+    server_version = "CamAutomationStudio/0.7.0"
 
     def _json(
         self,
@@ -184,6 +185,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 "/api/execution",
                 "/api/diagnostics",
                 "/api/flow",
+                "/api/delivery",
             )
         ):
             return True
@@ -632,6 +634,9 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if not self._local_api_allowed(path):
             return
+        if path == "/api/delivery" or path.startswith("/api/delivery/"):
+            self._dispatch_customer("GET", parsed)
+            return
         if path.startswith("/api/flow"):
             self._dispatch_flow("GET", parsed)
             return
@@ -641,7 +646,7 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "status": "ok",
-                    "version": "0.6.1",
+                    "version": "0.7.0",
                     "module": "CAM Automation Studio Core",
                     "installed_plugins": plugins["installed_count"],
                 },
@@ -763,6 +768,9 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         parsed = self._parsed_request()
         path = parsed.path
         if not self._local_api_allowed(path):
+            return
+        if path == "/api/delivery" or path.startswith("/api/delivery/"):
+            self._dispatch_customer("POST", parsed)
             return
         if path.startswith("/api/flow"):
             self._dispatch_flow("POST", parsed)
@@ -996,6 +1004,44 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         self.server.set_state("analysis", result)
         self._json(HTTPStatus.OK, result)
 
+    def _dispatch_customer(self, method: str, parsed: Any) -> None:
+        # A loopback connection alone does not exclude browser DNS rebinding or CSRF.
+        host = urlparse("http://" + self.headers.get("Host", ""))
+        try:
+            host_port = host.port or 80
+        except ValueError as error:
+            raise ValueError("Invalid Host header.") from error
+        if (
+            host.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or host_port != self.server.server_port
+            or host.username is not None or host.password is not None
+            or host.path or host.query or host.fragment
+        ):
+            raise _ApiError(HTTPStatus.FORBIDDEN, "forbidden_origin", "Local Host required.")
+        origin = self.headers.get("Origin")
+        if origin is not None:
+            origin_url = urlparse(origin)
+            try:
+                origin_port = origin_url.port or 80
+            except ValueError as error:
+                raise ValueError("Invalid Origin header.") from error
+            if (
+                origin_url.scheme != "http" or origin_url.hostname != host.hostname
+                or origin_port != host_port or origin_url.username is not None
+                or origin_url.password is not None or origin_url.path not in {"", "/"}
+                or origin_url.query or origin_url.fragment
+            ):
+                raise _ApiError(
+                    HTTPStatus.FORBIDDEN, "forbidden_origin", "Same-origin requests required.",
+                )
+        self._query(parsed, allowed=frozenset())
+        body = self._read_json() if method == "POST" else None
+        payload, filename = self.server.customer_api.dispatch(method, parsed.path, body)
+        self._json(
+            HTTPStatus.OK, payload,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'} if filename else None,
+        )
+
     def _handle_exception(self, error: Exception) -> None:
         if isinstance(error, _ApiError):
             self._problem(
@@ -1095,6 +1141,8 @@ class _WorkflowHandler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.OK, review)
 
     def _serve_static(self, request_path: str) -> None:
+        if request_path in {"/delivery", "/delivery/"}:
+            request_path = "/delivery/index.html"
         relative = request_path.lstrip("/") or "index.html"
         candidate = (_WEB_ROOT / relative).resolve()
         if _WEB_ROOT.resolve() not in candidate.parents and candidate != _WEB_ROOT.resolve():
@@ -1170,6 +1218,9 @@ class _WorkflowServer(ThreadingHTTPServer):
         self._owns_recorder = False
         self._connection_authorized: bool | None = None
         self._module_lock = threading.RLock()
+        from .customer_api import CustomerApi
+
+        self.customer_api = CustomerApi(self.app_data_dir / "customer")
         self._state_lock = threading.RLock()
         self.state: dict[str, Any] = {
             "analysis": None,
@@ -1347,7 +1398,11 @@ class _WorkflowServer(ThreadingHTTPServer):
                 self.execution = None
 
             for product, plugin_id in PRODUCT_PLUGINS.items():
-                if self.plugins.is_installed(plugin_id):
+                descriptor = get_product(product)
+                if (
+                    descriptor is not None and descriptor.flow_import_supported
+                    and self.plugins.is_installed(plugin_id)
+                ):
                     register_product_flow_capability(self.services.flow, product)
 
     def connection_statuses(
@@ -1782,6 +1837,7 @@ class _WorkflowServer(ThreadingHTTPServer):
 
     def server_close(self) -> None:
         self.cancel_flow_requests()
+        self.customer_api.close()
         if self._owns_services:
             commands = self.services.commands
             close_commands = getattr(commands, "close", None)

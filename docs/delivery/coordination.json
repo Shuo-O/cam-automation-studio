@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "coordinator": "01a0e870-bb9f-7250-9b40-8cdd5f91a44e",
+  "mode": "shared_workspace_exclusive_file_ownership",
+  "threads": [
+    {
+      "role": "A",
+      "title": "CAM 交付 A｜产品兼容与回归修复",
+      "thread_id": "01a0e909-0f25-7e02-8889-ae0c65f8a754",
+      "host_id": "local",
+      "status": "completed_integrated",
+      "handoff": "docs/delivery/handoff-A.md"
+    },
+    {
+      "role": "B",
+      "title": "CAM 交付 B｜制造上下文与对象绑定",
+      "thread_id": "01a0e909-12e3-7e41-bc34-4a6a24da8c84",
+      "host_id": "local",
+      "status": "completed_integrated",
+      "handoff": "docs/delivery/handoff-B.md"
+    },
+    {
+      "role": "C",
+      "title": "CAM 交付 C｜案例复用与验证证据",
+      "thread_id": "01a0e909-15f3-7b42-ae9f-a19a1a2f288c",
+      "host_id": "local",
+      "status": "completed_integrated",
+      "handoff": "docs/delivery/handoff-C.md"
+    },
+    {
+      "role": "D",
+      "title": "CAM 交付 D｜客户中文工作台",
+      "thread_id": "01a0e909-1a23-7633-a58a-65fe9e5cb748",
+      "host_id": "local",
+      "status": "completed_integrated",
+      "handoff": "docs/delivery/handoff-D.md"
+    },
+    {
+      "role": "E",
+      "title": "CAM 交付 E｜安装打包与客户手册",
+      "thread_id": "01a0e909-1dba-70c0-bfe5-c0d6911117af",
+      "host_id": "local",
+      "status": "completed_integrated",
+      "handoff": "docs/delivery/handoff-E.md"
+    }
+  ],
+  "integration_status": "offline_delivery_verified",
+  "release_verification": "docs/delivery/release-verification.json"
+}

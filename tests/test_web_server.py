@@ -216,7 +216,7 @@ class RecorderHttpTests(unittest.TestCase):
                 )
                 self.assertEqual(200, status)
                 self.assertEqual(
-                    {"codex", "nx", "powermill"},
+                    {"codex", "nx", "powermill", "cimatron"},
                     {item["key"] for item in connections["connections"]},
                 )
 

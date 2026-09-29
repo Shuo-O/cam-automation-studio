@@ -25,6 +25,13 @@ PRODUCT_SKILLS = {
         "powermill-activity-query-preview",
         "powermill-flow-studio",
     },
+    "cimatron-cam-copilot": {
+        "cimatron-workflow-learning",
+        "cimatron-session-comparison",
+        "cimatron-recipe-review",
+        "cimatron-activity-query-preview",
+        "cimatron-flow-studio",
+    },
 }
 
 
@@ -50,7 +57,7 @@ class CodexPluginContractTests(unittest.TestCase):
 
     def test_marketplace_is_available_on_install_and_never_default_installed(self) -> None:
         marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
-        self.assertEqual(5, len(marketplace["plugins"]))
+        self.assertEqual(6, len(marketplace["plugins"]))
         for entry in marketplace["plugins"]:
             with self.subTest(plugin=entry["name"]):
                 self.assertEqual("AVAILABLE", entry["policy"]["installation"])
@@ -137,6 +144,7 @@ class CodexPluginContractTests(unittest.TestCase):
         expected = {
             "ug-cam-copilot": "0.3.1",
             "powermill-cam-copilot": "0.2.1",
+            "cimatron-cam-copilot": "0.1.0",
             "cam-local-capture": "0.2.0",
             "cam-execution-gateway": "0.2.0",
             "cam-codex-review": "0.2.0",

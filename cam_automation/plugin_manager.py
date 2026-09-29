@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from .product_catalog import PRODUCT_PLUGINS
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -248,12 +250,6 @@ class PluginNotInstalled(ValueError):
     def __init__(self, plugin_id: str) -> None:
         self.plugin_id = plugin_id
         super().__init__(f"Install plugin '{plugin_id}' to use this feature.")
-
-
-PRODUCT_PLUGINS = {
-    "nx": "ug-cam-copilot",
-    "powermill": "powermill-cam-copilot",
-}
 
 
 def products_for_plugins(plugin_ids: Iterable[str]) -> set[str]:

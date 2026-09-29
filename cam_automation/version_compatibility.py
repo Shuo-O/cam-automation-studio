@@ -19,6 +19,7 @@ _VERSION_COMPARATOR = re.compile(r"(>=|<=|>|<|==|=)\s*(\d+(?:\.\d+)*)")
 _CANONICAL_PRODUCT_NAMES = {
     "nx": "NX",
     "powermill": "PowerMill",
+    "cimatron": "Cimatron",
 }
 _DEFAULT_PRODUCT_ALIASES = {
     "nx": ("NX", "Siemens NX", "UG NX"),
@@ -29,6 +30,7 @@ _DEFAULT_PRODUCT_ALIASES = {
         "Autodesk PowerMill Ultimate",
         "PowerMILL",
     ),
+    "cimatron": ("Cimatron", "Cimatron E"),
 }
 _POLICY_LIST_FIELDS = (
     "aliases",
@@ -194,6 +196,8 @@ def _release_candidate(target_version: str, product: str) -> str | None:
     if product == "nx" and major >= 1847:
         return f"{canonical} {major}"
     if product == "powermill" and major >= 2000:
+        return f"{canonical} {major}"
+    if product == "cimatron" and major >= 2000:
         return f"{canonical} {major}"
     return None
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "cimatron-cam-copilot",
+  "name": "Cimatron 静态工作流",
+  "version": "0.1.0",
+  "summary": "静态解析 Cimatron 2026 Journaling 并生成审阅证据。",
+  "category": "工作流",
+  "order": 30,
+  "features": [
+    "analysis:cimatron",
+    "review:cimatron"
+  ],
+  "dependencies": [],
+  "permissions": [
+    "read:selected-files"
+  ],
+  "consent_required": false,
+  "auto_authorize": false,
+  "consent_reversible": true,
+  "icon": "CM"
+}

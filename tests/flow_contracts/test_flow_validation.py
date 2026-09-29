@@ -354,6 +354,12 @@ class FlowValidationTests(unittest.TestCase):
         result = validate_flow_graph(graph)
         self.assertIn("FLOW_PRODUCT_MIXED", codes(result))
 
+        cimatron_graph = copy.deepcopy(self.minimal["flow_graph"])
+        cimatron_graph["product"] = "cimatron"
+        cimatron_graph["flows"][0]["nodes"][0]["node_type"] = "nx.operation.inspect"
+        result = validate_flow_graph(cimatron_graph)
+        self.assertIn("FLOW_PRODUCT_MIXED", codes(result))
+
         graph["flows"][0]["nodes"][0]["node_type"] = "vendor.operation.inspect"
         result = validate_flow_graph(graph)
         self.assertIn("FLOW_NAMESPACE_INVALID", codes(result))

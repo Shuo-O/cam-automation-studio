@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
+from .product_catalog import PRODUCT_ACTION_NAMESPACES, PRODUCT_KEYS
+
 
 PROTOCOL = "cam.codex.bridge.v1"
 SCHEMA_VERSION = 1
@@ -44,7 +46,7 @@ GATE_CONTEXT = {
     "machine_ready_nc": "prohibited",
 }
 
-_PRODUCTS = {"nx", "powermill"}
+_PRODUCTS = PRODUCT_KEYS
 _REVIEW_STATUSES = {
     "needs_review",
     "needs_changes",
@@ -791,12 +793,22 @@ def _assert_product_action(
         if product == "nx" and allow_legacy_nx:
             return
         raise ValueError(f"{field_name} uses a legacy NX-only action outside NX event evidence.")
-    if not action.startswith(("cam.", "nx.", "powermill.")):
-        raise ValueError(f"{field_name} must use cam.*, nx.*, or powermill.*.")
-    if product == "nx" and action.startswith("powermill."):
-        raise ValueError(f"{field_name} crosses the NX product boundary.")
-    if product == "powermill" and action.startswith("nx."):
-        raise ValueError(f"{field_name} crosses the PowerMill product boundary.")
+    allowed_prefixes = ("cam.",) + tuple(
+        f"{namespace}." for namespace in sorted(PRODUCT_ACTION_NAMESPACES)
+    )
+    if not action.startswith(allowed_prefixes):
+        raise ValueError(
+            f"{field_name} must use cam.* or a registered product namespace."
+        )
+    foreign_namespaces = PRODUCT_ACTION_NAMESPACES - {product}
+    if action.startswith(tuple(f"{namespace}." for namespace in foreign_namespaces)):
+        product_label = {
+            "nx": "NX",
+            "powermill": "PowerMill",
+        }.get(product, product)
+        raise ValueError(
+            f"{field_name} crosses the {product_label} product boundary."
+        )
 
 
 def _normalize_recipe(value: Any, expected_product: str) -> dict[str, Any]:
@@ -1560,7 +1572,7 @@ class CodexReviewRequest:
             raise ValueError("execution_mode must remain dry-run.")
         product = _string(item.get("product"), "product").casefold()
         if product not in _PRODUCTS:
-            raise ValueError("product must be nx or powermill.")
+            raise ValueError("product must be a registered CAM product.")
 
         raw_events = (
             item.get("source_events", item.get("activity_events", []))

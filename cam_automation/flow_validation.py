@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .product_catalog import PRODUCT_ACTION_NAMESPACES, PRODUCT_KEYS
 from .flow_contracts import (
     CONTRACT_NAMES,
     CapabilityManifest,
@@ -63,7 +64,10 @@ ERROR_CODES = (
 _ERROR_CODE_SET = frozenset(ERROR_CODES)
 _SEVERITY_ORDER = {"blocker": 0, "error": 1, "warning": 2, "info": 3}
 _RISK_ORDER = {"safe": 0, "review": 1, "blocked": 2}
-_NODE_NAMESPACE = re.compile(r"^(cam|nx|powermill|flow|opaque)\.[A-Za-z0-9_.-]+$")
+_NODE_NAMESPACE = re.compile(
+    rf"^(cam|{'|'.join(sorted(PRODUCT_ACTION_NAMESPACES))}|flow|opaque)"
+    r"\.[A-Za-z0-9_.-]+$"
+)
 _BASE_TYPES = {
     "string",
     "integer",
@@ -1130,6 +1134,30 @@ def _preflight_diagnostics(
     return resource + safety
 
 
+@lru_cache(maxsize=32)
+def _cached_frozen_contract_checks(
+    serialized: str,
+    schema_name: str,
+) -> tuple[tuple[Diagnostic, ...], tuple[Diagnostic, ...]]:
+    """Reuse immutable schema and safety checks for repeated frozen revisions.
+
+    FlowGraph/other FrozenContract values retain their exact serialized payload.
+    Revalidating an unchanged revision was needlessly walking every node twice
+    (schema and safety/resource preflight). The cache is deliberately bounded
+    and is used only with the default limits; caller-supplied limits still run
+    the full checks.
+    """
+
+    raw = json.loads(serialized)
+    schema_diagnostics = validate_schema(raw, schema_name).diagnostics
+    preflight_diagnostics = _preflight_diagnostics(
+        raw,
+        schema_name,
+        DEFAULT_RESOURCE_LIMITS,
+    )
+    return tuple(schema_diagnostics), tuple(preflight_diagnostics)
+
+
 def _asset_diagnostics(value: Mapping[str, Any]) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     product = value.get("product")
@@ -1139,6 +1167,7 @@ def _asset_diagnostics(value: Mapping[str, Any]) -> list[Diagnostic]:
         and (
             (asset_type.startswith("nx_") and product != "nx")
             or (asset_type.startswith("powermill_") and product != "powermill")
+            or (asset_type.startswith("cimatron_") and product != "cimatron")
         )
     ):
         diagnostics.append(
@@ -1217,8 +1246,8 @@ def _namespace_diagnostics(
         return [_diagnostic("FLOW_NAMESPACE_INVALID", object_ref)]
     prefix = node_type.split(".", 1)[0]
     if (
-        prefix in {"nx", "powermill"}
-        and product in {"nx", "powermill"}
+        prefix in PRODUCT_ACTION_NAMESPACES
+        and product in PRODUCT_KEYS
         and prefix != product
     ):
         return [_diagnostic("FLOW_PRODUCT_MIXED", object_ref)]
@@ -1885,10 +1914,17 @@ def validate_contract(
     if not isinstance(raw, Mapping):
         return validate_schema(raw, schema_name, limits=limits)
     normalized = _detect_schema_name(raw, schema_name)
-    diagnostics = list(
-        validate_schema(raw, normalized, limits=limits).diagnostics
-    )
-    diagnostics.extend(_preflight_diagnostics(raw, normalized, limits))
+    if isinstance(value, FrozenContract) and limits is DEFAULT_RESOURCE_LIMITS:
+        schema_diagnostics, preflight_diagnostics = _cached_frozen_contract_checks(
+            value._serialized,
+            normalized,
+        )
+        diagnostics = list(schema_diagnostics) + list(preflight_diagnostics)
+    else:
+        diagnostics = list(
+            validate_schema(raw, normalized, limits=limits).diagnostics
+        )
+        diagnostics.extend(_preflight_diagnostics(raw, normalized, limits))
 
     try:
         if normalized == "automation_asset":

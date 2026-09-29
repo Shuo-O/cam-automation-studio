@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping, Protocol, runtime_checkable
 
+from .product_catalog import PRODUCT_ACTION_NAMESPACES, PRODUCT_KEYS
 from .sessions import EventRef
 
 __all__ = [
@@ -632,7 +633,7 @@ class RecipeService:
 
     def register_adapter(self, product: str, adapter: PreviewAdapter) -> None:
         normalized = product.strip().lower()
-        if normalized not in {"nx", "powermill"}:
+        if normalized not in PRODUCT_KEYS:
             raise ValueError(f"Unsupported adapter product: {product!r}")
         if not callable(getattr(adapter, "preview", None)):
             raise TypeError("Preview adapters must implement preview(request).")
@@ -813,7 +814,7 @@ class RecipeService:
     def _validate_recipe(recipe: Recipe) -> None:
         if recipe.schema_version != SCHEMA_VERSION:
             raise ValueError("Only Recipe schema_version 1 is supported.")
-        if recipe.product not in {"nx", "powermill"}:
+        if recipe.product not in PRODUCT_KEYS:
             raise ValueError(f"Unsupported recipe product: {recipe.product!r}")
         if recipe.status not in _STATUSES:
             raise ValueError(f"Invalid recipe status: {recipe.status!r}")
@@ -844,7 +845,10 @@ class RecipeService:
         for step in recipe.steps:
             if type(step.enabled) is not bool:
                 raise ValueError(f"Step {step.step_id} enabled must be boolean.")
-            if not step.action.startswith(("cam.", "nx.", "powermill.")):
+            allowed_prefixes = ("cam.",) + tuple(
+                f"{namespace}." for namespace in sorted(PRODUCT_ACTION_NAMESPACES)
+            )
+            if not step.action.startswith(allowed_prefixes):
                 raise ValueError(f"Step {step.step_id} uses an invalid action namespace.")
             if step.risk not in _STEP_RISKS:
                 raise ValueError(f"Step {step.step_id} has an invalid risk.")

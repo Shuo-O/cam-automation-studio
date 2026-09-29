@@ -12,16 +12,22 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
 
 from cam_automation.profiles.powermill import PowerMillProfile
+from cam_automation.product_catalog import PRODUCT_CATALOG
 
 
 _CAM_PROCESS_NAMES = {
-    "nx": frozenset({"ugraf.exe", "nx.exe"}),
-    "powermill": frozenset({"powermill.exe", "pmill.exe"}),
+    product.key: product.process_names for product in PRODUCT_CATALOG.values()
 }
 _CACHE_LOCK = threading.RLock()
 _CACHE_AT = 0.0
-_CACHE: dict[str, list[dict[str, Any]]] = {"nx": [], "powermill": []}
+_CACHE: dict[str, list[dict[str, Any]]] = {
+    product: [] for product in _CAM_PROCESS_NAMES
+}
 _NX_VERSION = re.compile(r"\bNX\s+(\d{4}(?:\.\d+)?)\b", re.IGNORECASE)
+_CIMATRON_VERSION = re.compile(
+    r"\bCimatron(?:\s+E)?\s+(20\d{2}(?:\.\d+)?)\b",
+    re.IGNORECASE,
+)
 
 
 def _utc_now() -> str:
@@ -201,6 +207,10 @@ def _window_metadata(product: str, window: Mapping[str, Any], title: str) -> dic
         match = _NX_VERSION.search(title)
         if match:
             metadata["target_version"] = f"NX {match.group(1)}"
+    elif product == "cimatron" and metadata["target_version"] is None:
+        match = _CIMATRON_VERSION.search(title)
+        if match:
+            metadata["target_version"] = f"Cimatron {match.group(1)}"
     return metadata
 
 
@@ -276,9 +286,7 @@ def _build_instances(
                         else None
                     ),
                     connection_status="detected",
-                    capabilities=(
-                        ("macro.parse",) if product == "powermill" else ("journal.parse",)
-                    ),
+                    capabilities=PRODUCT_CATALOG[product].process_capabilities,
                     discovered_at=seen_at,
                     last_seen_at=seen_at,
                     metadata=metadata,
@@ -326,9 +334,7 @@ def _build_instances(
                         else None
                     ),
                     connection_status="detected",
-                    capabilities=(
-                        ("macro.parse",) if product == "powermill" else ("journal.parse",)
-                    ),
+                    capabilities=PRODUCT_CATALOG[product].process_capabilities,
                     discovered_at=seen_at,
                     last_seen_at=seen_at,
                     metadata={**process_metadata, "headless": False},
@@ -894,7 +900,7 @@ def detect_cam_instances(
     force: bool = False,
     max_age_seconds: float = 2.0,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Return local NX and PowerMill descriptors without attaching to either product."""
+    """Return local CAM descriptors without attaching to or automating any product."""
 
     global _CACHE_AT, _CACHE
     if os.name != "nt":

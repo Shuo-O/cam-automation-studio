@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from .product_catalog import PRODUCT_KEYS
+
 
 RISK_ORDER = {"safe": 0, "review": 1, "blocked": 2}
 EVENT_MODES = frozenset({"manual", "automation", "system"})
@@ -20,7 +22,7 @@ REVIEW_STATUSES = frozenset(
         "rejected",
     }
 )
-PRODUCTS = frozenset({"nx", "powermill"})
+PRODUCTS = PRODUCT_KEYS
 _MODE_ALIASES = {
     "human": "manual",
     "operator": "manual",

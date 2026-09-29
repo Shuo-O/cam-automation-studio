@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-29",
+  "version": "0.7.0",
+  "status": "offline_delivery_verified",
+  "package": "dist/CAM-Automation-Studio-0.7.0-windows-local.zip",
+  "size_bytes": 556657,
+  "sha256": "8118f155dc692d2716958aa8c2c8b516c693752ef5ba7c54b1b2625ccf952051",
+  "manifest_files": 207,
+  "changed_since_packaging": [],
+  "verification": {
+    "root_python": {
+      "passed": 301,
+      "log": "build/customer-release/root-tests.log"
+    },
+    "final_integration_python": {
+      "passed": 40,
+      "log": "build/customer-release/final-integration-tests.log"
+    },
+    "nx_plugin": {
+      "passed": 44
+    },
+    "powermill_plugin": {
+      "passed": 15
+    },
+    "node_components": {
+      "passed": 22
+    },
+    "packaged_browser": {
+      "passed": 8,
+      "failed": 0,
+      "log": "build/customer-release/browser-tests-final.log",
+      "screenshots": "build/customer-release/browser-final"
+    },
+    "extracted_package": {
+      "schema_version": 1,
+      "status": "passed",
+      "version": "0.7.0",
+      "package": "C:\\Users\\s3272\\Documents\\ChatGPT\\New project 3\\dist\\CAM-Automation-Studio-0.7.0-windows-local.zip",
+      "sha256": "8118f155dc692d2716958aa8c2c8b516c693752ef5ba7c54b1b2625ccf952051",
+      "checks": [
+        "package_sha256",
+        "all_manifest_file_hashes",
+        "extracted_self_check",
+        "launcher_health_customer_page_and_default_plugin_state",
+        "packaged_examples_search_proposal_evidence_export_and_invalidation",
+        "packaged_backup_restore_preserves_case_library"
+      ],
+      "real_cam_validation": "not_run",
+      "dry_run": true
+    },
+    "visual_review": "desktop_proposal_mobile_passed",
+    "git_diff_check": "passed"
+  },
+  "real_cam_validation": "not_run",
+  "dry_run": true,
+  "requirements": [
+    "Windows",
+    "Python >=3.10"
+  ],
+  "limitations": [
+    "NX and PowerMill real host SDK validation pending",
+    "PowerMill entity inventory requires a reviewed provider",
+    "No automatic CAM simulation, machine execution or NC output"
+  ]
+}

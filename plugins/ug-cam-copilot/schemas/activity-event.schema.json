@@ -15,10 +15,10 @@
     "schema_version": {"const": 1},
     "session_id": {"type": "string", "minLength": 1},
     "seq": {"type": "integer", "minimum": 0},
-    "product": {"enum": ["nx", "powermill"]},
+    "product": {"enum": ["nx", "powermill", "cimatron"]},
     "action": {
       "type": "string",
-      "pattern": "^(cam|nx|powermill|part|object)\\."
+      "pattern": "^(cam|nx|powermill|cimatron|part|object)\\."
     },
     "category": {"type": "string", "minLength": 1},
     "mode": {

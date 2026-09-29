@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>客户交付工作台 · CAM</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/delivery/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
+    <header class="topbar">
+      <div class="brand">
+        <a href="/" class="brand-mark" aria-label="返回 CAM Automation Studio">CA</a>
+        <div>
+          <strong>客户交付工作台</strong>
+          <span>CAM 工艺复用与审阅</span>
+        </div>
+      </div>
+      <div class="top-status" aria-live="polite">
+        <span id="serviceDot" class="status-dot pending"></span>
+        <span id="serviceLabel">正在检查本地 API</span>
+        <button id="refreshButton" class="icon-button" type="button" title="刷新状态" aria-label="刷新状态">↻</button>
+      </div>
+    </header>
+
+    <div class="mode-strip">
+      <span class="mode-badge">离线审阅</span>
+      <span>所有生产动作保持 dry-run，不生成或发送机床 NC。</span>
+      <span class="mode-separator" aria-hidden="true"></span>
+      <span id="sourceNotice">真实数据与演示来源会在对象卡片中标明。</span>
+    </div>
+
+    <main id="mainContent" class="workspace">
+      <aside class="stepper" aria-label="交付步骤">
+        <div class="stepper-title">
+          <span class="eyebrow">DELIVERY FLOW</span>
+          <h1>从快照到交付包</h1>
+          <p>先固定制造上下文，再审阅建议和证据。</p>
+        </div>
+        <nav>
+          <button class="step active" type="button" data-step="context">
+            <span class="step-number">1</span><span><strong>制造上下文</strong><small>导入快照、对象绑定</small></span>
+          </button>
+          <button class="step" type="button" data-step="cases">
+            <span class="step-number">2</span><span><strong>案例复用</strong><small>检索历史工艺</small></span>
+          </button>
+          <button class="step" type="button" data-step="proposal">
+            <span class="step-number">3</span><span><strong>建立建议</strong><small>参数化并检查条件</small></span>
+          </button>
+          <button class="step" type="button" data-step="evidence">
+            <span class="step-number">4</span><span><strong>证据闭环</strong><small>登记四项门禁</small></span>
+          </button>
+          <button class="step" type="button" data-step="export">
+            <span class="step-number">5</span><span><strong>导出交付包</strong><small>保留审阅限制</small></span>
+          </button>
+        </nav>
+        <div class="safety-note">
+          <span aria-hidden="true">◈</span>
+          <div><strong>审阅优先</strong><p>本地证据登记不等于独立认证。仿真、碰撞检查和现场批准仍需人工完成。</p></div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div id="globalAlert" class="alert" role="status" aria-live="polite" hidden></div>
+
+        <section class="panel step-panel active" data-panel="context" aria-labelledby="contextTitle">
+          <header class="panel-header">
+            <div><span class="eyebrow">STEP 01 / CONTEXT</span><h2 id="contextTitle">制造上下文</h2><p>导入由宿主导出的 JSON 快照。文件只解析数据，不执行源代码。</p></div>
+            <div class="panel-actions"><button id="loadSnapshotExample" class="button quiet" type="button">载入示例</button><label class="button primary file-button">导入 JSON<input id="snapshotFile" type="file" accept="application/json,.json"></label></div>
+          </header>
+          <div id="statusCards" class="status-cards" aria-label="交付模式状态"></div>
+          <div class="two-column">
+            <section class="subpanel" aria-labelledby="snapshotListTitle">
+              <header class="subpanel-header"><div><h3 id="snapshotListTitle">已导入快照</h3><span id="snapshotCount">尚未加载</span></div><button id="reloadSnapshots" class="text-button" type="button">刷新</button></header>
+              <div id="snapshotList" class="resource-list empty-state"><span class="empty-icon">○</span><strong>还没有制造上下文</strong><p>导入 JSON 快照或先载入本地示例。</p></div>
+            </section>
+            <section class="subpanel" aria-labelledby="bindingTitle">
+              <header class="subpanel-header"><div><h3 id="bindingTitle">对象绑定检查</h3><span>选择器必须唯一命中</span></div><span id="bindingBadge" class="tag neutral">未选择</span></header>
+              <div id="bindingContent" class="binding-content empty-state"><span class="empty-icon">⌖</span><strong>选择一个快照</strong><p>选择后可检查几何、毛坯、夹具和刀具对象。</p></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel step-panel" data-panel="cases" aria-labelledby="casesTitle" hidden>
+          <header class="panel-header">
+            <div><span class="eyebrow">STEP 02 / CASES</span><h2 id="casesTitle">案例复用</h2><p>检索同产品、材料和机床能力范围内的历史案例。匹配说明不是成功率。</p></div>
+            <div class="panel-actions"><button id="loadCaseExample" class="button quiet" type="button">载入示例</button><label class="button primary file-button">导入案例<input id="caseFile" type="file" accept="application/json,.json"></label></div>
+          </header>
+          <div class="search-row">
+            <label class="search-field"><span aria-hidden="true">⌕</span><input id="caseQuery" type="search" placeholder="按名称、标签或工艺步骤检索" autocomplete="off"><button id="searchCases" type="button">检索</button></label>
+            <span id="searchContext" class="context-hint">请先在步骤 1 选择快照</span>
+          </div>
+          <div id="caseList" class="resource-list empty-state"><span class="empty-icon">▱</span><strong>暂无检索结果</strong><p>选择快照后输入关键词，或载入示例案例。</p></div>
+        </section>
+
+        <section class="panel step-panel" data-panel="proposal" aria-labelledby="proposalTitle" hidden>
+          <header class="panel-header">
+            <div><span class="eyebrow">STEP 03 / PROPOSAL</span><h2 id="proposalTitle">建立建议</h2><p>固定快照与案例哈希，调整参数后重新生成建议。</p></div>
+            <span id="proposalBadge" class="tag neutral">尚未建立</span>
+          </header>
+          <div id="proposalEmpty" class="empty-state large"><span class="empty-icon">✦</span><strong>从案例卡片建立建议</strong><p>建议会显示对象绑定、缺失条件和 dry-run 限制。</p><button class="button quiet" type="button" data-go-step="cases">返回案例复用</button></div>
+          <div id="proposalView" hidden>
+            <div class="proposal-summary" id="proposalSummary"></div>
+            <div class="proposal-grid">
+              <section class="subpanel" aria-labelledby="proposalParamsTitle"><header class="subpanel-header"><div><h3 id="proposalParamsTitle">建议参数</h3><span>修改后需明确重新生成</span></div><div class="subpanel-actions"><button id="reassessProposal" class="text-button" type="button">检查门禁</button><button id="regenerateProposal" class="text-button" type="button">重新生成</button></div></header><textarea id="proposalParameters" class="json-view parameter-editor" spellcheck="false" aria-label="建议参数"></textarea></section>
+              <section class="subpanel" aria-labelledby="missingTitle"><header class="subpanel-header"><div><h3 id="missingTitle">对象绑定与缺失条件</h3><span>不完整时不得视为通过</span></div><span id="assessmentBadge" class="tag neutral">待检查</span></header><div id="selectorBindingList" class="selector-binding-list"></div><div id="assessmentContent" class="assessment-content"></div></section>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel step-panel" data-panel="evidence" aria-labelledby="evidenceTitle" hidden>
+          <header class="panel-header">
+            <div><span class="eyebrow">STEP 04 / EVIDENCE</span><h2 id="evidenceTitle">证据闭环</h2><p>每项门禁都需要操作者、状态和备注。证据会绑定当前建议与快照哈希。</p></div>
+            <span id="evidenceSummary" class="tag neutral">0 / 4 已登记</span>
+          </header>
+          <div id="evidenceGateList" class="evidence-gates"></div>
+        </section>
+
+        <section class="panel step-panel" data-panel="export" aria-labelledby="exportTitle" hidden>
+          <header class="panel-header">
+            <div><span class="eyebrow">STEP 05 / EXPORT</span><h2 id="exportTitle">导出交付包</h2><p>导出的是可追溯审阅包。即使尚未就绪也允许下载，但会保留阻塞原因。</p></div>
+            <button id="exportButton" class="button primary" type="button" disabled>下载 JSON</button>
+          </header>
+          <div id="exportSummary" class="export-summary" hidden></div>
+          <div id="exportStatus" class="export-status empty-state large"><span class="empty-icon">⇩</span><strong>建议建立后可导出</strong><p>导出内容会包含来源、哈希、证据和当前门禁状态。</p></div>
+          <details id="rawExportDetails" class="raw-export" hidden><summary>查看原始 JSON</summary><pre id="exportPreview" class="json-view"></pre></details>
+        </section>
+      </section>
+    </main>
+
+    <template id="evidenceTemplate">
+      <article class="evidence-card">
+        <header><div><span class="gate-index"></span><h3 class="gate-name"></h3></div><span class="tag gate-status">未登记</span></header>
+        <div class="evidence-form">
+          <label>状态<select class="gate-input gate-state"><option value="">请选择</option><option value="passed">已通过</option><option value="failed">未通过</option></select></label>
+          <label>操作者<input class="gate-input gate-actor" type="text" autocomplete="name" placeholder="姓名或工号"></label>
+          <label class="wide">备注<textarea class="gate-input gate-note" rows="2" placeholder="记录检查范围、版本或现场说明"></textarea></label>
+        </div>
+        <button class="button quiet gate-save" type="button">登记证据</button>
+      </article>
+    </template>
+    <script src="/delivery/app.js"></script>
+  </body>
+</html>

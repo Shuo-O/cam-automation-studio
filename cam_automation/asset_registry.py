@@ -10,17 +10,21 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from .product_catalog import PRODUCT_KEYS
+
 
 ASSET_CONTRACT = "cam.automation_asset.v1"
 MAX_ASSET_BYTES = 10 * 1024 * 1024
 
-_PRODUCTS = frozenset({"nx", "powermill"})
+_PRODUCTS = PRODUCT_KEYS
 _ASSET_TYPES = frozenset(
     {
         "nx_journal",
         "nx_action_log",
         "powermill_macro",
         "powermill_command_log",
+        "cimatron_journal",
+        "cimatron_action_log",
         "vendor_export",
         "capability_manifest",
     }
@@ -461,7 +465,7 @@ class AssetRegistry:
         if product_name not in _PRODUCTS:
             raise AssetRegistryError(
                 "FLOW_SCHEMA_INVALID",
-                "product must be nx or powermill.",
+                "product is not registered.",
             )
         if type_name not in _ASSET_TYPES:
             raise AssetRegistryError(

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Mapping, Sequence
 
 from .models import EventPage
+from .product_catalog import PRODUCT_KEYS
 
 __all__ = ["EventRef", "Session", "SessionDiff", "SessionService"]
 
@@ -220,7 +221,7 @@ def _marker_details(event: Any, params: Mapping[str, Any], action: str) -> tuple
 
 def _coerce_record(event: Any) -> _EventRecord:
     product = str(_value(event, "product", "")).strip().lower()
-    if product not in {"nx", "powermill"}:
+    if product not in PRODUCT_KEYS:
         raise ValueError(f"Unsupported or missing event product: {product!r}")
     instance_id = str(_value(event, "instance_id", "")).strip() or f"{product}:unassigned"
     project_value = _value(event, "project_id")

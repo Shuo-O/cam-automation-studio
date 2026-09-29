@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .adapters.cimatron_journal import CimatronJournalAdapter
 from .connection_monitor import detect_cam_instances
 from .models import (
     EVENT_MODES,
@@ -43,6 +44,7 @@ _CAPTURE_LABELS = frozenset({"unlabeled", "routine", "expert"})
 _SOURCE_EXTENSIONS = {
     "nx": frozenset({".py", ".jsonl"}),
     "powermill": frozenset({".mac", ".log", ".jsonl"}),
+    "cimatron": frozenset({".py", ".cs", ".jsonl"}),
 }
 _CATEGORY_CONFIG_FIELDS = {
     "logs": "capture_logs",
@@ -1194,12 +1196,24 @@ class RecorderService:
                 return structured
         if product == "powermill":
             raw_events = parse_log(text).to_activity_events()
-        else:
+        elif product == "nx":
             if NxJournalAdapter is None:
                 raise ValueError("NX Journal adapter is unavailable.")
             raw_events = [
                 event.to_dict()
                 for event in NxJournalAdapter().parse_source(
+                    text,
+                    source_file=source_alias,
+                    session_name=source_id,
+                )
+            ]
+            for index, event in enumerate(raw_events):
+                event["session_id"] = source_id
+                event["seq"] = event_offset + index
+        else:
+            raw_events = [
+                event.to_dict()
+                for event in CimatronJournalAdapter().parse_source(
                     text,
                     source_file=source_alias,
                     session_name=source_id,

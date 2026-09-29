@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+from .product_catalog import PRODUCT_ACTION_NAMESPACES, PRODUCT_KEYS
 from .version_compatibility import validate_version_compatibility_policy
 
 
@@ -20,7 +21,7 @@ _SEMVER_RE = re.compile(
     r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
     r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
 )
-_PRODUCTS = frozenset({"nx", "powermill"})
+_PRODUCTS = PRODUCT_KEYS
 _ADAPTER_KINDS = frozenset(
     {"builtin", "licensed_adapter", "public_api", "vendor_export", "manifest_only"}
 )
@@ -279,12 +280,13 @@ def _validate_node_type(node: Mapping[str, Any], product: str, index: int) -> No
         )
     node_type = _required_string(node["node_type"], field="node_type")
     prefix = node_type.split(".", 1)[0]
-    if prefix not in {"cam", "nx", "powermill"}:
+    allowed_namespaces = {"cam", *PRODUCT_ACTION_NAMESPACES}
+    if prefix not in allowed_namespaces:
         raise CapabilityRegistryError(
             "FLOW_NAMESPACE_INVALID",
             f"Unsupported node namespace: {prefix}.",
         )
-    if prefix in {"nx", "powermill"} and prefix != product:
+    if prefix in PRODUCT_ACTION_NAMESPACES and prefix != product:
         raise CapabilityRegistryError(
             "FLOW_PRODUCT_MIXED",
             "A product capability cannot declare the other product's node type.",
@@ -382,7 +384,7 @@ def _validate_manifest_shape(document: Mapping[str, Any]) -> dict[str, Any]:
     if product not in _PRODUCTS:
         raise CapabilityRegistryError(
             "FLOW_SCHEMA_INVALID",
-            "Capability product must be nx or powermill.",
+            "Capability product is not registered.",
         )
     if manifest["adapter_kind"] not in _ADAPTER_KINDS:
         raise CapabilityRegistryError(

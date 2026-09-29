@@ -1,6 +1,10 @@
 # CAM Automation Studio
 
-这是一个插件优先、本地运行的 CAM 自动化工作台。`0.6.1` 的默认启动只加载基础内核：健康检查、插件目录、安装状态和静态界面。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅都必须由使用者在软件内明确安装后才会导入和启动。
+`0.7.0` 增加了可本地部署的中文客户工艺复用工作台：制造上下文导入、对象唯一绑定、案例检索、参数建议、验证证据登记和审阅包导出。访问 `http://127.0.0.1:8765/delivery/` 使用。全部加工建议保持 dry-run；真实宿主导出工具的支持与现场验证状态见 `host_bridges/` 和客户交付文档。
+
+本项目是插件优先、本地运行的 CAM 自动化工作台。默认启动提供健康检查、插件目录、安装状态和静态界面；客户数据服务在访问时加载。UG/NX、PowerMill、行为采集、执行网关和 Codex 审阅仍由使用者在软件内明确安装后才会启动。
+
+客户分发入口与前置条件见 [中文交付说明](delivery/README.zh-CN.md)，开发任务、接口和验收门槛见 [实施方案](docs/delivery/implementation-plan.md)。使用 Python 3.10 或更高版本，无需云服务或模型 API 即可运行离线工作流。
 
 每个软件模块位于 `plugins/<plugin-id>`，使用 `app-plugin.json` 声明功能、依赖和本地权限；Codex 插件继续使用 `.codex-plugin/plugin.json`。UG/NX 插件仍在 `plugins/ug-cam-copilot` 独立开发，PowerMill 使用 `plugins/powermill-cam-copilot`。
 

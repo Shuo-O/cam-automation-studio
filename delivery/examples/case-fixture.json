@@ -1,0 +1,31 @@
+{
+  "name": "三轴型腔示例",
+  "product": "powermill",
+  "material": "P20",
+  "units": "mm",
+  "machine": {
+    "axes": 3
+  },
+  "tags": [
+    "cavity"
+  ],
+  "parameters": {
+    "stepover": 0.5
+  },
+  "steps": [
+    {
+      "action": "cam.operation.plan",
+      "selector": {
+        "kind": "pocket",
+        "attributes": {
+          "role": "cavity"
+        }
+      },
+      "parameters": {}
+    }
+  ],
+  "provenance": {
+    "source": "fixture",
+    "note": "演示案例，未验证加工"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "cimatron-cam-copilot",
+  "version": "0.1.0+codex.20260929000000",
+  "description": "Review-first static Cimatron 2026 Journaling analysis and evidence review.",
+  "author": {
+    "name": "CAM Automation Studio"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cimatron",
+    "cam",
+    "journal",
+    "static-analysis",
+    "dry-run"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Cimatron Cam Copilot",
+    "shortDescription": "Review Cimatron Journaling from local evidence.",
+    "longDescription": "Adds offline Python/C# Cimatron 2026 Journaling parsing, session comparison, recipe review, and fixture-only evidence reports. It never imports or executes source, connects to a host, generates Flow actions, or produces machine-ready output.",
+    "developerName": "CAM Automation Studio",
+    "category": "Productivity",
+    "capabilities": [
+      "Static Journal analysis",
+      "Session comparison",
+      "Structured recipe review",
+      "Fixture evidence report"
+    ],
+    "defaultPrompt": [
+      "Analyze this Cimatron Journal as local static evidence.",
+      "Compare these Cimatron Journal sessions.",
+      "Review this Cimatron evidence recipe without live execution."
+    ]
+  }
+}

@@ -14,7 +14,8 @@
     "Product": {
       "enum": [
         "nx",
-        "powermill"
+        "powermill",
+        "cimatron"
       ]
     },
     "SemVer": {
@@ -660,6 +661,8 @@
             "nx_action_log",
             "powermill_macro",
             "powermill_command_log",
+            "cimatron_journal",
+            "cimatron_action_log",
             "vendor_export",
             "capability_manifest"
           ]

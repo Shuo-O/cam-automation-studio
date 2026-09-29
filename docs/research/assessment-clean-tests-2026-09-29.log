@@ -1,0 +1,559 @@
+127.0.0.1 - - [29/Sep/2026 00:11:20] "POST /api/flow/versions HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:11:20] "POST /api/flow/versions HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:11:21] "POST /api/flow/import HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:11:21] "POST /api/flow/import HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:11:22] "POST /api/flow/validate HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:12:11] "GET /api/recorder HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:12:14] "POST /api/execution/run HTTP/1.1" 503 -
+127.0.0.1 - - [29/Sep/2026 00:12:14] "GET /api/execution/tasks/task%3Amissing HTTP/1.1" 503 -
+127.0.0.1 - - [29/Sep/2026 00:12:14] "GET /api/diagnostics HTTP/1.1" 503 -
+127.0.0.1 - - [29/Sep/2026 00:12:14] "POST /api/plugins/install HTTP/1.1" 413 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "GET /api/recorder/events?source_mode=manual&view_level=L2&product=powermill&instance_id=nx%3Afixture%3AA&project_id=nx-project-a&action=cam.parameter.set&from_time=2026-08-23T08%3A00%3A00Z&to_time=2026-08-23T12%3A00%3A00Z&text=tolerance&limit=1&sort=asc&cursor=eyJjYXB0dXJlX29yZGVyIjoyLCJxdWVyeSI6IjQ1NTFjN2UxZGI3MWRiYTYwNzJjNzFlNDBjMzdkZjgyZWY4ZTYzYzhlNjE4YTg3MzcyZGE5ZjczMmI0ZGJhZmEiLCJzb3J0IjoiYXNjIiwidiI6MX0.eaf1d23acbbd0c5ed5c70622eb9f1cab HTTP/1.1" 400 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "POST /api/execution/run HTTP/1.1" 400 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "GET /api/recorder/events?unknown=value HTTP/1.1" 400 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "POST /api/execution/run HTTP/1.1" 504 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "POST /api/execution/run HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "GET /api/execution/tasks/task%3Awave2%3Afixture HTTP/1.1" 409 -
+127.0.0.1 - - [29/Sep/2026 00:12:15] "POST /api/execution/run HTTP/1.1" 409 -
+======================================================================
+FAIL: test_all_hard_performance_and_determinism_gates_pass (flow_performance.test_benchmark_cam_flow.ReleasePerformanceGateTests.test_all_hard_performance_and_determinism_gates_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\flow_performance\test_benchmark_cam_flow.py", line 96, in test_all_hard_performance_and_determinism_gates_pass
+    self.assertEqual(
+AssertionError: 0 != 2 : {
+  "benchmarks": {
+    "cancel": {
+      "gate": {
+        "maximum": 250.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 14.712,
+      "p50_ms": 12.848,
+      "p95_ms": 14.392,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        13.459,
+        13.103,
+        12.93,
+        12.037,
+        13.957,
+        14.392,
+        12.006,
+        11.664,
+        12.848,
+        12.04,
+        12.37,
+        13.347,
+        13.028,
+        14.712,
+        12.289,
+        12.071,
+        12.812,
+        13.249,
+        12.534,
+        13.893
+      ]
+    },
+    "cold_open": {
+      "gate": {
+        "maximum": 2000.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 462.166,
+      "p50_ms": 454.466,
+      "p95_ms": 459.027,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        457.983,
+        459.027,
+        462.166,
+        451.605,
+        455.013,
+        451.872,
+        450.597,
+        454.281,
+        452.046,
+        452.772,
+        457.844,
+        454.466,
+        455.561,
+        454.406,
+        451.252,
+        458.47,
+        457.656,
+        455.068,
+        458.743,
+        451.619
+      ]
+    },
+    "fixture_preview": {
+      "gate": {
+        "maximum": 3000.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 345.764,
+      "p50_ms": 290.642,
+      "p95_ms": 317.904,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        261.85,
+        273.776,
+        290.609,
+        276.16,
+        298.015,
+        276.845,
+        345.764,
+        278.835,
+        290.879,
+        282.876,
+        284.625,
+        295.134,
+        286.463,
+        292.87,
+        290.642,
+        308.878,
+        296.015,
+        317.904,
+        310.246,
+        307.853
+      ]
+    },
+    "incremental_validation": {
+      "gate": {
+        "maximum": 100.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 114.554,
+      "p50_ms": 79.648,
+      "p95_ms": 108.162,
+      "passed": false,
+      "sample_count": 20,
+      "samples_ms": [
+        77.45,
+        83.755,
+        87.05,
+        114.554,
+        108.162,
+        87.535,
+        79.546,
+        93.165,
+        76.926,
+        78.466,
+        78.347,
+        87.115,
+        77.543,
+        78.105,
+        84.288,
+        79.648,
+        81.565,
+        95.35,
+        76.515,
+        78.95
+      ]
+    },
+    "nx_static_parse": {
+      "gate": {
+        "maximum": 1500.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 154.337,
+      "p50_ms": 121.466,
+      "p95_ms": 145.609,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        117.597,
+        127.852,
+        119.058,
+        99.85,
+        108.896,
+        113.013,
+        106.798,
+        128.502,
+        108.685,
+        121.466,
+        112.63,
+        135.077,
+        145.609,
+        121.793,
+        138.54,
+        110.091,
+        154.337,
+        123.121,
+        134.133,
+        138.365
+      ]
+    },
+    "powermill_static_parse": {
+      "gate": {
+        "maximum": 1500.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 430.437,
+      "p50_ms": 344.627,
+      "p95_ms": 386.188,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        430.437,
+        383.069,
+        374.271,
+        368.583,
+        370.432,
+        386.188,
+        344.577,
+        344.053,
+        341.25,
+        332.306,
+        339.571,
+        333.818,
+        331.719,
+        353.079,
+        346.43,
+        344.627,
+        363.772,
+        347.486,
+        338.817,
+        333.589
+      ]
+    },
+    "process_rss": {
+      "gate": {
+        "maximum": 350.0,
+        "stat": "max_mib",
+        "unit": "MiB"
+      },
+      "max_mib": 91.715,
+      "method": "Python benchmark process working set after each 500-node preview",
+      "p50_mib": 78.324,
+      "p95_mib": 90.73,
+      "passed": true,
+      "sample_count": 20,
+      "samples_mib": [
+        73.422,
+        73.277,
+        73.34,
+        73.273,
+        73.375,
+        73.305,
+        73.305,
+        74.305,
+        79.988,
+        76.348,
+        82.562,
+        78.324,
+        79.555,
+        85.672,
+        86.652,
+        87.625,
+        83.617,
+        84.633,
+        90.73,
+        91.715
+      ]
+    },
+    "redo": {
+      "gate": {
+        "maximum": 50.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 1.747,
+      "p50_ms": 1.266,
+      "p95_ms": 1.478,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        0.006,
+        1.478,
+        1.266,
+        1.045,
+        1.366,
+        1.291,
+        1.283,
+        1.747,
+        1.04,
+        1.282,
+        1.123,
+        1.421,
+        1.092,
+        1.312,
+        1.076,
+        1.468,
+        1.286,
+        1.25,
+        1.016,
+        1.042
+      ]
+    },
+    "semantic_diff": {
+      "gate": {
+        "maximum": 300.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 125.32,
+      "p50_ms": 104.268,
+      "p95_ms": 124.897,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        93.227,
+        95.207,
+        104.421,
+        105.142,
+        124.897,
+        97.535,
+        125.32,
+        99.295,
+        96.481,
+        106.213,
+        96.436,
+        110.122,
+        95.715,
+        120.54,
+        123.692,
+        104.268,
+        108.372,
+        94.279,
+        109.52,
+        94.713
+      ]
+    },
+    "undo": {
+      "gate": {
+        "maximum": 50.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 1.53,
+      "p50_ms": 0.972,
+      "p95_ms": 1.371,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        0.003,
+        0.805,
+        0.925,
+        1.08,
+        0.847,
+        1.198,
+        1.53,
+        1.239,
+        1.005,
+        1.239,
+        0.851,
+        1.371,
+        1.161,
+        0.868,
+        0.9,
+        0.871,
+        0.972,
+        1.053,
+        1.161,
+        0.886
+      ]
+    },
+    "warm_open": {
+      "gate": {
+        "maximum": 750.0,
+        "stat": "p95_ms",
+        "unit": "ms"
+      },
+      "max_ms": 70.163,
+      "p50_ms": 60.365,
+      "p95_ms": 68.983,
+      "passed": true,
+      "sample_count": 20,
+      "samples_ms": [
+        59.018,
+        60.052,
+        59.627,
+        67.712,
+        60.517,
+        59.513,
+        68.025,
+        58.941,
+        60.881,
+        60.707,
+        68.983,
+        70.163,
+        59.736,
+        58.776,
+        65.63,
+        58.197,
+        59.695,
+        68.676,
+        60.869,
+        60.365
+      ]
+    }
+  },
+  "determinism": {
+    "CompatibilityReport": {
+      "passed": true,
+      "runs": 20,
+      "sha256": "sha256:f9ba98e97e2ea43facb7b2726d5be6012c55f5095c08619e9d9dec7c74323b99",
+      "unique_outputs": 1
+    },
+    "RoundTripReport": {
+      "passed": true,
+      "runs": 20,
+      "sha256": "sha256:d944e6761463f3852ec14ca5a99926a6ab6b74319757c401c8e6a0ca4d6ac0ca",
+      "unique_outputs": 1
+    },
+    "diagnostic_order": {
+      "passed": true,
+      "runs": 20,
+      "sha256": "sha256:852e873e78a8feac941bf4a644afe975cbed924f41c411a7f41932f512fb2979",
+      "unique_outputs": 1
+    },
+    "passed": true,
+    "semantic_hash": {
+      "passed": true,
+      "runs": 20,
+      "sha256": "sha256:079e1cf36f548bf8e57d31d14bf034812ecc2d3c7d278b2837186516ba3c41fe",
+      "unique_outputs": 1
+    },
+    "source_diff": {
+      "passed": true,
+      "runs": 20,
+      "sha256": "sha256:19373106bb1664e340d6259af2ef682bba922e20778893ef9ab9b4ac568dcae7",
+      "unique_outputs": 1
+    }
+  },
+  "environment": {
+    "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+    "logical_cpu_count": 24,
+    "node": "v24.19.0",
+    "os": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "python_executable": "C:\\Users\\s3272\\AppData\\Local\\Temp\\cam-assessment-20260929-venv\\Scripts\\python.exe",
+    "ram_total_mib": 31861.9,
+    "windows_release": "10",
+    "windows_version": "10.0.26200"
+  },
+  "failures": [
+    "incremental_validation"
+  ],
+  "fixtures": {
+    "flow-500-source.txt": {
+      "byte_length": 9390,
+      "line_count": 500,
+      "path": "C:\\Users\\s3272\\Documents\\ChatGPT\\New project 3\\tests\\fixtures\\cam-flow\\performance\\flow-500-source.txt",
+      "sha256": "sha256:111ed0d1e410f3151515ca1e30594252eea6d5e6e5a0d700efa0d201164f6bc9"
+    },
+    "flow-500.json": {
+      "byte_length": 1686141,
+      "line_count": null,
+      "path": "C:\\Users\\s3272\\Documents\\ChatGPT\\New project 3\\tests\\fixtures\\cam-flow\\performance\\flow-500.json",
+      "sha256": "sha256:d4184996b1070d5a1fcfaff94c72496591cd901d740c54efd437c203d535e71c"
+    },
+    "nx-10000.py": {
+      "byte_length": 140118,
+      "line_count": 10000,
+      "path": "C:\\Users\\s3272\\Documents\\ChatGPT\\New project 3\\tests\\fixtures\\cam-flow\\performance\\nx-10000.py",
+      "sha256": "sha256:7becbbb033c55147bdb3b41d9f61caf0c473e9d361ef92749bf88f65832e1643"
+    },
+    "powermill-10000.mac": {
+      "byte_length": 260000,
+      "line_count": 10000,
+      "path": "C:\\Users\\s3272\\Documents\\ChatGPT\\New project 3\\tests\\fixtures\\cam-flow\\performance\\powermill-10000.mac",
+      "sha256": "sha256:c329a660f305c2dad0ee51c386bf9be7dbfc57c9cd813ceb63db7bb8c09a6c70"
+    }
+  },
+  "methodology": {
+    "clock": "time.perf_counter_ns",
+    "cold": "new Python process, module/schema caches cold, fixture hash/load, new registries, service save, get, and full validation",
+    "determinism_runs": 20,
+    "incremental_validation": "one GraphCommand parameter edit followed by uncached full graph validation",
+    "memory": "benchmark-process working set after each completed 500-node preview",
+    "percentile": "nearest-rank",
+    "preview": "create and execute a unique 500-node fixture PreviewPlan; transport=none and all zero-execution fields asserted",
+    "samples_per_timing_scenario": 20,
+    "warm": "same loaded FlowService; get_graph followed by full schema/type/source-map/safety validation on every sample"
+  },
+  "safety": {
+    "cam_started_or_connected": false,
+    "commands_sent": 0,
+    "journal_executed": false,
+    "journal_or_macro_executed": false,
+    "machine_output_count": 0,
+    "machine_output_generated": false,
+    "macro_executed": false,
+    "transport": "none"
+  },
+  "schema_version": 1,
+  "status": "PERF-BLOCKED"
+}
+
+======================================================================
+FAIL: test_product_actions_cannot_cross_adapter_boundaries (test_codex_bridge.CodexBridgeContractTests.test_product_actions_cannot_cross_adapter_boundaries)
+----------------------------------------------------------------------
+ValueError: recipe.steps[0].action crosses the nx product boundary.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_codex_bridge.py", line 433, in test_product_actions_cannot_cross_adapter_boundaries
+    with self.assertRaisesRegex(ValueError, "NX product boundary"):
+AssertionError: "NX product boundary" does not match "recipe.steps[0].action crosses the nx product boundary."
+
+======================================================================
+FAIL: test_marketplace_is_available_on_install_and_never_default_installed (test_codex_plugins.CodexPluginContractTests.test_marketplace_is_available_on_install_and_never_default_installed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_codex_plugins.py", line 53, in test_marketplace_is_available_on_install_and_never_default_installed
+    self.assertEqual(5, len(marketplace["plugins"]))
+AssertionError: 5 != 6
+
+======================================================================
+FAIL: test_connection_statuses_can_include_uninstalled_bridges (test_integrations.IntegrationTests.test_connection_statuses_can_include_uninstalled_bridges)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_integrations.py", line 129, in test_connection_statuses_can_include_uninstalled_bridges
+    self.assertEqual({"codex", "nx", "powermill"}, keys)
+AssertionError: Items in the second set but not the first:
+'cimatron'
+
+======================================================================
+FAIL: test_connection_statuses_keep_all_three_bridges_visible (test_integrations.IntegrationTests.test_connection_statuses_keep_all_three_bridges_visible)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_integrations.py", line 122, in test_connection_statuses_keep_all_three_bridges_visible
+    self.assertEqual({"codex", "nx", "powermill"}, keys)
+AssertionError: Items in the second set but not the first:
+'cimatron'
+
+======================================================================
+FAIL: test_manifest_and_review_validation_are_explicit (test_integrations.IntegrationTests.test_manifest_and_review_validation_are_explicit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_integrations.py", line 98, in test_manifest_and_review_validation_are_explicit
+    self.assertEqual({"nx", "powermill"}, {item["key"] for item in manifest["products"]})
+AssertionError: Items in the second set but not the first:
+'cimatron'
+
+======================================================================
+FAIL: test_recorder_and_execution_apis_are_integrated (test_web_server.RecorderHttpTests.test_recorder_and_execution_apis_are_integrated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\s3272\Documents\ChatGPT\New project 3\tests\test_web_server.py", line 218, in test_recorder_and_execution_apis_are_integrated
+    self.assertEqual(
+AssertionError: Items in the second set but not the first:
+'cimatron'
+
+----------------------------------------------------------------------
+Ran 265 tests in 65.199s
+
+FAILED (failures=7)

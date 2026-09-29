@@ -17,7 +17,7 @@ class PluginManagerTests(unittest.TestCase):
             status = manager.status()
 
             self.assertEqual(0, status["installed_count"])
-            self.assertEqual(5, status["available_count"])
+            self.assertEqual(6, status["available_count"])
             with self.assertRaises(PluginNotInstalled):
                 manager.require("ug-cam-copilot")
 
@@ -27,6 +27,15 @@ class PluginManagerTests(unittest.TestCase):
 
             restored = PluginManager(directory, CATALOG_ROOT)
             self.assertTrue(restored.is_installed("ug-cam-copilot"))
+
+    def test_cimatron_install_exposes_static_analysis_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manager = PluginManager(directory, CATALOG_ROOT)
+            result = manager.install("cimatron-cam-copilot")
+            self.assertEqual(["cimatron-cam-copilot"], result["changed"])
+            self.assertIn("analysis:cimatron", result["features"])
+            self.assertNotIn("flow:cimatron", result["features"])
+            self.assertNotIn("execute:cimatron", result["features"])
 
     def test_execution_install_adds_capture_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

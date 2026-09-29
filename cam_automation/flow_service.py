@@ -27,6 +27,7 @@ from .flow_validation import (
     validate_contract,
     validate_flow_graph,
 )
+from .product_catalog import PRODUCT_KEYS
 from .version_compatibility import (
     classify_target_version,
     normalize_target_version,
@@ -279,10 +280,10 @@ class FixtureTarget:
     extensions: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.product not in {"nx", "powermill"}:
+        if self.product not in PRODUCT_KEYS:
             raise FlowServiceError(
                 "FLOW_SCHEMA_INVALID",
-                "Fixture target product must be nx or powermill.",
+                "Fixture target product is not registered.",
                 http_status=400,
             )
         for field_name in (

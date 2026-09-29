@@ -8,6 +8,8 @@ from cam_automation.integrations import (
     ApiServices,
     CommandTaskService,
     DiagnosticsService,
+    FlowIntegrationError,
+    OfflineFlowIntegration,
     analyze,
     capability_manifest,
     connection_statuses,
@@ -92,10 +94,46 @@ operation.GenerateToolPath()
         )
         self.assertIn("does not import NXOpen", result["output"]["text"])
 
+    def test_cimatron_is_static_evidence_only(self) -> None:
+        result = analyze(
+            product="cimatron",
+            source=(
+                'application.Documents.Open("part.elt")\n'
+                "postprocess.Run()\n"
+            ),
+        )
+        self.assertEqual("cimatron_evidence_report", result["output"]["kind"])
+        self.assertFalse(result["adapter"]["source_execution"])
+        cimatron = next(
+            item for item in capability_manifest()["products"]
+            if item["key"] == "cimatron"
+        )
+        self.assertFalse(cimatron["flow_import_supported"])
+        self.assertFalse(cimatron["command_tasks_supported"])
+        self.assertEqual(
+            {"cam.source.call"},
+            {event["action"] for event in result["activity_events"]},
+        )
+        self.assertEqual("blocked", result["activity_events"][1]["params"]["risk"])
+        with self.assertRaises(FlowIntegrationError) as raised:
+            OfflineFlowIntegration(None).import_source(
+                product="cimatron",
+                source=b"application.Documents.Open('part.elt')",
+                source_name="probe.py",
+            )
+        self.assertEqual("CAPABILITY_UNAVAILABLE", raised.exception.code)
+
+    def test_unknown_product_fails_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Unsupported product"):
+            analyze(product="autocad", source="ignored")
+
     def test_manifest_and_review_validation_are_explicit(self) -> None:
         manifest = capability_manifest()
         self.assertEqual("dry-run", manifest["execution_mode"])
-        self.assertEqual({"nx", "powermill"}, {item["key"] for item in manifest["products"]})
+        self.assertEqual(
+            {"nx", "powermill", "cimatron"},
+            {item["key"] for item in manifest["products"]},
+        )
         self.assertEqual(
             "approved_for_simulation",
             validate_review(
@@ -119,14 +157,14 @@ operation.GenerateToolPath()
 
     def test_connection_statuses_keep_all_three_bridges_visible(self) -> None:
         keys = {item["key"] for item in connection_statuses()}
-        self.assertEqual({"codex", "nx", "powermill"}, keys)
+        self.assertEqual({"codex", "nx", "powermill", "cimatron"}, keys)
 
     def test_connection_statuses_can_include_uninstalled_bridges(self) -> None:
         keys = {
             item["key"]
             for item in connection_statuses(set(), include_uninstalled=True)
         }
-        self.assertEqual({"codex", "nx", "powermill"}, keys)
+        self.assertEqual({"codex", "nx", "powermill", "cimatron"}, keys)
 
     def test_connection_statuses_expose_multiple_product_instances(self) -> None:
         statuses = connection_statuses(
